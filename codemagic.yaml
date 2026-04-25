@@ -15,6 +15,6 @@ workflows:
           xcodegen generate
       - name: Build iOS app
         script: |
-          xcodebuild -project BeautyBook.xcodeproj -scheme BeautyBook -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' build CODE_SIGNING_ALLOWED=NO
+          xcodebuild -project BeautyBook.xcodeproj -scheme BeautyBook -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17' build CODE_SIGNING_ALLOWED=NO
     artifacts:
       - build/Debug-iphonesimulator/*.app
