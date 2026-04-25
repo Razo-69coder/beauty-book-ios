@@ -3,13 +3,10 @@ workflows:
     name: Beauty Book iOS
     environment:
       xcode: latest
-      flutter: stable
     scripts:
       - name: Install XcodeGen
         script: |
-          if ! command -v xcodegen &> /dev/null; then
-            brew install xcodegen
-          fi
+          which xcodegen || brew install xcodegen
       - name: Generate project
         script: |
           xcodegen generate
