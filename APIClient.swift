@@ -1,0 +1,286 @@
+import Foundation
+
+// MARK: - API Configuration
+
+enum APIConfig {
+    static let baseURL = "https://beauty-bot-44ou.onrender.com/api/v1"
+    static let timeout: TimeInterval = 30
+}
+
+// MARK: - Network Errors
+
+enum NetworkError: LocalizedError {
+    case invalidURL
+    case noData
+    case decodingError(Error)
+    case serverError(Int, String)
+    case unauthorized
+    case noConnection
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:        return "Неверный URL"
+        case .noData:            return "Нет данных"
+        case .decodingError(let e): return "Ошибка данных: \(e.localizedDescription)"
+        case .serverError(let code, let msg): return "Ошибка \(code): \(msg)"
+        case .unauthorized:      return "Требуется авторизация"
+        case .noConnection:      return "Нет соединения с интернетом"
+        }
+    }
+}
+
+// MARK: - HTTP Methods
+
+enum HTTPMethod: String {
+    case get    = "GET"
+    case post   = "POST"
+    case put    = "PUT"
+    case delete = "DELETE"
+    case patch  = "PATCH"
+}
+
+// MARK: - API Endpoint
+
+protocol APIEndpoint {
+    var path: String { get }
+    var method: HTTPMethod { get }
+    var requiresAuth: Bool { get }
+    var body: Encodable? { get }
+    var queryParams: [String: String]? { get }
+}
+
+extension APIEndpoint {
+    var requiresAuth: Bool { true }
+    var body: Encodable? { nil }
+    var queryParams: [String: String]? { nil }
+}
+
+// MARK: - Endpoints
+
+enum Endpoint: APIEndpoint {
+
+    // Auth
+    case requestCode(telegramId: Int)
+    case verifyCode(telegramId: Int, code: String)
+
+    // Masters
+    case me
+    case updateSettings(MasterSettingsRequest)
+    case updatePayment(PaymentRequest)
+    case stats
+
+    // Clients
+    case clients(page: Int, search: String)
+    case clientDetail(id: Int)
+    case createClient(ClientCreateRequest)
+    case updateClient(id: Int, ClientUpdateRequest)
+    case deleteClient(id: Int)
+
+    // Appointments
+    case appointments(date: String?, status: String?)
+    case appointmentDetail(id: Int)
+    case createAppointment(AppointmentCreateRequest)
+    case updateAppointment(id: Int, AppointmentUpdateRequest)
+    case cancelAppointment(id: Int)
+    case markDone(id: Int)
+
+    // Schedule
+    case schedule(date: String)
+    case slots(date: String)
+
+    // Services
+    case services
+    case createService(ServiceCreateRequest)
+    case deleteService(id: Int)
+
+    var path: String {
+        switch self {
+        case .requestCode:           return "/auth/request-code"
+        case .verifyCode:            return "/auth/verify"
+        case .me:                    return "/masters/me"
+        case .updateSettings:        return "/masters/me"
+        case .updatePayment:         return "/masters/me/payment"
+        case .stats:                 return "/masters/me/stats"
+        case .clients:               return "/clients"
+        case .clientDetail(let id):  return "/clients/\(id)"
+        case .createClient:          return "/clients"
+        case .updateClient(let id, _): return "/clients/\(id)"
+        case .deleteClient(let id):  return "/clients/\(id)"
+        case .appointments:          return "/appointments"
+        case .appointmentDetail(let id): return "/appointments/\(id)"
+        case .createAppointment:     return "/appointments"
+        case .updateAppointment(let id, _): return "/appointments/\(id)"
+        case .cancelAppointment(let id): return "/appointments/\(id)"
+        case .markDone(let id):      return "/appointments/\(id)/done"
+        case .schedule:              return "/schedule"
+        case .slots:                 return "/slots"
+        case .services:              return "/services"
+        case .createService:         return "/services"
+        case .deleteService(let id): return "/services/\(id)"
+        }
+    }
+
+    var method: HTTPMethod {
+        switch self {
+        case .requestCode, .verifyCode, .createClient,
+             .createAppointment, .createService, .markDone:
+            return .post
+        case .updateSettings, .updatePayment, .updateClient, .updateAppointment:
+            return .put
+        case .deleteClient, .cancelAppointment, .deleteService:
+            return .delete
+        default:
+            return .get
+        }
+    }
+
+    var requiresAuth: Bool {
+        switch self {
+        case .requestCode, .verifyCode: return false
+        default: return true
+        }
+    }
+
+    var body: Encodable? {
+        switch self {
+        case .requestCode(let tgId):        return ["telegram_id": tgId]
+        case .verifyCode(let tgId, let code): return ["telegram_id": tgId, "code": code]
+        case .updateSettings(let req):      return req
+        case .updatePayment(let req):       return req
+        case .createClient(let req):        return req
+        case .updateClient(_, let req):     return req
+        case .createAppointment(let req):   return req
+        case .updateAppointment(_, let req): return req
+        case .createService(let req):       return req
+        default: return nil
+        }
+    }
+
+    var queryParams: [String: String]? {
+        switch self {
+        case .clients(let page, let search):
+            var params: [String: String] = ["page": "\(page)"]
+            if !search.isEmpty { params["search"] = search }
+            return params
+        case .appointments(let date, let status):
+            var params: [String: String] = [:]
+            if let date { params["date"] = date }
+            if let status { params["status"] = status }
+            return params.isEmpty ? nil : params
+        case .schedule(let date):  return ["date": date]
+        case .slots(let date):     return ["date": date]
+        default: return nil
+        }
+    }
+}
+
+// MARK: - API Client
+
+@MainActor
+final class APIClient: ObservableObject {
+
+    static let shared = APIClient()
+    private let session: URLSession
+    private let decoder: JSONDecoder
+
+    private init() {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = APIConfig.timeout
+        self.session = URLSession(configuration: config)
+        self.decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        decoder.dateDecodingStrategy = .iso8601
+    }
+
+    // MARK: - Core Request
+
+    func request<T: Decodable>(_ endpoint: Endpoint, type: T.Type = T.self) async throws -> T {
+        let urlRequest = try buildRequest(endpoint)
+        let (data, response) = try await session.data(for: urlRequest)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.noData
+        }
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            do {
+                return try decoder.decode(T.self, from: data)
+            } catch {
+                throw NetworkError.decodingError(error)
+            }
+        case 401:
+            // Токен истёк — уведомляем AuthManager
+            NotificationCenter.default.post(name: .tokenExpired, object: nil)
+            throw NetworkError.unauthorized
+        default:
+            let message = (try? decoder.decode(APIError.self, from: data))?.detail ?? "Неизвестная ошибка"
+            throw NetworkError.serverError(httpResponse.statusCode, message)
+        }
+    }
+
+    // MARK: - Build URLRequest
+
+    private func buildRequest(_ endpoint: Endpoint) throws -> URLRequest {
+        guard var components = URLComponents(string: APIConfig.baseURL + endpoint.path) else {
+            throw NetworkError.invalidURL
+        }
+
+        if let params = endpoint.queryParams {
+            components.queryItems = params.map { URLQueryItem(name: $0.key, value: $0.value) }
+        }
+
+        guard let url = components.url else { throw NetworkError.invalidURL }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = endpoint.method.rawValue
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        // JWT Authorization
+        if endpoint.requiresAuth, let token = KeychainManager.shared.getToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        // Body
+        if let body = endpoint.body {
+            let encoder = JSONEncoder()
+            encoder.keyEncodingStrategy = .convertToSnakeCase
+            request.httpBody = try encoder.encode(body)
+        }
+
+        return request
+    }
+}
+
+// MARK: - Convenience Extensions
+
+extension APIClient {
+    func getMe() async throws -> MasterProfile {
+        try await request(.me, type: MasterProfile.self)
+    }
+
+    func getClients(page: Int = 0, search: String = "") async throws -> ClientsResponse {
+        try await request(.clients(page: page, search: search), type: ClientsResponse.self)
+    }
+
+    func getSchedule(date: String) async throws -> ScheduleResponse {
+        try await request(.schedule(date: date), type: ScheduleResponse.self)
+    }
+
+    func getStats() async throws -> StatsResponse {
+        try await request(.stats, type: StatsResponse.self)
+    }
+}
+
+// MARK: - Notification Names
+
+extension Notification.Name {
+    static let tokenExpired = Notification.Name("tokenExpired")
+}
+
+// MARK: - API Error Response
+
+struct APIError: Decodable {
+    let detail: String
+}
