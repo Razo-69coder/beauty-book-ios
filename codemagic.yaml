@@ -13,5 +13,8 @@ workflows:
       - name: Build iOS app
         script: |
           xcodebuild -project BeautyBook.xcodeproj -scheme BeautyBook -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17' build CODE_SIGNING_ALLOWED=NO
+      - name: Copy artifacts
+        script: |
+          cp -r ~/Library/Developer/Xcode/DerivedData/BeautyBook-*/Build/Products/Debug-iphonesimulator/BeautyBook.app .
     artifacts:
-      - build/Debug-iphonesimulator/*.app
+      - BeautyBook.app
