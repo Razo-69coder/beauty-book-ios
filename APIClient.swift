@@ -122,9 +122,11 @@ enum Endpoint: APIEndpoint {
     var body: Data? {
         switch self {
         case .requestCode(let tgId):
-            return try? JSONEncoder().encode(["telegram_id": tgId])
+            let body: [String: Any] = ["telegram_id": tgId]
+            return try? JSONSerialization.data(withJSONObject: body)
         case .verifyCode(let tgId, let code):
-            return try? JSONEncoder().encode(["telegram_id": tgId, "code": code])
+            let body: [String: Any] = ["telegram_id": tgId, "code": code]
+            return try? JSONSerialization.data(withJSONObject: body)
         case .updateSettings(let req):
             return try? JSONEncoder().encode(req)
         case .updatePayment(let req):
