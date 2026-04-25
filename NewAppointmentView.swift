@@ -200,16 +200,15 @@ struct SlotPicker: View {
                     .foregroundColor(selected == slot ? .white : theme.textSecondary)
                     .frame(height: 40)
                     .frame(maxWidth: .infinity)
-                    .background(selected == slot ? AnyView(theme.gradientPrimary) : AnyView(theme.backgroundInput.asBackground()))
+                    .background(
+                        RoundedRectangle(cornerRadius: DS.r8)
+                            .fill(selected == slot ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
+                    )
                     .cornerRadius(DS.r8)
                     .onTapGesture { withAnimation(DS.springSnappy) { selected = slot } }
             }
         }
     }
-}
-
-extension Color {
-    func asBackground() -> some View { Rectangle().fill(self) }
 }
 
 // MARK: - Picker Rows

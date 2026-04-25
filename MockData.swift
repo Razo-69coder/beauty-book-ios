@@ -88,11 +88,11 @@ enum MockData {
     static let earningsByDay: [(String, Int)] = {
         let calendar = Calendar.current
         let today = Date()
-        return (0..<14).reversed().map { offset in
+        let amounts = [1200, 3400, 0, 2800, 5200, 1800, 4100, 2200, 3600, 0, 4800, 1500, 3900, 2700]
+        return (0..<14).reversed().map { (offset: Int) -> (String, Int) in
             let d = calendar.date(byAdding: .day, value: -offset, to: today)!
             let f = DateFormatter(); f.dateFormat = "dd.MM"
-            let amount = [1200, 3400, 0, 2800, 5200, 1800, 4100, 2200, 3600, 0, 4800, 1500, 3900, 2700][offset % 14]
-            return (f.string(from: d), amount)
+            return (f.string(from: d), amounts[offset % 14])
         }
     }()
 }

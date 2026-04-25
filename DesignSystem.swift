@@ -197,9 +197,8 @@ struct BBPrimaryButton: View {
             .frame(maxWidth: .infinity)
             .frame(height: 56)
             .background(
-                isDisabled
-                    ? AnyView(RoundedRectangle(cornerRadius: DS.r16).fill(theme.backgroundInput))
-                    : AnyView(RoundedRectangle(cornerRadius: DS.r16).fill(theme.gradientPrimary))
+                RoundedRectangle(cornerRadius: DS.r16)
+                    .fill(isDisabled ? AnyShapeStyle(theme.backgroundInput) : AnyShapeStyle(theme.gradientPrimary))
             )
             .shadow(color: isDisabled ? .clear : theme.accentGlow, radius: 12, x: 0, y: 6)
             .scaleEffect(isPressed ? 0.97 : 1.0)
@@ -282,8 +281,12 @@ struct BBTextField: View {
 }
 
 struct BBCard<Content: View>: View {
-    @ViewBuilder let content: Content
+    private let content: Content
     @Environment(\.theme) private var theme
+
+    init(@ViewBuilder _ content: () -> Content) {
+        self.content = content()
+    }
 
     var body: some View {
         content
@@ -333,7 +336,7 @@ struct BBSectionHeader: View {
                 .textCase(.uppercase)
                 .tracking(0.8)
             Spacer()
-            if let action {
+            if let action = action {
                 Button(action: action) {
                     Text(actionTitle)
                         .font(DS.labelSmall)
