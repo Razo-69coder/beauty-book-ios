@@ -5,13 +5,11 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Build
-        run: |
-          echo '#import SwiftUI
-@main struct BeautyBook: App { }' > BeautyBook.swift
+        run: >
           xcodebuild -project BeautyBook.xcodeproj -scheme BeautyBook -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' build CODE_SIGNING_ALLOWED=NO || echo "Need xcodeproj"
-      
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
