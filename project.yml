@@ -2,7 +2,7 @@ name: BeautyBook
 options:
   bundleIdPrefix: com.beautybook
   deploymentTarget:
-    iOS: "15.0"
+    iOS: "17.0"
 
 settings:
   base:

@@ -128,7 +128,7 @@ struct ScheduleView: View {
             .onAppear {
                 proxy.scrollTo(vm.selectedDate, anchor: .center)
             }
-            .onChange(of: vm.selectedDate) { newDate in
+            .onChange(of: vm.selectedDate) { _, newDate in
                 withAnimation(DS.springSnappy) { proxy.scrollTo(newDate, anchor: .center) }
             }
         }

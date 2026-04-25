@@ -141,7 +141,7 @@ struct NewAppointmentView: View {
                         .datePickerStyle(.graphical)
                         .accentColor(theme.accent)
                         .colorScheme(.dark)
-                        .onChange(of: vm.selectedDate) { _ in Task { await vm.loadSlots() } }
+                        .onChange(of: vm.selectedDate) { _, _ in Task { await vm.loadSlots() } }
                 }
 
                 // Время
