@@ -1,0 +1,15 @@
+workflows:
+  ios-workflow:
+    name: Beauty Book iOS
+    environment:
+      xcode: latest
+      vars:
+        XCODE_PROJECT: "."
+        XCODE_SCHEME: BeautyBook
+        BUNDLE_ID: com.beautybook.app
+    scripts:
+      - name: Build iOS app
+        script: |
+          swift build -c release
+    artifacts:
+      - .build/**/*.app
