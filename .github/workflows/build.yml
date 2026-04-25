@@ -6,9 +6,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
       - name: Build
         run: >
-          xcodebuild -project BeautyBook.xcodeproj -scheme BeautyBook -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' build CODE_SIGNING_ALLOWED=NO || echo "Need xcodeproj"
+          xcodebuild -project BeautyBook.xcodeproj -scheme BeautyBook 
+          -configuration Debug 
+          -destination 'platform=iOS Simulator,name=iPhone 16' 
+          build 
+          CODE_SIGNING_ALLOWED=NO
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
