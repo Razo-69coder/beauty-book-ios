@@ -1,372 +1,269 @@
 import SwiftUI
 
-struct SettingsView: View {
-    @StateObject private var viewModel = SettingsViewModel()
-    @Environment(\.dismiss) private var dismiss
-    @State private var settingsOpacity: Double = 0
-    
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                profileSection
-                
-                workScheduleSection
-                
-                paymentSection
-                
-                themeSection
-                
-                dangerSection
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 100)
-        }
-        .background(Color(hex: "#080810"))
-        .navigationTitle("Настройки")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Сохранить") {
-                    Task { await viewModel.saveSettings() }
-                }
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(viewModel.isDirty ? Color(hex: "#FF2D78") : Color(hex: "#5A5A7A"))
-                .disabled(!viewModel.isDirty)
-            }
-        }
-        .onAppear {
-            Task { await viewModel.loadSettings() }
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.1)) {
-                settingsOpacity = 1.0
-            }
-        }
-        .opacity(settingsOpacity)
-    }
-    
-    private var profileSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Профиль")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(Color(hex: "#5A5A7A"))
-                .textCase(.uppercase)
-            
-            VStack(spacing: 0) {
-                SettingsRow(icon: "person.fill", title: "Имя") {
-                    TextField("Ваше имя", text: $viewModel.name)
-                        .foregroundColor(.white)
-                }
-                
-                Divider().background(Color.white.opacity(0.08))
-                
-                SettingsRow(icon: "calendar", title: "Часовой пояс") {
-                    Text(viewModel.timezone)
-                        .foregroundColor(Color(hex: "#5A5A7A"))
-                }
-            }
-            .padding(.horizontal, 16)
-            .background(Color(hex: "#11111E"))
-            .cornerRadius(16)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
-            )
-        }
-    }
-    
-    private var workScheduleSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Расписание")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(Color(hex: "#5A5A7A"))
-                .textCase(.uppercase)
-            
-            VStack(spacing: 0) {
-                HStack {
-                    Text("Начало работы")
-                        .font(.system(size: 15))
-                        .foregroundColor(.white)
-                    Spacer()
-                    Picker("", selection: $viewModel.workStart) {
-                        ForEach(6..<22, id: \.self) { hour in
-                            Text("\(hour):00").tag(hour)
-                        }
-                    }
-                    .labelsHidden()
-                    .tint(Color(hex: "#FF2D78"))
-                }
-                .padding(.vertical, 12)
-                
-                Divider().background(Color.white.opacity(0.08))
-                
-                HStack {
-                    Text("Конец работы")
-                        .font(.system(size: 15))
-                        .foregroundColor(.white)
-                    Spacer()
-                    Picker("", selection: $viewModel.workEnd) {
-                        ForEach(8..<23, id: \.self) { hour in
-                            Text("\(hour):00").tag(hour)
-                        }
-                    }
-                    .labelsHidden()
-                    .tint(Color(hex: "#FF2D78"))
-                }
-                .padding(.vertical, 12)
-                
-                Divider().background(Color.white.opacity(0.08))
-                
-                HStack {
-                    Text("Длительность слОта")
-                        .font(.system(size: 15))
-                        .foregroundColor(.white)
-                    Spacer()
-                    Picker("", selection: $viewModel.slotDuration) {
-                        ForEach([30, 45, 60, 90, 120], id: \.self) { min in
-                            Text("\(min) мин").tag(min)
-                        }
-                    }
-                    .labelsHidden()
-                    .tint(Color(hex: "#FF2D78"))
-                }
-                .padding(.vertical, 12)
-            }
-            .padding(.horizontal, 16)
-            .background(Color(hex: "#11111E"))
-            .cornerRadius(16)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
-            )
-        }
-    }
-    
-    private var paymentSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Реквизиты")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(Color(hex: "#5A5A7A"))
-                .textCase(.uppercase)
-            
-            VStack(spacing: 0) {
-                SettingsRow(icon: "creditcard.fill", title: "Карта") {
-                    TextField("**** **** **** ****", text: $viewModel.paymentCard)
-                        .foregroundColor(.white)
-                        .keyboardType(.numberPad)
-                }
-                
-                Divider().background(Color.white.opacity(0.08))
-                
-                SettingsRow(icon: "phone.fill", title: "Телефон") {
-                    TextField("+7 (999) 000-00-00", text: $viewModel.paymentPhone)
-                        .foregroundColor(.white)
-                        .keyboardType(.phonePad)
-                }
-                
-                Divider().background(Color.white.opacity(0.08))
-                
-                SettingsRow(icon: "building.columns.fill", title: "Банки") {
-                    TextField("Сбер, Тинькофф, Альфа", text: $viewModel.paymentBanks)
-                        .foregroundColor(.white)
-                }
-            }
-            .padding(.horizontal, 16)
-            .background(Color(hex: "#11111E"))
-            .cornerRadius(16)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
-            )
-        }
-    }
-    
-    private var themeSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Оформление")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(Color(hex: "#5A5A7A"))
-                .textCase(.uppercase)
-            
-            VStack(spacing: 0) {
-                HStack {
-                    Text("Тема")
-                        .font(.system(size: 15))
-                        .foregroundColor(.white)
-                    Spacer()
-                    Picker("", selection: $viewModel.theme) {
-                        Text("Bratz Pink").tag("bratz")
-                        Text("Платина").tag("platinum")
-                    }
-                    .labelsHidden()
-                    .tint(Color(hex: "#FF2D78"))
-                }
-                .padding(.vertical, 12)
-            }
-            .padding(.horizontal, 16)
-            .background(Color(hex: "#11111E"))
-            .cornerRadius(16)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
-            )
-        }
-    }
-    
-    private var dangerSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Опасная зона")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(Color(hex: "#FF4757"))
-                .textCase(.uppercase)
-            
-            Button {
-                viewModel.showLogoutConfirmation = true
-            } label: {
-                HStack {
-                    Image(systemName: "rectangle.portrait.and.arrow.right")
-                        .font(.system(size: 16))
-                        .foregroundColor(Color(hex: "#FF4757"))
-                    
-                    Text("Выйти из аккаунта")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(Color(hex: "#FF4757"))
-                    
-                    Spacer()
-                }
-                .padding(16)
-            }
-            .background(Color(hex: "#11111E"))
-            .cornerRadius(16)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color(hex: "#FF4757").opacity(0.3), lineWidth: 1)
-            )
-        }
-        .confirmationDialog("Выйти?", isPresented: $viewModel.showLogoutConfirmation) {
-            Button("Выйти", role: .destructive) {
-                viewModel.logout()
-            }
-        }
-    }
-}
-
-struct SettingsRow<Content: View>: View {
-    let icon: String
-    let title: String
-    let content: Content
-    
-    init(icon: String, title: String, @ViewBuilder content: () -> Content) {
-        self.icon = icon
-        self.title = title
-        self.content = content()
-    }
-    
-    var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundColor(Color(hex: "#FF2D78"))
-                .frame(width: 24)
-            
-            Text(title)
-                .font(.system(size: 15))
-                .foregroundColor(.white)
-            
-            Spacer()
-            
-            content
-                .frame(maxWidth: 150)
-        }
-        .padding(.vertical, 12)
-    }
-}
-
 @MainActor
 final class SettingsViewModel: ObservableObject {
-    @Published var name: String = ""
-    @Published var timezone: String = "Europe/Moscow"
-    @Published var workStart: Int = 9
-    @Published var workEnd: Int = 20
-    @Published var slotDuration: Int = 60
-    @Published var paymentCard: String = ""
-    @Published var paymentPhone: String = ""
-    @Published var paymentBanks: String = ""
-    @Published var theme: String = "bratz"
-    @Published var isLoading: Bool = false
-    @Published var isDirty: Bool = false
-    @Published var showLogoutConfirmation: Bool = false
+    @Published var masterName       = ""
+    @Published var email            = ""
+    @Published var workStart        = 9
+    @Published var workEnd          = 20
+    @Published var slotDuration     = 60
+    @Published var reminderDays     = 30
+    @Published var paymentCard      = ""
+    @Published var paymentPhone     = ""
+    @Published var paymentBanks     = ""
+    @Published var isSaving         = false
+    @Published var saveSuccess      = false
     @Published var errorMessage: String? = nil
-    
+
     private let api = APIClient.shared
-    private var originalSettings: String = ""
-    
-    func loadSettings() async {
-        isLoading = true
-        
-        do {
-            let profile = try await api.getMe()
-            name = profile.name ?? ""
-            timezone = profile.timezone
-            workStart = profile.workStart
-            workEnd = profile.workEnd
-            slotDuration = profile.slotDuration
-            paymentCard = profile.paymentCard ?? ""
-            paymentPhone = profile.paymentPhone ?? ""
-            paymentBanks = profile.paymentBanks ?? ""
-            theme = profile.theme
-            
-            originalSettings = settingsHash()
-        } catch {
-            errorMessage = error.localizedDescription
+
+    func load() async {
+        if let m = try? await api.request(.me, as: MasterProfile.self) {
+            masterName    = m.name ?? ""
+            email         = m.email ?? ""
+            workStart     = m.workStart
+            workEnd       = m.workEnd
+            slotDuration  = m.slotDuration
+            reminderDays  = m.reminderDays
+            paymentCard   = m.paymentCard ?? ""
+            paymentPhone  = m.paymentPhone ?? ""
+            paymentBanks  = m.paymentBanks ?? ""
+        } else {
+            // Мок
+            let m = MockData.master
+            masterName = m.name ?? "Мастер"; email = m.email ?? ""
+            workStart = m.workStart; workEnd = m.workEnd
+            slotDuration = m.slotDuration; reminderDays = m.reminderDays
+            paymentCard = m.paymentCard ?? ""; paymentPhone = m.paymentPhone ?? ""
+            paymentBanks = m.paymentBanks ?? ""
         }
-        
-        isLoading = false
     }
-    
-    func saveSettings() async {
-        let request = MasterSettingsRequest(
-            name: name,
-            workStart: workStart,
-            workEnd: workEnd,
-            slotDuration: slotDuration,
-            reminderDays: 1,
-            timezone: timezone
-        )
-        
+
+    func save() async {
+        isSaving = true; errorMessage = nil
+        let req = MasterSettingsRequest(name: masterName, workStart: workStart, workEnd: workEnd,
+                                         slotDuration: slotDuration, reminderDays: reminderDays, timezone: "Europe/Moscow")
         do {
-            let _ = try await api.request(.updateSettings(request), type: MasterProfile.self)
-            isDirty = false
-            originalSettings = settingsHash()
-        } catch {
-            errorMessage = error.localizedDescription
+            let _ = try await api.request(.updateSettings(req), as: MessageResponse.self)
+            let payReq = PaymentRequest(paymentCard: paymentCard, paymentPhone: paymentPhone, paymentBanks: paymentBanks)
+            let _ = try await api.request(.updatePayment(payReq), as: MessageResponse.self)
+            saveSuccess = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.saveSuccess = false }
+        } catch let e as NetworkError { errorMessage = e.errorDescription
+        } catch { errorMessage = "Ошибка сохранения" }
+        isSaving = false
+    }
+}
+
+struct SettingsView: View {
+    @StateObject private var vm = SettingsViewModel()
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var themeManager: ThemeManager
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        ZStack {
+            theme.backgroundDeep.ignoresSafeArea()
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: DS.s20) {
+                    header
+                    profileSection
+                    workHoursSection
+                    paymentSection
+                    themeSection
+                    logoutButton
+                }
+                .padding(.horizontal, DS.s20)
+                .padding(.bottom, 100)
+            }
         }
-        
-        if !paymentCard.isEmpty || !paymentPhone.isEmpty {
-            let paymentRequest = PaymentRequest(
-                paymentCard: paymentCard,
-                paymentPhone: paymentPhone,
-                paymentBanks: paymentBanks
-            )
-            do {
-                let _ = try await api.request(.updatePayment(paymentRequest), type: MasterProfile.self)
-            } catch {
-                errorMessage = error.localizedDescription
+        .task { await vm.load() }
+    }
+
+    // MARK: - Header
+
+    private var header: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Настройки").font(DS.titleSmall).foregroundColor(theme.textPrimary)
+                Text(vm.masterName.isEmpty ? "Профиль мастера" : vm.masterName)
+                    .font(DS.body).foregroundColor(theme.textSecondary)
+            }
+            Spacer()
+            if vm.saveSuccess {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill").foregroundColor(theme.statusGreen)
+                    Text("Сохранено").font(DS.bodySmall).foregroundColor(theme.statusGreen)
+                }
+                .transition(.opacity)
+            }
+        }
+        .padding(.top, DS.s16)
+        .animation(DS.springSnappy, value: vm.saveSuccess)
+    }
+
+    // MARK: - Profile
+
+    private var profileSection: some View {
+        VStack(spacing: DS.s8) {
+            BBSectionHeader(title: "Профиль").environment(\.theme, theme)
+            BBCard {
+                VStack(spacing: DS.s12) {
+                    BBTextField(placeholder: "Имя мастера", text: $vm.masterName).environment(\.theme, theme)
+                    BBTextField(placeholder: "Email", text: $vm.email, keyboardType: .emailAddress).environment(\.theme, theme)
+                }
+            }.environment(\.theme, theme)
+        }
+    }
+
+    // MARK: - Work Hours
+
+    private var workHoursSection: some View {
+        VStack(spacing: DS.s8) {
+            BBSectionHeader(title: "Рабочие часы").environment(\.theme, theme)
+            BBCard {
+                VStack(spacing: DS.s16) {
+                    StepperRow(label: "Начало работы", value: $vm.workStart, range: 5...12,
+                               display: "\(vm.workStart):00", theme: theme)
+                    Divider().background(theme.borderSubtle)
+                    StepperRow(label: "Конец работы", value: $vm.workEnd, range: 14...23,
+                               display: "\(vm.workEnd):00", theme: theme)
+                    Divider().background(theme.borderSubtle)
+                    StepperRow(label: "Слот (мин)", value: $vm.slotDuration, range: 30...120, step: 15,
+                               display: "\(vm.slotDuration) мин", theme: theme)
+                    Divider().background(theme.borderSubtle)
+                    StepperRow(label: "Напомнить (дни)", value: $vm.reminderDays, range: 7...90, step: 7,
+                               display: "\(vm.reminderDays) дн", theme: theme)
+                }
+            }.environment(\.theme, theme)
+        }
+    }
+
+    // MARK: - Payment
+
+    private var paymentSection: some View {
+        VStack(spacing: DS.s8) {
+            BBSectionHeader(title: "Реквизиты оплаты").environment(\.theme, theme)
+            BBCard {
+                VStack(spacing: DS.s12) {
+                    BBTextField(placeholder: "Номер карты", text: $vm.paymentCard, keyboardType: .numberPad).environment(\.theme, theme)
+                    BBTextField(placeholder: "Телефон для переводов", text: $vm.paymentPhone, keyboardType: .phonePad).environment(\.theme, theme)
+                    BBTextField(placeholder: "Банки (Сбер, Тинькофф...)", text: $vm.paymentBanks).environment(\.theme, theme)
+                }
+            }.environment(\.theme, theme)
+
+            BBPrimaryButton(title: vm.isSaving ? "Сохраняю..." : "Сохранить изменения",
+                            isLoading: vm.isSaving) {
+                Task { await vm.save() }
+            }.environment(\.theme, theme)
+        }
+    }
+
+    // MARK: - Theme
+
+    private var themeSection: some View {
+        VStack(spacing: DS.s8) {
+            BBSectionHeader(title: "Тема приложения").environment(\.theme, theme)
+            HStack(spacing: DS.s12) {
+                ForEach(AppTheme.allCases, id: \.self) { t in
+                    ThemeButton(appTheme: t, isSelected: themeManager.current == t) {
+                        withAnimation(DS.springSmooth) { themeManager.current = t }
+                    }
+                }
             }
         }
     }
-    
-    func logout() {
-        KeychainManager.shared.deleteToken()
+
+    // MARK: - Logout
+
+    private var logoutButton: some View {
+        Button(action: { appState.logout() }) {
+            HStack(spacing: DS.s8) {
+                Image(systemName: "rectangle.portrait.and.arrow.right")
+                Text("Выйти из аккаунта")
+            }
+            .font(DS.label)
+            .foregroundColor(theme.statusRed)
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(theme.statusRed.opacity(0.1))
+            .cornerRadius(DS.r16)
+            .overlay(RoundedRectangle(cornerRadius: DS.r16).stroke(theme.statusRed.opacity(0.2), lineWidth: 1))
+        }
     }
-    
-    private func settingsHash() -> String {
-        "\(name)-\(workStart)-\(workEnd)-\(slotDuration)-\(paymentCard)-\(paymentPhone)-\(theme)"
+}
+
+// MARK: - Stepper Row
+
+struct StepperRow: View {
+    let label: String
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    var step: Int = 1
+    let display: String
+    let theme: AppTheme
+
+    var body: some View {
+        HStack {
+            Text(label).font(DS.body).foregroundColor(theme.textPrimary)
+            Spacer()
+            HStack(spacing: DS.s12) {
+                Button(action: { if value - step >= range.lowerBound { value -= step } }) {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(value <= range.lowerBound ? theme.textMuted : theme.accent)
+                }
+                Text(display).font(DS.label).foregroundColor(theme.textPrimary).frame(minWidth: 60, alignment: .center)
+                Button(action: { if value + step <= range.upperBound { value += step } }) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(value >= range.upperBound ? theme.textMuted : theme.accent)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Theme Button
+
+struct ThemeButton: View {
+    let appTheme: AppTheme
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: DS.s8) {
+                ZStack {
+                    Circle()
+                        .fill(appTheme.gradientPrimary)
+                        .frame(width: 48, height: 48)
+                        .shadow(color: appTheme.accentGlow, radius: 8, x: 0, y: 4)
+                    if isSelected {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                }
+                Text(appTheme.displayName)
+                    .font(DS.labelSmall)
+                    .foregroundColor(isSelected ? appTheme.accent : Color(hex: "#5A5A7A"))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, DS.s12)
+            .background(isSelected ? appTheme.accent.opacity(0.1) : Color(hex: "#11111E"))
+            .cornerRadius(DS.r12)
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.r12)
+                    .stroke(isSelected ? appTheme.accent.opacity(0.4) : Color.clear, lineWidth: 1.5)
+            )
+        }
     }
 }
 
 #Preview {
-    NavigationView {
-        SettingsView()
-    }
-    .preferredColorScheme(.dark)
+    SettingsView()
+        .environmentObject(AppState())
+        .environmentObject(ThemeManager.shared)
+        .environment(\.theme, .pink)
 }

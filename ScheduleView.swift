@@ -1,304 +1,293 @@
 import SwiftUI
 
-struct ScheduleView: View {
-    @StateObject private var viewModel = ScheduleViewModel()
-    @State private var calendarOffset: CGFloat = 0
-    @State private var selectedDateOpacity: Double = 0
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            headerSection
-            
-            dateSelector
-            
-            appointmentsList
+@MainActor
+final class ScheduleViewModel: ObservableObject {
+    @Published var selectedDate: Date       = Date()
+    @Published var appointments: [Appointment] = []
+    @Published var isLoading: Bool          = false
+    @Published var selectedAppointment: Appointment? = nil
+
+    private let api = APIClient.shared
+
+    var dates: [Date] {
+        let calendar = Calendar.current
+        return (-3..<18).compactMap { calendar.date(byAdding: .day, value: $0, to: Date()) }
+    }
+
+    var selectedDateFormatted: String {
+        let f = DateFormatter(); f.dateFormat = "d MMMM, EEEE"; f.locale = Locale(identifier: "ru_RU")
+        return f.string(from: selectedDate)
+    }
+
+    func isToday(_ date: Date) -> Bool { Calendar.current.isDateInToday(date) }
+
+    func loadSchedule() async {
+        isLoading = true
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+        let dateStr = f.string(from: selectedDate)
+        if let resp = try? await api.request(.schedule(date: dateStr), as: ScheduleResponse.self) {
+            appointments = resp.appointments.sorted { $0.time < $1.time }
+        } else {
+            appointments = MockData.appointments(for: dateStr)
         }
-        .background(Color(hex: "#080810"))
-        .onAppear {
-            Task { await viewModel.loadSchedule() }
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.1)) {
-                selectedDateOpacity = 1.0
+        isLoading = false
+    }
+
+    func cancelAppointment(_ id: Int) async {
+        appointments.removeAll { $0.id == id }
+        let _ = try? await api.request(.cancelAppointment(id: id), as: MessageResponse.self)
+    }
+}
+
+struct ScheduleView: View {
+    @StateObject private var vm = ScheduleViewModel()
+    @Environment(\.theme) private var theme
+    @State private var showNewAppointment = false
+
+    var body: some View {
+        ZStack {
+            theme.backgroundDeep.ignoresSafeArea()
+            VStack(spacing: 0) {
+                headerSection
+                dateStrip
+                if vm.isLoading {
+                    Spacer()
+                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
+                    Spacer()
+                } else {
+                    appointmentsList
+                }
             }
         }
+        .task { await vm.loadSchedule() }
+        .sheet(isPresented: $showNewAppointment) {
+            NewAppointmentView(onCreated: { Task { await vm.loadSchedule() } })
+                .environment(\.theme, theme)
+        }
     }
-    
+
+    // MARK: - Header
+
     private var headerSection: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Расписание")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                
-                if let date = viewModel.selectedDateFormatted {
-                    Text(date)
-                        .font(.system(size: 15))
-                        .foregroundColor(Color(hex: "#A0A0C0"))
-                }
+                Text("Расписание").font(DS.titleSmall).foregroundColor(theme.textPrimary)
+                Text(vm.selectedDateFormatted)
+                    .font(DS.body).foregroundColor(theme.textSecondary)
             }
             Spacer()
-            
-            Button {
-                Task { await viewModel.loadSchedule() }
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(Color(hex: "#FF2D78"))
-                    .rotationEffect(.degrees(viewModel.isLoading ? 360 : 0))
-                    .animation(viewModel.isLoading ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: viewModel.isLoading)
+            HStack(spacing: DS.s12) {
+                // Кнопка "сегодня"
+                Button(action: {
+                    withAnimation(DS.springSnappy) { vm.selectedDate = Date() }
+                    Task { await vm.loadSchedule() }
+                }) {
+                    Text("Сегодня")
+                        .font(DS.labelSmall)
+                        .foregroundColor(theme.accent)
+                        .padding(.horizontal, DS.s12)
+                        .padding(.vertical, DS.s8)
+                        .background(theme.accent.opacity(0.1))
+                        .cornerRadius(DS.r8)
+                }
+
+                Button { Task { await vm.loadSchedule() } } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(theme.accent)
+                        .rotationEffect(.degrees(vm.isLoading ? 360 : 0))
+                        .animation(vm.isLoading ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default,
+                                   value: vm.isLoading)
+                }
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 16)
-        .padding(.bottom, 16)
+        .padding(.horizontal, DS.s20)
+        .padding(.top, DS.s16)
+        .padding(.bottom, DS.s12)
     }
-    
-    private var dateSelector: some View {
+
+    // MARK: - Date Strip
+
+    private var dateStrip: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(viewModel.dates, id: \.self) { date in
-                        DateCell(
-                            date: date,
-                            isSelected: viewModel.selectedDate == date,
-                            isToday: viewModel.isToday(date)
-                        )
-                        .id(date)
-                        .onTapGesture {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                viewModel.selectedDate = date
+                HStack(spacing: DS.s6) {
+                    ForEach(vm.dates, id: \.self) { date in
+                        DateCell(date: date, isSelected: vm.selectedDate.isSameDay(as: date),
+                                 isToday: vm.isToday(date), theme: theme)
+                            .id(date)
+                            .onTapGesture {
+                                withAnimation(DS.springSnappy) { vm.selectedDate = date }
+                                Task { await vm.loadSchedule() }
                             }
-                            Task { await viewModel.loadSchedule() }
-                        }
                     }
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, DS.s20)
             }
-            .opacity(selectedDateOpacity)
-            .onChange(of: viewModel.selectedDate) { newDate in
-                withAnimation(.spring(response: 0.3)) {
-                    proxy.scrollTo(newDate, anchor: .center)
-                }
+            .frame(height: 76)
+            .onAppear {
+                proxy.scrollTo(vm.selectedDate, anchor: .center)
+            }
+            .onChange(of: vm.selectedDate) { newDate in
+                withAnimation(DS.springSnappy) { proxy.scrollTo(newDate, anchor: .center) }
             }
         }
-        .frame(height: 72)
     }
-    
+
+    // MARK: - Appointments List
+
     private var appointmentsList: some View {
-        ScrollView {
-            LazyVStack(spacing: 12) {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "#FF2D78")))
-                        .frame(maxWidth: .infinity, minHeight: 200)
-                } else if viewModel.appointments.isEmpty {
+        ScrollView(showsIndicators: false) {
+            LazyVStack(spacing: DS.s10) {
+                if vm.appointments.isEmpty {
                     emptyState
                 } else {
-                    ForEach(viewModel.appointments) { appointment in
-                        AppointmentCard(appointment: appointment)
-                            .onTapGesture {
-                                viewModel.selectedAppointment = appointment
+                    ForEach(vm.appointments) { appt in
+                        AppointmentCard(appointment: appt, theme: theme)
+                            .contextMenu {
+                                Button(role: .destructive, action: {
+                                    Task { await vm.cancelAppointment(appt.id) }
+                                }) {
+                                    Label("Отменить запись", systemImage: "xmark.circle")
+                                }
                             }
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
+            .padding(.horizontal, DS.s20)
+            .padding(.top, DS.s12)
             .padding(.bottom, 100)
         }
     }
-    
+
     private var emptyState: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DS.s16) {
             Image(systemName: "calendar.badge.plus")
-                .font(.system(size: 40))
-                .foregroundColor(Color(hex: "#5A5A7A"))
-            
-            Text("Нет записей")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(.white)
-            
-            Text("Нажми + чтобы создать запись")
-                .font(.system(size: 14))
-                .foregroundColor(Color(hex: "#5A5A7A"))
+                .font(.system(size: 44))
+                .foregroundColor(theme.textMuted)
+            Text("Нет записей").font(DS.headline).foregroundColor(theme.textPrimary)
+            Text("Нажми + чтобы записать клиента").font(DS.body).foregroundColor(theme.textSecondary)
         }
-        .frame(maxWidth: .infinity, minHeight: 250)
+        .frame(maxWidth: .infinity, minHeight: 280)
     }
 }
 
+// MARK: - Date Cell
+
 struct DateCell: View {
-    let date: Date
-    let isSelected: Bool
-    let isToday: Bool
-    
+    let date: Date; let isSelected: Bool; let isToday: Bool; let theme: AppTheme
+
     private var dayName: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE"
-        return formatter.string(from: date).capitalized
+        let f = DateFormatter(); f.dateFormat = "EEE"; f.locale = Locale(identifier: "ru_RU")
+        return f.string(from: date).prefix(2).uppercased()
     }
-    
     private var dayNumber: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d"
-        return formatter.string(from: date)
+        let f = DateFormatter(); f.dateFormat = "d"; return f.string(from: date)
     }
-    
+
     var body: some View {
         VStack(spacing: 6) {
             Text(dayName)
-                .font(.system(size: 11, weight: isSelected ? .semibold : .medium))
-                .foregroundColor(isSelected ? Color(hex: "#FF2D78") : Color(hex: "#5A5A7A"))
-            
+                .font(.system(size: 10, weight: isSelected ? .bold : .medium))
+                .foregroundColor(isSelected ? theme.accent : theme.textMuted)
             ZStack {
                 Circle()
-                    .fill(isSelected ? Color(hex: "#FF2D78") : Color.clear)
-                    .frame(width: 36, height: 36)
-                
+                    .fill(isSelected ? theme.accent : (isToday ? theme.accent.opacity(0.15) : Color.clear))
+                    .frame(width: 38, height: 38)
                 Text(dayNumber)
-                    .font(.system(size: 16, weight: isSelected ? .bold : .medium))
-                    .foregroundColor(isSelected ? .white : (isToday ? Color(hex: "#FF2D78") : .white))
+                    .font(.system(size: 16, weight: isSelected ? .bold : .medium, design: .rounded))
+                    .foregroundColor(isSelected ? .white : (isToday ? theme.accent : theme.textPrimary))
             }
         }
-        .frame(width: 48, height: 64)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isSelected ? Color(hex: "#FF2D78").opacity(0.15) : Color.clear)
-        )
+        .frame(width: 50, height: 68)
+        .background(isSelected ? theme.accent.opacity(0.12) : Color.clear)
+        .cornerRadius(DS.r12)
+        .animation(DS.springSnappy, value: isSelected)
     }
 }
+
+// MARK: - Appointment Card
 
 struct AppointmentCard: View {
     let appointment: Appointment
+    let theme: AppTheme
     @State private var isPressed = false
-    
+
     private var statusColor: Color {
-        switch appointment.status {
-        case .confirmed: return Color(hex: "#00E5A0")
-        case .pending: return Color(hex: "#FFD166")
-        case .completed: return Color(hex: "#4ECDC4")
-        case .cancelled: return Color(hex: "#FF4757")
-        }
+        Color(hex: appointment.status.hexColor)
     }
-    
-    private var timeFormatted: String {
-        appointment.time
-    }
-    
+
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(spacing: 4) {
-                Text(timeFormatted)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 8, height: 8)
+        HStack(spacing: DS.s12) {
+            // Время + статус-точка
+            VStack(spacing: 6) {
+                Text(appointment.time)
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundColor(theme.textPrimary)
+                Circle().fill(statusColor).frame(width: 8, height: 8)
             }
-            .frame(width: 50)
-            
-            VStack(alignment: .leading, spacing: 6) {
+            .frame(width: 44)
+
+            // Контент
+            VStack(alignment: .leading, spacing: 5) {
                 Text(appointment.clientName ?? "Клиент")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                
-                HStack(spacing: 8) {
+                    .font(DS.label).foregroundColor(theme.textPrimary)
+                HStack(spacing: DS.s6) {
                     Text(appointment.procedure)
-                        .font(.system(size: 14))
-                        .foregroundColor(Color(hex: "#A0A0C0"))
-                    
-                    Text("•")
-                        .foregroundColor(Color(hex: "#5A5A7A"))
-                    
+                        .font(DS.body).foregroundColor(theme.textSecondary)
+                    Text("·").foregroundColor(theme.textMuted)
                     Text("\(appointment.price)₽")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(Color(hex: "#FF2D78"))
+                        .font(DS.body).foregroundColor(theme.accent).fontWeight(.medium)
                 }
-                
                 if let notes = appointment.notes, !notes.isEmpty {
-                    Text(notes)
-                        .font(.system(size: 12))
-                        .foregroundColor(Color(hex: "#5A5A7A"))
-                        .lineLimit(1)
+                    Text(notes).font(DS.bodySmall).foregroundColor(theme.textMuted).lineLimit(1)
                 }
             }
-            
+
             Spacer()
-            
-            statusBadge
+
+            // Статус-бейдж
+            Text(appointment.status.displayName)
+                .font(DS.caption).fontWeight(.semibold)
+                .foregroundColor(statusColor)
+                .padding(.horizontal, DS.s8)
+                .padding(.vertical, DS.s4)
+                .background(statusColor.opacity(0.14))
+                .cornerRadius(DS.r8)
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(hex: "#11111E"))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(statusColor.opacity(0.3), lineWidth: 1)
-                )
+        .padding(DS.s14)
+        .background(theme.backgroundCard)
+        .cornerRadius(DS.r16)
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.r16)
+                .stroke(statusColor.opacity(0.25), lineWidth: 1)
         )
         .scaleEffect(isPressed ? 0.98 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
-    }
-    
-    private var statusBadge: some View {
-        Text(appointment.status.displayName)
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundColor(statusColor)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(statusColor.opacity(0.15))
-            .cornerRadius(8)
+        .animation(DS.springSnappy, value: isPressed)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isPressed = true }
+                .onEnded   { _ in isPressed = false }
+        )
     }
 }
 
-@MainActor
-final class ScheduleViewModel: ObservableObject {
-    @Published var selectedDate: Date = Date()
-    @Published var appointments: [Appointment] = []
-    @Published var isLoading: Bool = false
-    @Published var errorMessage: String? = nil
-    @Published var selectedAppointment: Appointment? = nil
-    
-    private let api = APIClient.shared
-    
-    var dates: [Date] {
-        let calendar = Calendar.current
-        let today = Date()
-        return (0..<14).compactMap { offset in
-            calendar.date(byAdding: .day, value: offset - 3, to: today)
-        }
-    }
-    
-    var selectedDateFormatted: String? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d MMMM, EEEE"
-        formatter.locale = Locale(identifier: "ru_RU")
-        return formatter.string(from: selectedDate)
-    }
-    
-    func isToday(_ date: Date) -> Bool {
-        Calendar.current.isDateInToday(date)
-    }
-    
-    func loadSchedule() async {
-        isLoading = true
-        errorMessage = nil
-        
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let dateString = formatter.string(from: selectedDate)
-        
-        do {
-            let response = try await api.request(.schedule(date: dateString), type: ScheduleResponse.self)
-            appointments = response.appointments.sorted { a, b in a.time < b.time }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        
-        isLoading = false
+// MARK: - DS Extension
+
+extension DS {
+    static let s6:  CGFloat = 6
+    static let s10: CGFloat = 10
+    static let s14: CGFloat = 14
+}
+
+// MARK: - Date Extension
+
+extension Date {
+    func isSameDay(as other: Date) -> Bool {
+        Calendar.current.isDate(self, inSameDayAs: other)
     }
 }
 
 #Preview {
-    ScheduleView()
-        .preferredColorScheme(.dark)
+    ScheduleView().environment(\.theme, .pink)
 }

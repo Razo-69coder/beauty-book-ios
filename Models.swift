@@ -1,30 +1,34 @@
 import Foundation
+import Security
 
-// MARK: - Auth Models
+// MARK: - Auth
+
+struct LoginRequest: Encodable {
+    let email: String
+    let password: String
+}
+
+struct RegisterRequest: Encodable {
+    let email: String
+    let password: String
+    let name: String
+}
 
 struct AuthTokenResponse: Decodable {
     let token: String
     let master: MasterProfile
 }
 
-struct LoginResponse: Decodable {
-    let token: String
-    let masterId: Int
-}
-
-struct ResendCodeResponse: Decodable {
+struct MessageResponse: Decodable {
     let ok: Bool
-}
-
-struct RequestCodeResponse: Decodable {
-    let ok: Bool
+    let message: String?
 }
 
 // MARK: - Master
 
 struct MasterProfile: Decodable, Identifiable {
     let id: Int
-    let telegramId: Int
+    let email: String?
     let name: String?
     let workStart: Int
     let workEnd: Int
@@ -37,7 +41,6 @@ struct MasterProfile: Decodable, Identifiable {
     let depositEnabled: Bool
     let depositPercent: Int
     let theme: String
-    let stats: StatsResponse?
 }
 
 struct MasterSettingsRequest: Encodable {
@@ -117,7 +120,6 @@ struct ClientUpdateRequest: Encodable {
     let name: String
     let phone: String
     let notes: String
-    let username: String
 }
 
 // MARK: - Appointments
@@ -140,34 +142,34 @@ struct Appointment: Decodable, Identifiable {
 }
 
 enum AppointmentStatus: String, Decodable, CaseIterable {
-    case confirmed  = "confirmed"
-    case pending    = "pending"
-    case completed  = "completed"
-    case cancelled  = "cancelled"
+    case confirmed = "confirmed"
+    case pending   = "pending"
+    case completed = "completed"
+    case cancelled = "cancelled"
 
     var displayName: String {
         switch self {
-        case .confirmed:  return "Подтверждено"
-        case .pending:    return "Ожидает"
-        case .completed:  return "Выполнено"
-        case .cancelled:  return "Отменено"
+        case .confirmed: return "Подтверждено"
+        case .pending:   return "Ожидает"
+        case .completed: return "Выполнено"
+        case .cancelled: return "Отменено"
         }
     }
 
-    var color: String {
+    var hexColor: String {
         switch self {
-        case .confirmed:  return "#00E5A0"
-        case .pending:    return "#FFD166"
-        case .completed:  return "#4ECDC4"
-        case .cancelled:  return "#FF4757"
+        case .confirmed: return "#00E5A0"
+        case .pending:   return "#FFD166"
+        case .completed: return "#4ECDC4"
+        case .cancelled: return "#FF4757"
         }
     }
 }
 
 enum DepositStatus: String, Decodable {
-    case notRequired     = "not_required"
-    case pendingPayment  = "pending_payment"
-    case paid            = "paid"
+    case notRequired    = "not_required"
+    case pendingPayment = "pending_payment"
+    case paid           = "paid"
 }
 
 struct AppointmentCreateRequest: Encodable {
@@ -205,6 +207,7 @@ struct Service: Decodable, Identifiable, Hashable {
     let id: Int
     let name: String
     let priceDefault: Int
+    let durationMin: Int
 }
 
 struct ServicesResponse: Decodable {
@@ -214,71 +217,40 @@ struct ServicesResponse: Decodable {
 struct ServiceCreateRequest: Encodable {
     let name: String
     let priceDefault: Int
+    let durationMin: Int
 }
 
 // MARK: - Keychain Manager
 
-import Security
-
 final class KeychainManager {
     static let shared = KeychainManager()
-    private let tokenKey = "beauty_book_jwt"
+    private let tokenKey    = "beauty_book_jwt"
     private let masterIdKey = "beauty_book_master_id"
-
     private init() {}
 
-    func saveToken(_ token: String) {
-        save(key: tokenKey, value: token)
-    }
-
-    func getToken() -> String? {
-        load(key: tokenKey)
-    }
-
-    func deleteToken() {
-        delete(key: tokenKey)
-    }
-
-    func saveMasterId(_ id: Int) {
-        save(key: masterIdKey, value: "\(id)")
-    }
-
-    func getMasterId() -> Int? {
-        guard let str = load(key: masterIdKey) else { return nil }
-        return Int(str)
-    }
-
-    var isAuthenticated: Bool { getToken() != nil }
+    func saveToken(_ token: String) { save(key: tokenKey, value: token) }
+    func getToken() -> String?      { load(key: tokenKey) }
+    func deleteToken()               { delete(key: tokenKey) }
+    func saveMasterId(_ id: Int)    { save(key: masterIdKey, value: "\(id)") }
+    func getMasterId() -> Int?      { load(key: masterIdKey).flatMap { Int($0) } }
+    var isAuthenticated: Bool        { getToken() != nil }
 
     private func save(key: String, value: String) {
         let data = value.data(using: .utf8)!
-        let query: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrAccount: key,
-            kSecValueData: data
-        ]
-        SecItemDelete(query as CFDictionary)
-        SecItemAdd(query as CFDictionary, nil)
+        let q: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrAccount: key, kSecValueData: data]
+        SecItemDelete(q as CFDictionary)
+        SecItemAdd(q as CFDictionary, nil)
     }
-
     private func load(key: String) -> String? {
-        let query: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrAccount: key,
-            kSecReturnData: true,
-            kSecMatchLimit: kSecMatchLimitOne
-        ]
+        let q: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrAccount: key,
+                                   kSecReturnData: true, kSecMatchLimit: kSecMatchLimitOne]
         var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
+        guard SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data else { return nil }
         return String(data: data, encoding: .utf8)
     }
-
     private func delete(key: String) {
-        let query: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrAccount: key
-        ]
-        SecItemDelete(query as CFDictionary)
+        let q: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrAccount: key]
+        SecItemDelete(q as CFDictionary)
     }
 }

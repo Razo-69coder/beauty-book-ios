@@ -2,189 +2,130 @@ import SwiftUI
 
 struct TabBarView: View {
     @State private var selectedTab: Tab = .schedule
-    @State private var tabOpacity: Double = 0
-    
-    enum Tab: String, CaseIterable {
-        case schedule = "Расписание"
-        case clients = "Клиенты"
-        case add = "Запись"
-        case stats = "Статистика"
-        case settings = "Настройки"
-        
+    @State private var showNewAppointment = false
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var themeManager: ThemeManager
+    @Environment(\.theme) private var theme
+
+    enum Tab: CaseIterable {
+        case schedule, clients, stats, settings
+
+        var title: String {
+            switch self {
+            case .schedule:  return "Расписание"
+            case .clients:   return "Клиенты"
+            case .stats:     return "Статистика"
+            case .settings:  return "Настройки"
+            }
+        }
         var icon: String {
             switch self {
-            case .schedule: return "calendar"
-            case .clients: return "person.2"
-            case .add: return "plus.circle.fill"
-            case .stats: return "chart.bar"
-            case .settings: return "gearshape"
+            case .schedule:  return "calendar"
+            case .clients:   return "person.2"
+            case .stats:     return "chart.bar"
+            case .settings:  return "gearshape"
             }
         }
     }
-    
+
     var body: some View {
         ZStack(alignment: .bottom) {
-            Color(hex: "#080810").ignoresSafeArea()
-            
-            TabContent(selectedTab: selectedTab)
-                .opacity(tabOpacity)
-            
-            customTabBar
-        }
-        .onAppear {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.2)) {
-                tabOpacity = 1.0
-            }
-        }
-    }
-    
-    private var customTabBar: some View {
-        HStack(spacing: 0) {
-            ForEach(Tab.allCases, id: \.self) { tab in
-                TabButton(
-                    tab: tab,
-                    isSelected: selectedTab == tab
-                ) {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        selectedTab = tab
-                    }
+            theme.backgroundDeep.ignoresSafeArea()
+
+            // Контент
+            Group {
+                switch selectedTab {
+                case .schedule: ScheduleView()
+                case .clients:  ClientsListView()
+                case .stats:    StatsView()
+                case .settings: SettingsView()
                 }
             }
-        }
-        .padding(.horizontal, 8)
-        .padding(.bottom, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(Color(hex: "#11111E"))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+            .environment(\.theme, theme)
+            .environmentObject(appState)
+            .environmentObject(themeManager)
+
+            // Tab Bar
+            VStack(spacing: 0) {
+                Divider().background(theme.borderSubtle)
+                HStack(spacing: 0) {
+                    // Первые 2 вкладки
+                    ForEach([Tab.schedule, Tab.clients], id: \.title) { tab in
+                        TabButton(tab: tab, isSelected: selectedTab == tab, theme: theme) {
+                            withAnimation(DS.springSnappy) { selectedTab = tab }
+                        }
+                    }
+
+                    // Центральная кнопка + (Новая запись)
+                    Button(action: { showNewAppointment = true }) {
+                        ZStack {
+                            Circle()
+                                .fill(theme.gradientPrimary)
+                                .frame(width: 56, height: 56)
+                                .shadow(color: theme.accentGlow, radius: 12, x: 0, y: 4)
+                            Image(systemName: "plus")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .offset(y: -12)
+                    .frame(maxWidth: .infinity)
+
+                    // Последние 2 вкладки
+                    ForEach([Tab.stats, Tab.settings], id: \.title) { tab in
+                        TabButton(tab: tab, isSelected: selectedTab == tab, theme: theme) {
+                            withAnimation(DS.springSnappy) { selectedTab = tab }
+                        }
+                    }
+                }
+                .padding(.horizontal, DS.s8)
+                .padding(.top, DS.s8)
+                .padding(.bottom, DS.s20)
+                .background(
+                    theme.backgroundCard
+                        .shadow(color: .black.opacity(0.3), radius: 16, x: 0, y: -4)
                 )
-        )
-        .padding(.horizontal, 16)
+            }
+        }
+        .sheet(isPresented: $showNewAppointment) {
+            NewAppointmentView(onCreated: nil)
+                .environment(\.theme, theme)
+        }
     }
 }
 
 struct TabButton: View {
     let tab: TabBarView.Tab
     let isSelected: Bool
+    let theme: AppTheme
     let action: () -> Void
-    
     @State private var isPressed = false
-    
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                Image(systemName: tab.icon)
+                Image(systemName: isSelected ? tab.icon + ".fill" : tab.icon)
                     .font(.system(size: 22, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? Color(hex: "#FF2D78") : Color(hex: "#5A5A7A"))
-                    .scaleEffect(isPressed ? 0.9 : 1.0)
-                
-                Text(tab.rawValue)
-                    .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? Color(hex: "#FF2D78") : Color(hex: "#5A5A7A"))
+                    .foregroundColor(isSelected ? theme.accent : theme.textMuted)
+                    .scaleEffect(isPressed ? 0.88 : 1.0)
+                Text(tab.title)
+                    .font(DS.caption)
+                    .foregroundColor(isSelected ? theme.accent : theme.textMuted)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .padding(.vertical, DS.s4)
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in withAnimation(.easeInOut(duration: 0.1)) { isPressed = true } }
-                .onEnded { _ in withAnimation(.spring(response: 0.3)) { isPressed = false } }
+                .onEnded   { _ in withAnimation(DS.springSnappy) { isPressed = false } }
         )
-    }
-}
-
-struct TabContent: View {
-    let selectedTab: TabBarView.Tab
-    
-    var body: some View {
-        Group {
-            switch selectedTab {
-            case .schedule:
-                ScheduleView()
-            case .clients:
-                ClientsListPlaceholder()
-            case .add:
-                NewAppointmentPlaceholder()
-            case .stats:
-                StatsPlaceholder()
-            case .settings:
-                SettingsPlaceholder()
-            }
-        }
-    }
-}
-
-struct ClientsListPlaceholder: View {
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "person.2.fill")
-                .font(.system(size: 48))
-                .foregroundColor(Color(hex: "#5A5A7A"))
-            Text("Клиенты")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-            Text("Скоро")
-                .font(.system(size: 15))
-                .foregroundColor(Color(hex: "#5A5A7A"))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-struct NewAppointmentPlaceholder: View {
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "plus.circle.fill")
-                .font(.system(size: 48))
-                .foregroundColor(Color(hex: "#FF2D78"))
-            Text("Новая запись")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-            Text("Скоро")
-                .font(.system(size: 15))
-                .foregroundColor(Color(hex: "#5A5A7A"))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-struct StatsPlaceholder: View {
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "chart.bar.fill")
-                .font(.system(size: 48))
-                .foregroundColor(Color(hex: "#4ECDC4"))
-            Text("Статистика")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-            Text("Скоро")
-                .font(.system(size: 15))
-                .foregroundColor(Color(hex: "#5A5A7A"))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-struct SettingsPlaceholder: View {
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "gearshape.fill")
-                .font(.system(size: 48))
-                .foregroundColor(Color(hex: "#A0A0C0"))
-            Text("Настройки")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-            Text("Скоро")
-                .font(.system(size: 15))
-                .foregroundColor(Color(hex: "#5A5A7A"))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
 #Preview {
     TabBarView()
-        .preferredColorScheme(.dark)
+        .environmentObject(AppState())
+        .environmentObject(ThemeManager.shared)
+        .environment(\.theme, .pink)
 }

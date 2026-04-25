@@ -1,109 +1,66 @@
 import Foundation
 import SwiftUI
-import Combine
 
-// MARK: - Auth State
-
-enum AuthStep {
-    case enterCredentials
-    case enterCode(email: String)
-    case authenticated
-}
-
-// MARK: - AuthViewModel
+enum AuthScreen { case login, register, forgotPassword }
 
 @MainActor
 final class AuthViewModel: ObservableObject {
-
-    // MARK: - Published
-
-    @Published var step: AuthStep = .enterCredentials
-    @Published var emailText: String = ""
-    @Published var passwordText: String = ""
-    @Published var codeText: String = ""
-    @Published var isLoading: Bool = false
-    @Published var errorMessage: String? = nil
+    @Published var screen: AuthScreen   = .login
+    @Published var loginEmail           = ""
+    @Published var loginPassword        = ""
+    @Published var regName              = ""
+    @Published var regEmail             = ""
+    @Published var regPassword          = ""
+    @Published var regConfirm           = ""
+    @Published var forgotEmail          = ""
+    @Published var forgotSent           = false
+    @Published var isLoading            = false
+    @Published var errorMessage: String?  = nil
     @Published var successMessage: String? = nil
 
-    var isAuthenticated: Bool {
-        if case .authenticated = step { return true }
-        return false
-    }
-
-    // MARK: - Computed
-
-    var emailValid: Bool { true }
-
-    var passwordValid: Bool { true }
-
-    var codeValid: Bool {
-        codeText.filter(\.isNumber).count == 6
-    }
-
-    var canLogin: Bool { !isLoading }
-    var canVerify: Bool { codeValid && !isLoading }
-
+    var onSuccess: ((MasterProfile, String) -> Void)?
     private let api = APIClient.shared
 
-    // MARK: - Actions
+    var loginValid: Bool    { loginEmail.contains("@") && loginPassword.count >= 6 && !isLoading }
+    var registerValid: Bool { !regName.isEmpty && regEmail.contains("@") && regPassword.count >= 6 && regPassword == regConfirm && !isLoading }
+    var passwordsMismatch: Bool { !regConfirm.isEmpty && regPassword != regConfirm }
 
     func login() async {
-        // DEBUG: instant login
-        KeychainManager.shared.saveToken("debug_token")
-        KeychainManager.shared.saveMasterId(1)
-        
-        step = .authenticated
-        NotificationCenter.default.post(name: .didLogin, object: nil)
-    }
-
-    func verifyCode() async {
-        guard case .enterCode(let email) = step else { return }
-        guard codeValid else { return }
-
-        isLoading = true
-        errorMessage = nil
-
+        guard loginValid else { return }
+        isLoading = true; errorMessage = nil
         do {
-            let response = try await api.request(.verifyCode(email: email, code: codeText), type: LoginResponse.self)
-
-            KeychainManager.shared.saveToken(response.token)
-            KeychainManager.shared.saveMasterId(response.masterId)
-
-            step = .authenticated
-            NotificationCenter.default.post(name: .didLogin, object: nil)
-        } catch {
-            errorMessage = "Неверный код"
-        }
-
+            let resp = try await api.request(.login(LoginRequest(email: loginEmail, password: loginPassword)), as: AuthTokenResponse.self)
+            onSuccess?(resp.master, resp.token)
+        } catch let e as NetworkError { errorMessage = e.errorDescription
+        } catch { errorMessage = "Ошибка входа. Проверь данные." }
         isLoading = false
     }
 
-    func goBack() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            step = .enterCredentials
-            codeText = ""
-            errorMessage = nil
-            successMessage = nil
-        }
-    }
-
-    func resendCode() async {
-        guard case .enterCode(let email) = step else { return }
-        codeText = ""
-        errorMessage = nil
-        isLoading = true
-
+    func register() async {
+        guard registerValid else { return }
+        isLoading = true; errorMessage = nil
         do {
-            let _ = try await api.request(.resendCode(email: email), type: ResendCodeResponse.self)
-            successMessage = "Новый код отправлен"
-        } catch {
-            errorMessage = "Не удалось отправить код"
-        }
-
+            let resp = try await api.request(.register(RegisterRequest(email: regEmail, password: regPassword, name: regName)), as: AuthTokenResponse.self)
+            onSuccess?(resp.master, resp.token)
+        } catch let e as NetworkError { errorMessage = e.errorDescription
+        } catch { errorMessage = "Ошибка регистрации. Попробуй позже." }
         isLoading = false
     }
-}
 
-extension AuthViewModel {
-    static var shared: AuthViewModel? = nil
+    func forgotPassword() async {
+        guard forgotEmail.contains("@"), !isLoading else { return }
+        isLoading = true; errorMessage = nil
+        do {
+            let _ = try await api.request(.forgotPassword(email: forgotEmail), as: MessageResponse.self)
+            forgotSent = true
+            successMessage = "Ссылка отправлена на \(forgotEmail)"
+        } catch let e as NetworkError { errorMessage = e.errorDescription
+        } catch { errorMessage = "Ошибка. Проверь email." }
+        isLoading = false
+    }
+
+    func switchTo(_ s: AuthScreen) {
+        withAnimation(DS.springSnappy) { screen = s }
+        errorMessage = nil; successMessage = nil
+    }
 }
