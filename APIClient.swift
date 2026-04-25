@@ -159,7 +159,6 @@ enum Endpoint: APIEndpoint {
         default: return nil
         }
     }
-    }
 
     var method: HTTPMethod {
         switch self {
