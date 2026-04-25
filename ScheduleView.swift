@@ -133,7 +133,7 @@ struct DateCell: View {
     private var dayName: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEE"
-        return formatter.string(from: date).capitaled
+        return formatter.string(from: date).capitalized
     }
     
     private var dayNumber: String {
@@ -260,7 +260,7 @@ final class ScheduleViewModel: ObservableObject {
     
     private let api = APIClient.shared
     
-    private var dates: [Date] {
+    var dates: [Date] {
         let calendar = Calendar.current
         let today = Date()
         return (0..<14).compactMap { offset in
@@ -289,7 +289,7 @@ final class ScheduleViewModel: ObservableObject {
         
         do {
             let response = try await api.request(.schedule(date: dateString), type: ScheduleResponse.self)
-            appointments = response.appointments.sorted { $0.time < $1.0.time }
+            appointments = response.appointments.sorted { a, b in a.time < b.time }
         } catch {
             errorMessage = error.localizedDescription
         }
