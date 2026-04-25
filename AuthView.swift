@@ -265,7 +265,7 @@ struct CodeInputField: View {
             TextField("", text: $text)
                 .keyboardType(.numberPad)
                 .opacity(0.01)
-                .onChange(of: text) { _, new in
+                .onChange(of: text) { new in
                     text = String(new.filter(\.isNumber).prefix(6))
                 }
         )

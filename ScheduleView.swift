@@ -74,7 +74,7 @@ struct ScheduleView: View {
                 .padding(.horizontal, 20)
             }
             .opacity(selectedDateOpacity)
-            .onChange(of: viewModel.selectedDate) { _, newDate in
+            .onChange(of: viewModel.selectedDate) { newDate in
                 withAnimation(.spring(response: 0.3)) {
                     proxy.scrollTo(newDate, anchor: .center)
                 }

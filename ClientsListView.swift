@@ -20,7 +20,7 @@ struct ClientsListView: View {
                 listOpacity = 1.0
             }
         }
-        .onChange(of: searchText) { _, newValue in
+        .onChange(of: searchText) { newValue in
             viewModel.searchQuery = newValue
             Task { await viewModel.loadClients() }
         }
