@@ -192,7 +192,7 @@ struct SlotsResponse: Decodable {
 
 // MARK: - Services
 
-struct Service: Decodable, Identifiable {
+struct Service: Decodable, Identifiable, Hashable {
     let id: Int
     let name: String
     let priceDefault: Int
