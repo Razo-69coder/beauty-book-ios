@@ -1,13 +1,9 @@
 import Foundation
 
-// MARK: - API Configuration
-
 enum APIConfig {
     static let baseURL = "https://beauty-bot-44ou.onrender.com/api/v1"
     static let timeout: TimeInterval = 30
 }
-
-// MARK: - Network Errors
 
 enum NetworkError: LocalizedError {
     case invalidURL
@@ -29,8 +25,6 @@ enum NetworkError: LocalizedError {
     }
 }
 
-// MARK: - HTTP Methods
-
 enum HTTPMethod: String {
     case get    = "GET"
     case post   = "POST"
@@ -39,56 +33,40 @@ enum HTTPMethod: String {
     case patch  = "PATCH"
 }
 
-// MARK: - API Endpoint
-
 protocol APIEndpoint {
     var path: String { get }
     var method: HTTPMethod { get }
     var requiresAuth: Bool { get }
-    var body: Encodable? { get }
+    var body: Data? { get }
     var queryParams: [String: String]? { get }
 }
 
 extension APIEndpoint {
     var requiresAuth: Bool { true }
-    var body: Encodable? { nil }
+    var body: Data? { nil }
     var queryParams: [String: String]? { nil }
 }
 
-// MARK: - Endpoints
-
 enum Endpoint: APIEndpoint {
-
-    // Auth
     case requestCode(telegramId: Int)
     case verifyCode(telegramId: Int, code: String)
-
-    // Masters
     case me
     case updateSettings(MasterSettingsRequest)
     case updatePayment(PaymentRequest)
     case stats
-
-    // Clients
     case clients(page: Int, search: String)
     case clientDetail(id: Int)
     case createClient(ClientCreateRequest)
     case updateClient(id: Int, ClientUpdateRequest)
     case deleteClient(id: Int)
-
-    // Appointments
     case appointments(date: String?, status: String?)
     case appointmentDetail(id: Int)
     case createAppointment(AppointmentCreateRequest)
     case updateAppointment(id: Int, AppointmentUpdateRequest)
     case cancelAppointment(id: Int)
     case markDone(id: Int)
-
-    // Schedule
     case schedule(date: String)
     case slots(date: String)
-
-    // Services
     case services
     case createService(ServiceCreateRequest)
     case deleteService(id: Int)
@@ -141,17 +119,26 @@ enum Endpoint: APIEndpoint {
         }
     }
 
-    var body: Encodable? {
+    var body: Data? {
         switch self {
-        case .requestCode(let tgId):        return ["telegram_id": tgId]
-        case .verifyCode(let tgId, let code): return ["telegram_id": tgId, "code": code]
-        case .updateSettings(let req):      return req
-        case .updatePayment(let req):       return req
-        case .createClient(let req):        return req
-        case .updateClient(_, let req):     return req
-        case .createAppointment(let req):   return req
-        case .updateAppointment(_, let req): return req
-        case .createService(let req):       return req
+        case .requestCode(let tgId):
+            return try? JSONEncoder().encode(["telegram_id": tgId])
+        case .verifyCode(let tgId, let code):
+            return try? JSONEncoder().encode(["telegram_id": tgId, "code": code])
+        case .updateSettings(let req):
+            return try? JSONEncoder().encode(req)
+        case .updatePayment(let req):
+            return try? JSONEncoder().encode(req)
+        case .createClient(let req):
+            return try? JSONEncoder().encode(req)
+        case .updateClient(_, let req):
+            return try? JSONEncoder().encode(req)
+        case .createAppointment(let req):
+            return try? JSONEncoder().encode(req)
+        case .updateAppointment(_, let req):
+            return try? JSONEncoder().encode(req)
+        case .createService(let req):
+            return try? JSONEncoder().encode(req)
         default: return nil
         }
     }
@@ -174,11 +161,8 @@ enum Endpoint: APIEndpoint {
     }
 }
 
-// MARK: - API Client
-
 @MainActor
 final class APIClient: ObservableObject {
-
     static let shared = APIClient()
     private let session: URLSession
     private let decoder: JSONDecoder
@@ -191,8 +175,6 @@ final class APIClient: ObservableObject {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         decoder.dateDecodingStrategy = .iso8601
     }
-
-    // MARK: - Core Request
 
     func request<T: Decodable>(_ endpoint: Endpoint, type: T.Type = T.self) async throws -> T {
         let urlRequest = try buildRequest(endpoint)
@@ -210,7 +192,6 @@ final class APIClient: ObservableObject {
                 throw NetworkError.decodingError(error)
             }
         case 401:
-            // Токен истёк — уведомляем AuthManager
             NotificationCenter.default.post(name: .tokenExpired, object: nil)
             throw NetworkError.unauthorized
         default:
@@ -218,8 +199,6 @@ final class APIClient: ObservableObject {
             throw NetworkError.serverError(httpResponse.statusCode, message)
         }
     }
-
-    // MARK: - Build URLRequest
 
     private func buildRequest(_ endpoint: Endpoint) throws -> URLRequest {
         guard var components = URLComponents(string: APIConfig.baseURL + endpoint.path) else {
@@ -237,23 +216,17 @@ final class APIClient: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        // JWT Authorization
         if endpoint.requiresAuth, let token = KeychainManager.shared.getToken() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
-        // Body
         if let body = endpoint.body {
-            let encoder = JSONEncoder()
-            encoder.keyEncodingStrategy = .convertToSnakeCase
-            request.httpBody = try encoder.encode(body)
+            request.httpBody = body
         }
 
         return request
     }
 }
-
-// MARK: - Convenience Extensions
 
 extension APIClient {
     func getMe() async throws -> MasterProfile {
@@ -273,13 +246,9 @@ extension APIClient {
     }
 }
 
-// MARK: - Notification Names
-
 extension Notification.Name {
     static let tokenExpired = Notification.Name("tokenExpired")
 }
-
-// MARK: - API Error Response
 
 struct APIError: Decodable {
     let detail: String
