@@ -276,7 +276,7 @@ struct ServicePickerView: View {
     
     var body: some View {
         List {
-            ForEach(viewModel.servicesForPicker, id: \.self) { service in
+            ForEach(viewModel.servicesForPicker) { service in
                 Button {
                     viewModel.selectedService = service.name
                     viewModel.priceText = "\(service.priceDefault)"
