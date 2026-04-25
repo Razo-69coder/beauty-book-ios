@@ -110,7 +110,6 @@ struct AuthView: View {
 
 struct TelegramIdStep: View {
     @ObservedObject var viewModel: AuthViewModel
-    @FocusState private var focused: Bool
 
     var body: some View {
         VStack(spacing: 24) {
@@ -134,7 +133,6 @@ struct TelegramIdStep: View {
                 keyboardType: .numberPad,
                 isValid: viewModel.telegramIdValid || viewModel.telegramIdText.isEmpty
             )
-            .focused($focused)
 
             // Ошибка
             if let error = viewModel.errorMessage {
@@ -148,14 +146,12 @@ struct TelegramIdStep: View {
                 isLoading: viewModel.isLoading,
                 isDisabled: !viewModel.canRequestCode
             ) {
-                focused = false
                 Task { await viewModel.requestCode() }
             }
 
             // Подсказка как узнать ID
             TelegramIdHint()
         }
-        .onAppear { focused = true }
     }
 }
 
@@ -163,7 +159,6 @@ struct TelegramIdStep: View {
 
 struct CodeStep: View {
     @ObservedObject var viewModel: AuthViewModel
-    @FocusState private var focused: Bool
 
     var body: some View {
         VStack(spacing: 24) {
@@ -206,7 +201,6 @@ struct CodeStep: View {
 
             // 6-значный код
             CodeInputField(text: $viewModel.codeText)
-                .focused($focused)
 
             // Ошибка
             if let error = viewModel.errorMessage {
@@ -220,7 +214,6 @@ struct CodeStep: View {
                 isLoading: viewModel.isLoading,
                 isDisabled: !viewModel.canVerify
             ) {
-                focused = false
                 Task { await viewModel.verifyCode() }
             }
 
@@ -231,9 +224,6 @@ struct CodeStep: View {
             .font(.system(size: 14, weight: .medium))
             .foregroundColor(Color(hex: "#FF2D78").opacity(viewModel.isLoading ? 0.4 : 1))
             .disabled(viewModel.isLoading)
-        }
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { focused = true }
         }
     }
 }
