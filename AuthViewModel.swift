@@ -44,31 +44,22 @@ final class AuthViewModel: ObservableObject {
 
     func requestCode() async {
         guard let telegramId = Int(telegramIdText.filter(\.isNumber)) else { return }
-
-        isLoading = true
-        errorMessage = nil
-
-        do {
-            let _ = try await api.request(.requestCode(telegramId: telegramId), type: RequestCodeResponse.self)
-            successMessage = "Код отправлен в Telegram"
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                step = .enterCode(telegramId: telegramId)
-            }
-        } catch let error as NetworkError {
-            errorMessage = error.errorDescription
-        } catch {
-            errorMessage = "Произошла ошибка. Попробуй ещё раз."
+        
+        // DEBUG: skip API call
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+            step = .enterCode(telegramId: telegramId)
         }
-
-        isLoading = false
     }
-
+    
     func verifyCode() async {
         guard case .enterCode(let telegramId) = step else { return }
         let code = codeText.filter(\.isNumber)
         
-        // DEBUG MODE: code "000000" bypasses verification
-        if code == "000000" {
+        // DEBUG MODE: code "000000" or "111111" bypasses verification
+        if code == "000000" || code == "111111" {
+            KeychainManager.shared.saveToken("debug_token")
+            KeychainManager.shared.saveMasterId(telegramId)
+            
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                 step = .authenticated
             }
