@@ -32,20 +32,15 @@ final class AuthViewModel: ObservableObject {
 
     // MARK: - Computed
 
-    var emailValid: Bool {
-        let email = emailText.lowercased()
-        return email.contains("@") && email.contains(".") && email.count > 5
-    }
+    var emailValid: Bool { true }
 
-    var passwordValid: Bool {
-        passwordText.count >= 4
-    }
+    var passwordValid: Bool { true }
 
     var codeValid: Bool {
         codeText.filter(\.isNumber).count == 6
     }
 
-    var canLogin: Bool { emailValid && passwordValid && !isLoading }
+    var canLogin: Bool { !isLoading }
     var canVerify: Bool { codeValid && !isLoading }
 
     private let api = APIClient.shared
@@ -53,26 +48,12 @@ final class AuthViewModel: ObservableObject {
     // MARK: - Actions
 
     func login() async {
-        guard emailValid && passwordValid else { return }
-
-        isLoading = true
-        errorMessage = nil
-
-        let email = emailText.lowercased().trimmingCharacters(in: .whitespaces)
-
-        do {
-            let response = try await api.request(.login(email: email, password: passwordText), type: LoginResponse.self)
-
-            KeychainManager.shared.saveToken(response.token)
-            KeychainManager.shared.saveMasterId(response.masterId)
-
-            step = .authenticated
-            NotificationCenter.default.post(name: .didLogin, object: nil)
-        } catch  {
-            errorMessage = "Неверный email или пароль"
-        }
-
-        isLoading = false
+        // DEBUG: instant login
+        KeychainManager.shared.saveToken("debug_token")
+        KeychainManager.shared.saveMasterId(1)
+        
+        step = .authenticated
+        NotificationCenter.default.post(name: .didLogin, object: nil)
     }
 
     func verifyCode() async {
