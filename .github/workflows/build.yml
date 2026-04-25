@@ -8,15 +8,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download XcodeGen
+      - name: Install Mint
         run: |
-          curl -Ls https://github.com/yonaskolb/XcodeGen/releases/download/2.43.0/xcodegen-2.43.0-mac.zip -o xcodegen.zip
-          unzip -q xcodegen.zip
-          chmod +x xcodegen/bin/xcodegen
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          brew install mint
 
-      - name: Generate project
-        run: |
-          ./xcodegen/bin/xcodegen generate
+      - name: Generate with Mint
+        run: mint run xcodegen generate
 
       - name: Build
         run: |
@@ -26,4 +24,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BeautyBook
-          path: build/Debug-iphonesimulator/BeautyBook.app
+          path: build/Debug-iphonesimulator/*.app
