@@ -3,13 +3,18 @@ workflows:
     name: Beauty Book iOS
     environment:
       xcode: latest
-      vars:
-        XCODE_PROJECT: "."
-        XCODE_SCHEME: BeautyBook
-        BUNDLE_ID: com.beautybook.app
+      flutter: stable
     scripts:
+      - name: Install XcodeGen
+        script: |
+          if ! command -v xcodegen &> /dev/null; then
+            brew install xcodegen
+          fi
+      - name: Generate project
+        script: |
+          xcodegen generate
       - name: Build iOS app
         script: |
-          swift build -c release
+          xcodebuild -project BeautyBook.xcodeproj -scheme BeautyBook -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' build CODE_SIGNING_ALLOWED=NO
     artifacts:
-      - .build/**/*.app
+      - build/Debug-iphonesimulator/*.app

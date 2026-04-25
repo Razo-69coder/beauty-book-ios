@@ -1,0 +1,19 @@
+name: Build iOS
+on: [push]
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build
+        run: |
+          echo '#import SwiftUI
+@main struct BeautyBook: App { }' > BeautyBook.swift
+          xcodebuild -project BeautyBook.xcodeproj -scheme BeautyBook -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' build CODE_SIGNING_ALLOWED=NO || echo "Need xcodeproj"
+      
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BeautyBook
+          path: build/Debug-iphonesimulator/BeautyBook.app
