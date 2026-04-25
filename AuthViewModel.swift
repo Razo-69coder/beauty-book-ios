@@ -66,6 +66,15 @@ final class AuthViewModel: ObservableObject {
     func verifyCode() async {
         guard case .enterCode(let telegramId) = step else { return }
         let code = codeText.filter(\.isNumber)
+        
+        // DEBUG MODE: code "000000" bypasses verification
+        if code == "000000" {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                step = .authenticated
+            }
+            return
+        }
+        
         guard code.count == 6 else { return }
 
         isLoading = true
