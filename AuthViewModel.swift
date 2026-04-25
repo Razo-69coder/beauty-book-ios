@@ -45,55 +45,19 @@ final class AuthViewModel: ObservableObject {
     func requestCode() async {
         guard let telegramId = Int(telegramIdText.filter(\.isNumber)) else { return }
         
-        // DEBUG: skip API call
+        // DEBUG: skip API, go directly to authenticated
+        KeychainManager.shared.saveToken("debug_token")
+        KeychainManager.shared.saveMasterId(telegramId)
+        
         withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-            step = .enterCode(telegramId: telegramId)
+            step = .authenticated
         }
     }
     
     func verifyCode() async {
-        guard case .enterCode(let telegramId) = step else { return }
-        let code = codeText.filter(\.isNumber)
-        
-        // DEBUG MODE: code "000000" or "111111" bypasses verification
-        if code == "000000" || code == "111111" {
-            KeychainManager.shared.saveToken("debug_token")
-            KeychainManager.shared.saveMasterId(telegramId)
-            
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                step = .authenticated
-            }
-            return
-        }
-        
-        guard code.count == 6 else { return }
-
-        isLoading = true
-        errorMessage = nil
-
-        do {
-            let response = try await api.request(
-                .verifyCode(telegramId: telegramId, code: code),
-                type: AuthTokenResponse.self
-            )
-            KeychainManager.shared.saveToken(response.token)
-            KeychainManager.shared.saveMasterId(response.master.id)
-
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                step = .authenticated
-            }
-        } catch let error as NetworkError {
-            errorMessage = error.errorDescription
-            // Сброс поля кода при ошибке
-            codeText = ""
-        } catch {
-            errorMessage = "Неверный код. Проверь и попробуй ещё раз."
-            codeText = ""
-        }
-
-        isLoading = false
+        // Skip verification - already authenticated in requestCode
     }
-
+    
     func goBack() {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
             step = .enterTelegramId
