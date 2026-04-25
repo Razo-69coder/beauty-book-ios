@@ -8,18 +8,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install XcodeGen via Ruby
+      - name: Install XcodeGen
         run: |
-          sudo gem install xcodegen
+          sudo xcode-select -s /Applications/Xcode.app
+          sudo /usr/bin/gem install xcodegen --no-document
 
-      - name: Generate project
+      - name: Generate
         run: xcodegen generate
 
       - name: Build
         run: |
           xcodebuild -project BeautyBook.xcodeproj -scheme BeautyBook -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' CODE_SIGNING_ALLOWED=NO
 
-      - name: Upload Artifact
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: BeautyBook
