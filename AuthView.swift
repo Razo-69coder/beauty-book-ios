@@ -242,14 +242,11 @@ struct CodeStep: View {
 
 struct CodeInputField: View {
     @Binding var text: String
-    @FocusState.Binding var isFocused: Bool
 
     private let cellCount = 6
 
-    // Инициализатор без FocusState (упрощённый)
     init(text: Binding<String>) {
         self._text = text
-        // FocusState managed externally
     }
 
     var body: some View {
