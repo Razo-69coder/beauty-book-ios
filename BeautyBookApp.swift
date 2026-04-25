@@ -7,21 +7,11 @@ struct BeautyBookApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if appState.isAuthenticated {
-                    TabBarView()
-                        .environmentObject(appState)
-                        .environmentObject(themeManager)
-                        .environment(\.theme, themeManager.current)
-                } else {
-                    AuthView()
-                        .environmentObject(appState)
-                        .environmentObject(themeManager)
-                        .environment(\.theme, themeManager.current)
-                }
-            }
-            .preferredColorScheme(.dark)
-            .animation(DS.springSmooth, value: appState.isAuthenticated)
+            TabBarView()
+                .environmentObject(appState)
+                .environmentObject(themeManager)
+                .environment(\.theme, themeManager.current)
+                .preferredColorScheme(.dark)
         }
     }
 }
