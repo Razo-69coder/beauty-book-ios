@@ -263,7 +263,7 @@ struct ClientPickerView: View {
             .background(Color(hex: "#080810"))
             .navigationTitle("Выбрать клиента")
             .searchable(text: $searchText, prompt: "Поиск")
-            .onChange(of: searchText) { newValue in
+            .onChange(of: searchText) { _ in
                 viewModel.searchClients(query: newValue)
             }
         }
