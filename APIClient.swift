@@ -160,53 +160,6 @@ enum Endpoint: APIEndpoint {
         }
     }
 
-    var method: HTTPMethod {
-        switch self {
-        case .requestCode, .verifyCode, .createClient,
-             .createAppointment, .createService, .markDone:
-            return .post
-        case .updateSettings, .updatePayment, .updateClient, .updateAppointment:
-            return .put
-        case .deleteClient, .cancelAppointment, .deleteService:
-            return .delete
-        default:
-            return .get
-        }
-    }
-
-    var requiresAuth: Bool {
-        switch self {
-        case .requestCode, .verifyCode: return false
-        default: return true
-        }
-    }
-
-    var body: Data? {
-        switch self {
-        case .requestCode(let tgId):
-            let body: [String: Any] = ["telegram_id": tgId]
-            return try? JSONSerialization.data(withJSONObject: body)
-        case .verifyCode(let tgId, let code):
-            let body: [String: Any] = ["telegram_id": tgId, "code": code]
-            return try? JSONSerialization.data(withJSONObject: body)
-        case .updateSettings(let req):
-            return try? JSONEncoder().encode(req)
-        case .updatePayment(let req):
-            return try? JSONEncoder().encode(req)
-        case .createClient(let req):
-            return try? JSONEncoder().encode(req)
-        case .updateClient(_, let req):
-            return try? JSONEncoder().encode(req)
-        case .createAppointment(let req):
-            return try? JSONEncoder().encode(req)
-        case .updateAppointment(_, let req):
-            return try? JSONEncoder().encode(req)
-        case .createService(let req):
-            return try? JSONEncoder().encode(req)
-        default: return nil
-        }
-    }
-
     var queryParams: [String: String]? {
         switch self {
         case .clients(let page, let search):
