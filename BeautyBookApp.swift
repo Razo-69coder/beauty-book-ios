@@ -4,8 +4,9 @@ import SwiftUI
 struct BeautyBookApp: App {
     var body: some Scene {
         WindowGroup {
-            TabBarView()
-                .preferredColorScheme(.dark)
+            Text("Hello")
+                .foregroundColor(.white)
+                .background(Color.black)
         }
     }
 }
