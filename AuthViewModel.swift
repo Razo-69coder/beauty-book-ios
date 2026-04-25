@@ -5,8 +5,8 @@ import Combine
 // MARK: - Auth State
 
 enum AuthStep {
-    case enterTelegramId
-    case enterCode(telegramId: Int)
+    case enterCredentials
+    case enterCode(email: String)
     case authenticated
 }
 
@@ -17,47 +17,89 @@ final class AuthViewModel: ObservableObject {
 
     // MARK: - Published
 
-    @Published var step: AuthStep = .enterTelegramId
-    @Published var telegramIdText: String = ""
+    @Published var step: AuthStep = .enterCredentials
+    @Published var emailText: String = ""
+    @Published var passwordText: String = ""
     @Published var codeText: String = ""
     @Published var isLoading: Bool = false
     @Published var errorMessage: String? = nil
     @Published var successMessage: String? = nil
 
+    var isAuthenticated: Bool {
+        if case .authenticated = step { return true }
+        return false
+    }
+
     // MARK: - Computed
 
-    var telegramIdValid: Bool {
-        let cleaned = telegramIdText.filter(\.isNumber)
-        return cleaned.count >= 5 && cleaned.count <= 12
+    var emailValid: Bool {
+        let email = emailText.lowercased()
+        return email.contains("@") && email.contains(".") && email.count > 5
+    }
+
+    var passwordValid: Bool {
+        passwordText.count >= 4
     }
 
     var codeValid: Bool {
         codeText.filter(\.isNumber).count == 6
     }
 
-    var canRequestCode: Bool { telegramIdValid && !isLoading }
+    var canLogin: Bool { emailValid && passwordValid && !isLoading }
     var canVerify: Bool { codeValid && !isLoading }
 
     private let api = APIClient.shared
 
     // MARK: - Actions
 
-    func requestCode() async {
-        guard let telegramId = Int(telegramIdText.filter(\.isNumber)) else { return }
-        
-        KeychainManager.shared.saveToken("debug_token")
-        KeychainManager.shared.saveMasterId(telegramId)
-        
-        step = .authenticated
+    func login() async {
+        guard emailValid && passwordValid else { return }
+
+        isLoading = true
+        errorMessage = nil
+
+        let email = emailText.lowercased().trimmingCharacters(in: .whitespaces)
+
+        do {
+            let response = try await api.request(.login(email: email, password: passwordText), type: LoginResponse.self)
+
+            KeychainManager.shared.saveToken(response.token)
+            KeychainManager.shared.saveMasterId(response.masterId)
+
+            step = .authenticated
+            NotificationCenter.default.post(name: .didLogin, object: nil)
+        } catch  {
+            errorMessage = "Неверный email или пароль"
+        }
+
+        isLoading = false
     }
-    
+
     func verifyCode() async {
-        // Skip verification - already authenticated in requestCode
+        guard case .enterCode(let email) = step else { return }
+        guard codeValid else { return }
+
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response = try await api.request(.verifyCode(email: email, code: codeText), type: LoginResponse.self)
+
+            KeychainManager.shared.saveToken(response.token)
+            KeychainManager.shared.saveMasterId(response.masterId)
+
+            step = .authenticated
+            NotificationCenter.default.post(name: .didLogin, object: nil)
+        } catch {
+            errorMessage = "Неверный код"
+        }
+
+        isLoading = false
     }
-    
+
     func goBack() {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            step = .enterTelegramId
+            step = .enterCredentials
             codeText = ""
             errorMessage = nil
             successMessage = nil
@@ -65,18 +107,22 @@ final class AuthViewModel: ObservableObject {
     }
 
     func resendCode() async {
-        guard case .enterCode(let telegramId) = step else { return }
+        guard case .enterCode(let email) = step else { return }
         codeText = ""
         errorMessage = nil
         isLoading = true
 
         do {
-            let _ = try await api.request(.requestCode(telegramId: telegramId), type: RequestCodeResponse.self)
+            let _ = try await api.request(.resendCode(email: email), type: ResendCodeResponse.self)
             successMessage = "Новый код отправлен"
         } catch {
-            errorMessage = "Не удалось отправить код. Проверь интернет."
+            errorMessage = "Не удалось отправить код"
         }
 
         isLoading = false
     }
+}
+
+extension AuthViewModel {
+    static var shared: AuthViewModel? = nil
 }

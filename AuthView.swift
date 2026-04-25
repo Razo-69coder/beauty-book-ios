@@ -9,21 +9,18 @@ struct AuthView: View {
 
     var body: some View {
         ZStack {
-            // Фон с градиентом
             Color(hex: "#080810").ignoresSafeArea()
             backgroundGlow
 
             VStack(spacing: 0) {
-                // Логотип
                 logoSection
                     .padding(.top, 80)
                     .padding(.bottom, 48)
 
-                // Контент по шагу
                 Group {
                     switch viewModel.step {
-                    case .enterTelegramId:
-                        TelegramIdStep(viewModel: viewModel)
+                    case .enterCredentials:
+                        CredentialsStep(viewModel: viewModel)
                             .transition(.asymmetric(
                                 insertion: .move(edge: .trailing).combined(with: .opacity),
                                 removal: .move(edge: .leading).combined(with: .opacity)
@@ -35,7 +32,7 @@ struct AuthView: View {
                                 removal: .move(edge: .leading).combined(with: .opacity)
                             ))
                     case .authenticated:
-                        EmptyView() // TabBarView подхватит через AppState
+                        EmptyView()
                     }
                 }
                 .animation(.spring(response: 0.4, dampingFraction: 0.75), value: viewModel.step.id)
@@ -52,11 +49,8 @@ struct AuthView: View {
         }
     }
 
-    // MARK: - Logo
-
     private var logoSection: some View {
         VStack(spacing: 16) {
-            // Иконка
             ZStack {
                 Circle()
                     .fill(
@@ -87,8 +81,6 @@ struct AuthView: View {
         .opacity(logoOpacity)
     }
 
-    // MARK: - Background glow
-
     private var backgroundGlow: some View {
         ZStack {
             Circle()
@@ -106,63 +98,107 @@ struct AuthView: View {
     }
 }
 
-// MARK: - Step 1: Telegram ID
+// MARK: - Step 1: Email + Password
 
-struct TelegramIdStep: View {
+struct CredentialsStep: View {
     @ObservedObject var viewModel: AuthViewModel
 
     var body: some View {
         VStack(spacing: 24) {
-            // Заголовок
             VStack(spacing: 8) {
                 Text("Войти в аккаунт")
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
 
-                Text("Введи свой Telegram ID.\nКод для входа придёт в бот.")
+                Text("Введи email и пароль\nдля входа в приложение.")
                     .font(.system(size: 14))
                     .foregroundColor(Color(hex: "#A0A0C0"))
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
             }
 
-            // Поле ввода
             BBTextField(
-                placeholder: "Telegram ID (например, 550421233)",
-                text: $viewModel.telegramIdText,
-                keyboardType: .numberPad,
-                isValid: viewModel.telegramIdValid || viewModel.telegramIdText.isEmpty
+                placeholder: "Email",
+                text: $viewModel.emailText,
+                keyboardType: .emailAddress,
+                isValid: viewModel.emailValid || viewModel.emailText.isEmpty
             )
 
-            // Ошибка
+            BBSecureField(
+                placeholder: "Пароль",
+                text: $viewModel.passwordText,
+                isValid: viewModel.passwordValid || viewModel.passwordText.isEmpty
+            )
+
             if let error = viewModel.errorMessage {
                 ErrorBanner(message: error)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
 
-            // Кнопка
             BBButton(
-                title: "Получить код",
+                title: "Войти",
                 isLoading: viewModel.isLoading,
-                isDisabled: !viewModel.canRequestCode
+                isDisabled: !viewModel.canLogin
             ) {
-                Task { await viewModel.requestCode() }
+                Task { await viewModel.login() }
             }
-
-            // Подсказка как узнать ID
-            TelegramIdHint()
         }
     }
 }
 
-// MARK: - Step 2: Код
+struct BBSecureField: View {
+    let placeholder: String
+    @Binding var text: String
+    var isValid: Bool = true
+
+    @State private var isSecure = true
+
+    var body: some View {
+        HStack {
+            Group {
+                if isSecure {
+                    SecureField("", text: $text)
+                } else {
+                    TextField("", text: $text)
+                }
+            }
+            .keyboardType(.default)
+            .font(.system(size: 17))
+            .foregroundColor(.white)
+            .placeholder(when: text.isEmpty) {
+                Text(placeholder)
+                    .foregroundColor(Color(hex: "#5A5A7A"))
+                    .font(.system(size: 15))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 18)
+
+            Button(action: { isSecure.toggle() }) {
+                Image(systemName: isSecure ? "eye.slash" : "eye")
+                    .font(.system(size: 16))
+                    .foregroundColor(Color(hex: "#5A5A7A"))
+            }
+            .padding(.trailing, 12)
+        }
+        .background(Color(hex: "#1A1A2E"))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(
+                    isValid ? Color.white.opacity(0.08) : Color(hex: "#FF4757").opacity(0.6),
+                    lineWidth: 1
+                )
+        )
+    }
+}
+
+// MARK: - Step 2: Код из email
 
 struct CodeStep: View {
     @ObservedObject var viewModel: AuthViewModel
 
     var body: some View {
         VStack(spacing: 24) {
-            // Кнопка назад
             HStack {
                 Button(action: viewModel.goBack) {
                     HStack(spacing: 6) {
@@ -176,19 +212,17 @@ struct CodeStep: View {
                 Spacer()
             }
 
-            // Иконка telegram
             ZStack {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color(hex: "#1A1A2E"))
                     .frame(width: 64, height: 64)
-                Image(systemName: "paperplane.fill")
+                Image(systemName: "envelope.fill")
                     .font(.system(size: 28))
                     .foregroundColor(Color(hex: "#FF2D78"))
             }
 
-            // Заголовок
             VStack(spacing: 8) {
-                Text("Введи код из Telegram")
+                Text("Введи код из email")
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
 
@@ -199,16 +233,13 @@ struct CodeStep: View {
                 }
             }
 
-            // 6-значный код
             CodeInputField(text: $viewModel.codeText)
 
-            // Ошибка
             if let error = viewModel.errorMessage {
                 ErrorBanner(message: error)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
 
-            // Кнопка входа
             BBButton(
                 title: "Войти",
                 isLoading: viewModel.isLoading,
@@ -217,7 +248,6 @@ struct CodeStep: View {
                 Task { await viewModel.verifyCode() }
             }
 
-            // Переотправка кода
             Button("Отправить код повторно") {
                 Task { await viewModel.resendCode() }
             }
@@ -488,7 +518,7 @@ extension Color {
 extension AuthStep {
     var id: String {
         switch self {
-        case .enterTelegramId: return "telegramId"
+        case .enterCredentials: return "credentials"
         case .enterCode: return "code"
         case .authenticated: return "auth"
         }

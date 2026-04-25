@@ -33,6 +33,14 @@ final class AppState: ObservableObject {
         ) { [weak self] _ in
             self?.logout()
         }
+        
+        NotificationCenter.default.addObserver(
+            forName: .didLogin,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.isAuthenticated = true
+        }
     }
     
     func logout() {
@@ -41,4 +49,8 @@ final class AppState: ObservableObject {
             isAuthenticated = false
         }
     }
+}
+
+extension Notification.Name {
+    static let didLogin = Notification.Name("didLogin")
 }

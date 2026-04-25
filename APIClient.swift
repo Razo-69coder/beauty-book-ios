@@ -48,8 +48,11 @@ extension APIEndpoint {
 }
 
 enum Endpoint: APIEndpoint {
+    case login(email: String, password: String)
+    case verifyCode(email: String, code: String)
+    case resendCode(email: String)
     case requestCode(telegramId: Int)
-    case verifyCode(telegramId: Int, code: String)
+    case verifyCodeOld(telegramId: Int, code: String)
     case me
     case updateSettings(MasterSettingsRequest)
     case updatePayment(PaymentRequest)
@@ -73,29 +76,89 @@ enum Endpoint: APIEndpoint {
 
     var path: String {
         switch self {
-        case .requestCode:           return "/auth/request-code"
-        case .verifyCode:            return "/auth/verify"
-        case .me:                    return "/masters/me"
-        case .updateSettings:        return "/masters/me"
-        case .updatePayment:         return "/masters/me/payment"
-        case .stats:                 return "/masters/me/stats"
-        case .clients:               return "/clients"
-        case .clientDetail(let id):  return "/clients/\(id)"
-        case .createClient:          return "/clients"
+        case .login:                return "/auth/login"
+        case .verifyCode:           return "/auth/verify"
+        case .resendCode:          return "/auth/resend"
+        case .requestCode:         return "/auth/request-code"
+        case .verifyCodeOld:       return "/auth/verify"
+        case .me:                  return "/masters/me"
+        case .updateSettings:       return "/masters/me"
+        case .updatePayment:        return "/masters/me/payment"
+        case .stats:              return "/masters/me/stats"
+        case .clients:             return "/clients"
+        case .clientDetail(let id): return "/clients/\(id)"
+        case .createClient:         return "/clients"
         case .updateClient(let id, _): return "/clients/\(id)"
-        case .deleteClient(let id):  return "/clients/\(id)"
-        case .appointments:          return "/appointments"
+        case .deleteClient(let id): return "/clients/\(id)"
+        case .appointments:         return "/appointments"
         case .appointmentDetail(let id): return "/appointments/\(id)"
-        case .createAppointment:     return "/appointments"
+        case .createAppointment:  return "/appointments"
         case .updateAppointment(let id, _): return "/appointments/\(id)"
         case .cancelAppointment(let id): return "/appointments/\(id)"
-        case .markDone(let id):      return "/appointments/\(id)/done"
-        case .schedule:              return "/schedule"
-        case .slots:                 return "/slots"
-        case .services:              return "/services"
-        case .createService:         return "/services"
+        case .markDone(let id):  return "/appointments/\(id)/done"
+        case .schedule:          return "/schedule"
+        case .slots:             return "/slots"
+        case .services:          return "/services"
+        case .createService:     return "/services"
         case .deleteService(let id): return "/services/\(id)"
         }
+    }
+
+    var method: HTTPMethod {
+        switch self {
+        case .login, .verifyCode, .resendCode, .requestCode, .verifyCodeOld,
+             .createClient, .createAppointment, .createService, .markDone:
+            return .post
+        case .updateSettings, .updatePayment, .updateClient, .updateAppointment:
+            return .put
+        case .deleteClient, .cancelAppointment, .deleteService:
+            return .delete
+        default:
+            return .get
+        }
+    }
+
+    var requiresAuth: Bool {
+        switch self {
+        case .login, .verifyCode, .resendCode, .requestCode, .verifyCodeOld: return false
+        default: return true
+        }
+    }
+
+    var body: Data? {
+        switch self {
+        case .login(let email, let password):
+            let body: [String: Any] = ["email": email, "password": password]
+            return try? JSONSerialization.data(withJSONObject: body)
+        case .verifyCode(let email, let code):
+            let body: [String: Any] = ["email": email, "code": code]
+            return try? JSONSerialization.data(withJSONObject: body)
+        case .resendCode(let email):
+            let body: [String: Any] = ["email": email]
+            return try? JSONSerialization.data(withJSONObject: body)
+        case .requestCode(let tgId):
+            let body: [String: Any] = ["telegram_id": tgId]
+            return try? JSONSerialization.data(withJSONObject: body)
+        case .verifyCodeOld(let tgId, let code):
+            let body: [String: Any] = ["telegram_id": tgId, "code": code]
+            return try? JSONSerialization.data(withJSONObject: body)
+        case .updateSettings(let req):
+            return try? JSONEncoder().encode(req)
+        case .updatePayment(let req):
+            return try? JSONEncoder().encode(req)
+        case .createClient(let req):
+            return try? JSONEncoder().encode(req)
+        case .updateClient(_, let req):
+            return try? JSONEncoder().encode(req)
+        case .createAppointment(let req):
+            return try? JSONEncoder().encode(req)
+        case .updateAppointment(_, let req):
+            return try? JSONEncoder().encode(req)
+        case .createService(let req):
+            return try? JSONEncoder().encode(req)
+        default: return nil
+        }
+    }
     }
 
     var method: HTTPMethod {

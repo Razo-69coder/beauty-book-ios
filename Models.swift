@@ -7,6 +7,15 @@ struct AuthTokenResponse: Decodable {
     let master: MasterProfile
 }
 
+struct LoginResponse: Decodable {
+    let token: String
+    let masterId: Int
+}
+
+struct ResendCodeResponse: Decodable {
+    let ok: Bool
+}
+
 struct RequestCodeResponse: Decodable {
     let ok: Bool
 }
