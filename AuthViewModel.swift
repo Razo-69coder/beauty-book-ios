@@ -45,13 +45,10 @@ final class AuthViewModel: ObservableObject {
     func requestCode() async {
         guard let telegramId = Int(telegramIdText.filter(\.isNumber)) else { return }
         
-        // DEBUG: skip API, go directly to authenticated
         KeychainManager.shared.saveToken("debug_token")
         KeychainManager.shared.saveMasterId(telegramId)
         
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-            step = .authenticated
-        }
+        step = .authenticated
     }
     
     func verifyCode() async {
