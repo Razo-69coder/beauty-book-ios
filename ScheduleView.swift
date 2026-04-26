@@ -53,9 +53,10 @@ struct ScheduleView: View {
                     headerSection
                     dateStrip
                     if vm.isLoading {
-                        Spacer().frame(height: 200)
-                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
-                        Spacer()
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 60)
                     } else {
                         appointmentsList
                     }

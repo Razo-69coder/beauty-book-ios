@@ -35,45 +35,62 @@ struct TabBarView: View {
 
     private var backgroundLayer: some View {
         ZStack {
+            theme.backgroundDeep
+                .ignoresSafeArea()
+
             if let uiImage = UIImage(named: theme.backgroundImageName) {
                 Image(uiImage: uiImage)
                     .resizable()
-                    .scaledToFill()
-                    .ignoresSafeArea()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .aspectRatio(contentMode: .fill)
+                    .frame(
+                        width: UIScreen.main.bounds.width,
+                        height: UIScreen.main.bounds.height
+                    )
                     .clipped()
-            } else {
-                Color(theme.backgroundDeep)
-                    .ignoresSafeArea(edges: .all)
+                    .ignoresSafeArea()
             }
-            theme.backgroundDeep.opacity(0.55)
+
+            Color.black.opacity(0.45)
                 .ignoresSafeArea()
         }
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            backgroundLayer
+        VStack(spacing: 0) {
+            contentView
 
-            // Контент с отступом снизу
-            Group {
-                switch selectedTab {
-                case .schedule: ScheduleView()
-                case .clients:  ClientsListView()
-                case .stats:    StatsView()
-                case .settings: SettingsView()
-                }
-            }
-            .environment(\.theme, theme)
-            .environmentObject(appState)
-            .environmentObject(themeManager)
-            .padding(.bottom, 90)
-
-            // Floating Pill Tab Bar
             floatingTabBar
                 .padding(.horizontal, 24)
-                .padding(.bottom, 16)
+                .padding(.bottom, 24)
         }
+        .background(backgroundLayer)
+        .ignoresSafeArea(edges: .bottom)
+    }
+
+private var contentView: some View {
+        Group {
+            switch selectedTab {
+            case .schedule: ScheduleView()
+            case .clients:  ClientsListView()
+            case .stats:    StatsView()
+            case .settings: SettingsView()
+            }
+        }
+        .environment(\.theme, theme)
+        .environmentObject(appState)
+        .environmentObject(themeManager)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            contentView
+
+            floatingTabBar
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+        }
+        .background(backgroundLayer)
+        .ignoresSafeArea(edges: .bottom)
         .sheet(isPresented: $showNewAppointment) {
             NewAppointmentView(onCreated: nil)
                 .environment(\.theme, theme)
