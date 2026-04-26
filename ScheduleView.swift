@@ -221,7 +221,7 @@ struct DateCapsule: View {
         .frame(width: 44, height: 68)
         .background(
             Capsule()
-                .fill(isSelected ? theme.gradientPrimary : (isToday ? theme.backgroundInput : Color.clear))
+                .fill(isSelected ? AnyShapeStyle(theme.gradientPrimary) : (isToday ? AnyShapeStyle(theme.backgroundInput) : AnyShapeStyle(Color.clear)))
         )
         .overlay(
             Capsule()
