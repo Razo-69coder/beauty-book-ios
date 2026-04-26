@@ -29,6 +29,19 @@ final class SettingsViewModel: ObservableObject {
         didSet { UserDefaults.standard.set(birthdayDiscount, forKey: "birthday_discount") }
     }
 
+    @Published var remindersEnabled: Bool {
+        didSet { UserDefaults.standard.set(remindersEnabled, forKey: "reminders_enabled") }
+    }
+    @Published var paymentReminderEnabled: Bool {
+        didSet { UserDefaults.standard.set(paymentReminderEnabled, forKey: "payment_reminder_enabled") }
+    }
+    @Published var returnReminderEnabled: Bool {
+        didSet { UserDefaults.standard.set(returnReminderEnabled, forKey: "return_reminder_enabled") }
+    }
+    @Published var returnReminderDays: Int {
+        didSet { UserDefaults.standard.set(returnReminderDays, forKey: "return_reminder_days") }
+    }
+
     private let api = APIClient.shared
 
     init() {
@@ -36,6 +49,11 @@ final class SettingsViewModel: ObservableObject {
         loyaltyDiscount = UserDefaults.standard.integer(forKey: "loyalty_discount") == 0 ? 10 : UserDefaults.standard.integer(forKey: "loyalty_discount")
         birthdayDiscountEnabled = UserDefaults.standard.object(forKey: "birthday_discount_enabled") as? Bool ?? true
         birthdayDiscount = UserDefaults.standard.integer(forKey: "birthday_discount") == 0 ? 10 : UserDefaults.standard.integer(forKey: "birthday_discount")
+
+        remindersEnabled = UserDefaults.standard.object(forKey: "reminders_enabled") as? Bool ?? true
+        paymentReminderEnabled = UserDefaults.standard.object(forKey: "payment_reminder_enabled") as? Bool ?? true
+        returnReminderEnabled = UserDefaults.standard.object(forKey: "return_reminder_enabled") as? Bool ?? true
+        returnReminderDays = UserDefaults.standard.integer(forKey: "return_reminder_days") == 0 ? 21 : UserDefaults.standard.integer(forKey: "return_reminder_days")
     }
 
     var masterInitials: String {
@@ -107,6 +125,7 @@ struct SettingsView: View {
                         themeSelector
                         profileSection
                         loyaltySection
+                        notificationsSection
                         scheduleSection
                         appSection
                         logoutButton
@@ -313,6 +332,87 @@ struct SettingsView: View {
                         }
                         .padding(16)
                         .animation(DS.springSnappy, value: vm.birthdayDiscountEnabled)
+                    }
+                }
+            }
+            .environment(\.theme, theme)
+        }
+    }
+
+    // MARK: - Notifications Section
+
+    private var notificationsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BBSectionHeader(title: "Уведомления клиентам")
+
+            BBGlassCard {
+                VStack(spacing: 0) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Напоминания о записи")
+                                .font(DS.body).foregroundColor(theme.textPrimary)
+                            Text("За 24 часа и за 2 часа до визита")
+                                .font(DS.bodySmall).foregroundColor(theme.textMuted)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $vm.remindersEnabled)
+                            .tint(theme.accent)
+                            .labelsHidden()
+                    }
+                    .padding(16)
+
+                    Divider().background(theme.borderSubtle).padding(.horizontal, 16)
+
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Напоминание об оплате")
+                                .font(DS.body).foregroundColor(theme.textPrimary)
+                            Text("Отправляется после завершения процедуры")
+                                .font(DS.bodySmall).foregroundColor(theme.textMuted)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $vm.paymentReminderEnabled)
+                            .tint(theme.accent)
+                            .labelsHidden()
+                    }
+                    .padding(16)
+
+                    Divider().background(theme.borderSubtle).padding(.horizontal, 16)
+
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Напоминание о возврате")
+                                .font(DS.body).foregroundColor(theme.textPrimary)
+                            Text("Если клиент долго не приходил")
+                                .font(DS.bodySmall).foregroundColor(theme.textMuted)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $vm.returnReminderEnabled)
+                            .tint(theme.accent)
+                            .labelsHidden()
+                    }
+                    .padding(16)
+
+                    if vm.returnReminderEnabled {
+                        Divider().background(theme.borderSubtle).padding(.horizontal, 16)
+                        HStack {
+                            Text("Через сколько дней")
+                                .font(DS.body).foregroundColor(theme.textPrimary)
+                            Spacer()
+                            HStack(spacing: 6) {
+                                ForEach([14, 21, 30], id: \.self) { days in
+                                    Text("\(days)д")
+                                        .font(DS.labelSmall)
+                                        .foregroundColor(vm.returnReminderDays == days ? .white : theme.textSecondary)
+                                        .padding(.horizontal, 10).padding(.vertical, 6)
+                                        .background(vm.returnReminderDays == days ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
+                                        .cornerRadius(DS.r8)
+                                        .onTapGesture { vm.returnReminderDays = days }
+                                }
+                            }
+                        }
+                        .padding(16)
+                        .animation(DS.springSnappy, value: vm.returnReminderEnabled)
                     }
                 }
             }
