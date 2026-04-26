@@ -89,8 +89,7 @@ struct SettingsView: View {
                     .padding(.bottom, 100)
                 }
             }
-        }
-        .task { await vm.load() }
+            .task { await vm.load() }
     }
 
     // MARK: - Profile Header

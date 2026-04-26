@@ -76,14 +76,13 @@ struct ClientsListView: View {
             .overlay(alignment: .bottomTrailing) {
                 fabButton
             }
-        }
-        .task { await vm.load() }
-        .sheet(isPresented: $vm.showAddSheet) {
-            AddClientSheet(vm: vm).environment(\.theme, theme)
-        }
-        .sheet(item: $vm.selectedClient) { client in
-            ClientDetailView(client: client).environment(\.theme, theme)
-        }
+            .task { await vm.load() }
+            .sheet(isPresented: $vm.showAddSheet) {
+                AddClientSheet(vm: vm).environment(\.theme, theme)
+            }
+            .sheet(item: $vm.selectedClient) { client in
+                ClientDetailView(client: client).environment(\.theme, theme)
+            }
     }
 
     // MARK: - Header

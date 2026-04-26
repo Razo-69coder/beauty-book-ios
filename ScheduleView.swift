@@ -63,8 +63,7 @@ struct ScheduleView: View {
                     }
                 }
             }
-        }
-        .task { await vm.loadSchedule() }
+            .task { await vm.loadSchedule() }
     }
 
     // MARK: - Header

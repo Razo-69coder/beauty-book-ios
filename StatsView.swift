@@ -40,8 +40,7 @@ struct StatsView: View {
                     content
                 }
             }
-        }
-        .task { await vm.load() }
+            .task { await vm.load() }
     }
 
     private var content: some View {
