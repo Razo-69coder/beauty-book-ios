@@ -68,9 +68,6 @@ enum MockData {
             AppointmentHistory(procedure: "Педикюр классический", appointmentDate: "2026-03-15", time: "14:00", price: 1500, notes: "Доволен", status: "completed"),
             AppointmentHistory(procedure: "Наращивание",          appointmentDate: "2026-02-10", time: "12:00", price: 3500, notes: "", status: "completed"),
         ]
-            AppointmentHistory(procedure: "Маникюр с покрытием",  appointmentDate: "2026-02-28", price: 1800, notes: ""),
-            AppointmentHistory(procedure: "Наращивание ногтей",   appointmentDate: "2026-01-10", price: 3200, notes: "Гель"),
-        ]
     }
 
     // MARK: - Stats

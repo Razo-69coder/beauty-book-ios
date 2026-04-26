@@ -220,9 +220,9 @@ struct BBPrimaryButton: View {
                                     )
                                     .rotationEffect(.degrees(30))
                                     .offset(x: shimmerOffset * geo.size.width)
-                            )
+                            }
                             .mask(Text(title).font(DS.headline))
-                        }
+                        )
                 }
             }
             .frame(maxWidth: .infinity)
