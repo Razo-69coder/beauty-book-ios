@@ -36,12 +36,12 @@ final class ClientsViewModel: ObservableObject {
         catch { clients.append(client) }
     }
 
-    func add(name: String, phone: String, notes: String) async {
+    func add(name: String, phone: String, notes: String, birthday: String) async {
         do {
             let _ = try await api.request(.createClient(ClientCreateRequest(name: name, phone: phone, notes: notes)), as: MessageResponse.self)
             await load()
         } catch {
-            let temp = Client(id: Int.random(in: 10000...99999), name: name, phone: phone, notes: notes, lastVisit: nil, username: nil, telegramId: nil)
+            let temp = Client(id: Int.random(in: 10000...99999), name: name, phone: phone, notes: notes, lastVisit: nil, username: nil, telegramId: nil, birthday: birthday.isEmpty ? nil : birthday)
             clients.insert(temp, at: 0)
         }
     }
@@ -233,6 +233,27 @@ struct ClientCard: View {
         return ((parts.first.map { String($0.prefix(1)) } ?? "") + (parts.dropFirst().first.map { String($0.prefix(1)) } ?? "")).uppercased()
     }
 
+    private var loyaltyThreshold: Int {
+        UserDefaults.standard.integer(forKey: "loyalty_threshold") == 0 ? 10 : UserDefaults.standard.integer(forKey: "loyalty_threshold")
+    }
+
+    private var visitCount: Int { client.appointmentsCount ?? 0 }
+
+    private var progressToNextReward: String {
+        let threshold = loyaltyThreshold
+        let remainder = threshold - (visitCount % threshold)
+        if remainder == threshold { return "🏆 Скидка!" }
+        return "\(remainder) до скидки"
+    }
+
+    private var isBirthdayToday: Bool {
+        guard let bday = client.birthday else { return false }
+        let parts = bday.split(separator: "-")
+        guard parts.count == 2, let month = Int(parts[0]), let day = Int(parts[1]) else { return false }
+        let cal = Calendar.current; let now = Date()
+        return cal.component(.month, from: now) == month && cal.component(.day, from: now) == day
+    }
+
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
@@ -255,10 +276,19 @@ struct ClientCard: View {
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 3) {
-                Text("\(client.appointmentsCount ?? 0) визитов")
-                    .font(DS.labelSmall)
-                    .foregroundColor(theme.textMuted)
+            VStack(alignment: .trailing, spacing: 4) {
+                HStack(spacing: 4) {
+                    if isBirthdayToday {
+                        Text("🎂")
+                            .font(.system(size: 14))
+                    }
+                    Text("\(visitCount) визитов")
+                        .font(DS.labelSmall)
+                        .foregroundColor(theme.textMuted)
+                }
+                Text(progressToNextReward)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(progressToNextReward == "🏆 Скидка!" ? theme.accent : theme.textMuted.opacity(0.7))
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(theme.textMuted.opacity(0.5))
@@ -290,7 +320,18 @@ struct AddClientSheet: View {
     @State private var name = ""
     @State private var phone = ""
     @State private var notes = ""
+    @State private var birthday = ""
+    @State private var showBirthdayPicker = false
+    @State private var birthdayDate = Date()
     private var isValid: Bool { !name.isEmpty && !phone.isEmpty }
+
+    private func formattedBirthday(_ bday: String) -> String {
+        let parts = bday.split(separator: "-")
+        guard parts.count == 2, let month = Int(parts[0]), let day = Int(parts[1]) else { return bday }
+        let months = ["","Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"]
+        guard month >= 1 && month <= 12 else { return bday }
+        return "\(day) \(months[month])"
+    }
 
     var body: some View {
         ZStack {
@@ -303,21 +344,54 @@ struct AddClientSheet: View {
                     .opacity(0.6)
             }
             Color.black.opacity(0.4).ignoresSafeArea()
-            VStack(spacing: DS.s16) {
-                BBTextField(placeholder: "Имя клиента", text: $name)
-                    .environment(\.theme, theme)
-                BBTextField(placeholder: "+7 (___) ___-__-__", text: $phone, keyboardType: .phonePad)
-                    .environment(\.theme, theme)
-                BBTextField(placeholder: "Заметка (необязательно)", text: $notes)
-                    .environment(\.theme, theme)
-                BBPrimaryButton(title: "Добавить клиента", isDisabled: !isValid) {
-                    Task { await vm.add(name: name, phone: phone, notes: notes) }
-                    dismiss()
+            ScrollView {
+                VStack(spacing: DS.s16) {
+                    BBTextField(placeholder: "Имя клиента", text: $name)
+                    BBTextField(placeholder: "+7 (___) ___-__-__", text: $phone, keyboardType: .phonePad)
+                    BBTextField(placeholder: "Заметка (необязательно)", text: $notes)
+
+                    Button(action: { showBirthdayPicker.toggle() }) {
+                        HStack {
+                            Image(systemName: "gift")
+                                .foregroundColor(birthday.isEmpty ? theme.textMuted : theme.accent)
+                            Text(birthday.isEmpty ? "День рождения (необязательно)" : formattedBirthday(birthday))
+                                .font(DS.body)
+                                .foregroundColor(birthday.isEmpty ? theme.textMuted : theme.textPrimary)
+                            Spacer()
+                            if !birthday.isEmpty {
+                                Button(action: { birthday = "" }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(theme.textMuted)
+                                }
+                            }
+                        }
+                        .padding(16)
+                        .background(theme.backgroundInput)
+                        .cornerRadius(DS.r12)
+                        .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
+                    }
+
+                    if showBirthdayPicker {
+                        DatePicker("", selection: $birthdayDate, displayedComponents: [.date])
+                            .datePickerStyle(.graphical)
+                            .accentColor(theme.accent)
+                            .colorScheme(.dark)
+                            .environment(\.locale, Locale(identifier: "ru_RU"))
+                            .onChange(of: birthdayDate) { _, newDate in
+                                let f = DateFormatter(); f.dateFormat = "MM-dd"
+                                birthday = f.string(from: newDate)
+                                showBirthdayPicker = false
+                            }
+                    }
+
+                    BBPrimaryButton(title: "Добавить клиента", isDisabled: !isValid) {
+                        Task { await vm.add(name: name, phone: phone, notes: notes, birthday: birthday) }
+                        dismiss()
+                    }
+                    Spacer()
                 }
-                .environment(\.theme, theme)
-                Spacer()
+                .padding(DS.s20)
             }
-            .padding(DS.s20)
         }
         .navigationTitle("Новый клиент")
         .navigationBarTitleDisplayMode(.inline)

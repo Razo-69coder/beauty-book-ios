@@ -15,7 +15,27 @@ final class SettingsViewModel: ObservableObject {
     @Published var saveSuccess = false
     @Published var errorMessage: String? = nil
 
+    @Published var loyaltyThreshold: Int {
+        didSet { UserDefaults.standard.set(loyaltyThreshold, forKey: "loyalty_threshold") }
+    }
+    @Published var loyaltyDiscount: Int {
+        didSet { UserDefaults.standard.set(loyaltyDiscount, forKey: "loyalty_discount") }
+    }
+    @Published var birthdayDiscountEnabled: Bool {
+        didSet { UserDefaults.standard.set(birthdayDiscountEnabled, forKey: "birthday_discount_enabled") }
+    }
+    @Published var birthdayDiscount: Int {
+        didSet { UserDefaults.standard.set(birthdayDiscount, forKey: "birthday_discount") }
+    }
+
     private let api = APIClient.shared
+
+    init() {
+        loyaltyThreshold = UserDefaults.standard.integer(forKey: "loyalty_threshold") == 0 ? 10 : UserDefaults.standard.integer(forKey: "loyalty_threshold")
+        loyaltyDiscount = UserDefaults.standard.integer(forKey: "loyalty_discount") == 0 ? 10 : UserDefaults.standard.integer(forKey: "loyalty_discount")
+        birthdayDiscountEnabled = UserDefaults.standard.object(forKey: "birthday_discount_enabled") as? Bool ?? true
+        birthdayDiscount = UserDefaults.standard.integer(forKey: "birthday_discount") == 0 ? 10 : UserDefaults.standard.integer(forKey: "birthday_discount")
+    }
 
     var masterInitials: String {
         let parts = masterName.split(separator: " ")
@@ -81,6 +101,7 @@ struct SettingsView: View {
                         profileHeader
                         themeSelector
                         profileSection
+                        loyaltySection
                         scheduleSection
                         appSection
                         logoutButton
@@ -174,6 +195,99 @@ struct SettingsView: View {
                     SettingsRow(icon: "envelope.fill", label: "Email", value: vm.email.isEmpty ? "Не указан" : vm.email, theme: theme)
                 }
             }
+        }
+    }
+
+    // MARK: - Loyalty Section
+
+    private var loyaltySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BBSectionHeader(title: "Программа лояльности")
+
+            BBGlassCard {
+                VStack(spacing: 0) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Скидка за лояльность")
+                                .font(DS.body).foregroundColor(theme.textPrimary)
+                            Text("Каждый N-й визит — скидка")
+                                .font(DS.bodySmall).foregroundColor(theme.textMuted)
+                        }
+                        Spacer()
+                        HStack(spacing: 6) {
+                            ForEach([7, 10, 20], id: \.self) { n in
+                                Text("\(n)")
+                                    .font(DS.labelSmall)
+                                    .foregroundColor(vm.loyaltyThreshold == n ? .white : theme.textSecondary)
+                                    .padding(.horizontal, 10).padding(.vertical, 6)
+                                    .background(vm.loyaltyThreshold == n ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
+                                    .cornerRadius(DS.r8)
+                                    .onTapGesture { vm.loyaltyThreshold = n }
+                            }
+                        }
+                    }
+                    .padding(16)
+
+                    Divider().background(theme.borderSubtle).padding(.horizontal, 16)
+
+                    HStack {
+                        Text("Размер скидки")
+                            .font(DS.body).foregroundColor(theme.textPrimary)
+                        Spacer()
+                        HStack(spacing: 6) {
+                            ForEach([5, 10, 15], id: \.self) { pct in
+                                Text("\(pct)%")
+                                    .font(DS.labelSmall)
+                                    .foregroundColor(vm.loyaltyDiscount == pct ? .white : theme.textSecondary)
+                                    .padding(.horizontal, 10).padding(.vertical, 6)
+                                    .background(vm.loyaltyDiscount == pct ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
+                                    .cornerRadius(DS.r8)
+                                    .onTapGesture { vm.loyaltyDiscount = pct }
+                            }
+                        }
+                    }
+                    .padding(16)
+
+                    Divider().background(theme.borderSubtle).padding(.horizontal, 16)
+
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Скидка в день рождения 🎂")
+                                .font(DS.body).foregroundColor(theme.textPrimary)
+                            Text("Клиент получит предложение скидки")
+                                .font(DS.bodySmall).foregroundColor(theme.textMuted)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $vm.birthdayDiscountEnabled)
+                            .tint(theme.accent)
+                            .labelsHidden()
+                    }
+                    .padding(16)
+
+                    if vm.birthdayDiscountEnabled {
+                        Divider().background(theme.borderSubtle).padding(.horizontal, 16)
+                        HStack {
+                            Text("Скидка в ДР")
+                                .font(DS.body).foregroundColor(theme.textPrimary)
+                            Spacer()
+                            HStack(spacing: 6) {
+                                ForEach([5, 10, 15], id: \.self) { pct in
+                                    Text("\(pct)%")
+                                        .font(DS.labelSmall)
+                                        .foregroundColor(vm.birthdayDiscount == pct ? .white : theme.textSecondary)
+                                        .padding(.horizontal, 10).padding(.vertical, 6)
+                                        .background(vm.birthdayDiscount == pct ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
+                                        .cornerRadius(DS.r8)
+                                        .onTapGesture { vm.birthdayDiscount = pct }
+                                }
+                            }
+                        }
+                        .padding(16)
+                        .animation(DS.springSnappy, value: vm.birthdayDiscountEnabled)
+                    }
+                }
+            }
+            .environment(\.theme, theme)
         }
     }
 

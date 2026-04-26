@@ -94,4 +94,6 @@ enum MockData {
             return (f.string(from: d), amounts[offset % 14])
         }
     }()
+
+    static var mockPhotos: [ClientPhoto] { [] }
 }

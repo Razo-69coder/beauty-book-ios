@@ -85,6 +85,7 @@ struct Client: Decodable, Identifiable {
     let username: String?
     let telegramId: Int?
     var appointmentsCount: Int?
+    var birthday: String?
 }
 
 struct ClientDetail: Decodable, Identifiable {
@@ -95,6 +96,18 @@ struct ClientDetail: Decodable, Identifiable {
     let username: String?
     let telegramId: Int?
     let history: [AppointmentHistory]
+}
+
+struct ClientPhoto: Identifiable, Codable {
+    let id: Int
+    let clientId: Int
+    let url: String
+    var caption: String?
+    let createdAt: String
+}
+
+struct ClientPhotosResponse: Codable {
+    let photos: [ClientPhoto]
 }
 
 struct AppointmentHistory: Decodable, Identifiable {

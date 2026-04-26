@@ -5,22 +5,25 @@ struct ClientDetailView: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
     @State private var history: [AppointmentHistory] = []
+    @State private var photos: [ClientPhoto] = []
     @State private var isLoading = false
 
     var body: some View {
-        ZStack {
-            theme.backgroundDeep.ignoresSafeArea()
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
-                    heroSection
-                    statsSection
-                    contactsSection
-                    if !history.isEmpty {
-                        historySection
+        Color.clear
+            .overlay {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        heroSection
+                        statsSection
+                        contactsSection
+                        if !history.isEmpty {
+                            historySection
+                        }
+                        photoGallery
                     }
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
                 }
-                .padding(.top, 20)
-                .padding(.bottom, 40)
             }
         }
         .task {
@@ -30,8 +33,25 @@ struct ClientDetailView: View {
             } else {
                 history = MockData.history(for: client.id)
             }
+            photos = MockData.mockPhotos
             isLoading = false
         }
+    }
+
+    private func formattedBirthday(_ bday: String) -> String {
+        let parts = bday.split(separator: "-")
+        guard parts.count == 2, let month = Int(parts[0]), let day = Int(parts[1]) else { return bday }
+        let months = ["","Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"]
+        guard month >= 1 && month <= 12 else { return bday }
+        return "\(day) \(months[month])"
+    }
+
+    private func isBirthdayToday(_ bday: String) -> Bool {
+        let parts = bday.split(separator: "-")
+        guard parts.count == 2, let month = Int(parts[0]), let day = Int(parts[1]) else { return false }
+        let cal = Calendar.current
+        let now = Date()
+        return cal.component(.month, from: now) == month && cal.component(.day, from: now) == day
     }
 
     // MARK: - Hero Section
@@ -107,6 +127,27 @@ struct ClientDetailView: View {
                         Divider().background(theme.borderSubtle)
                         ContactRow(icon: "paperplane.fill", label: "Telegram", value: "@\(username)", theme: theme)
                     }
+                    if let bday = client.birthday {
+                        Divider().background(theme.borderSubtle).padding(.horizontal, 16)
+                        HStack {
+                            Image(systemName: "gift")
+                                .foregroundColor(theme.accent)
+                                .frame(width: 20)
+                            Text(formattedBirthday(bday))
+                                .font(DS.body)
+                                .foregroundColor(theme.textPrimary)
+                            Spacer()
+                            if isBirthdayToday(bday) {
+                                Text("Сегодня! 🎂")
+                                    .font(DS.labelSmall)
+                                    .foregroundColor(theme.accent)
+                                    .padding(.horizontal, 8).padding(.vertical, 4)
+                                    .background(theme.accent.opacity(0.15))
+                                    .cornerRadius(DS.rFull)
+                            }
+                        }
+                        .padding(16)
+                    }
                 }
             }
         }
@@ -121,6 +162,41 @@ struct ClientDetailView: View {
 
             ForEach(history) { item in
                 AppointmentHistoryCard(item: item, theme: theme)
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+
+    // MARK: - Photo Gallery
+
+    private var photoGallery: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BBSectionHeader(title: "Галерея работ", action: nil, actionTitle: "Добавить")
+
+            if photos.isEmpty {
+                BBGlassCard {
+                    VStack(spacing: 8) {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 32))
+                            .foregroundColor(theme.accent.opacity(0.4))
+                        Text("Нет фото работ")
+                            .font(DS.body).foregroundColor(theme.textMuted)
+                        Text("Добавьте фото до и после")
+                            .font(DS.bodySmall).foregroundColor(theme.textMuted)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                }
+            } else {
+                let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+                LazyVGrid(columns: columns, spacing: 8) {
+                    ForEach(photos) { photo in
+                        RoundedRectangle(cornerRadius: DS.r12)
+                            .fill(theme.backgroundInput)
+                            .aspectRatio(1, contentMode: .fit)
+                            .cornerRadius(DS.r12)
+                    }
+                }
             }
         }
         .padding(.horizontal, 20)
