@@ -55,19 +55,7 @@ struct TabBarView: View {
         }
     }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            contentView
-
-            floatingTabBar
-                .padding(.horizontal, 24)
-                .padding(.bottom, 24)
-        }
-        .background(backgroundLayer)
-        .ignoresSafeArea(edges: .bottom)
-    }
-
-private var contentView: some View {
+    private var contentView: some View {
         Group {
             switch selectedTab {
             case .schedule: ScheduleView()
