@@ -236,6 +236,36 @@ struct ServiceCreateRequest: Encodable {
     let durationMin: Int
 }
 
+// MARK: - Expenses
+
+struct Expense: Identifiable, Codable {
+    let id: Int
+    let category: String
+    let amount: Int
+    let description: String
+    let date: String
+}
+
+struct ExpensesResponse: Codable {
+    let expenses: [Expense]
+}
+
+enum ExpenseCategory: String, CaseIterable {
+    case materials = "Материалы"
+    case rent = "Аренда"
+    case tools = "Инструменты"
+    case other = "Другое"
+    
+    var icon: String {
+        switch self {
+        case .materials: return "cart"
+        case .rent: return "house"
+        case .tools: return "scissors"
+        case .other: return "ellipsis.circle"
+        }
+    }
+}
+
 // MARK: - Keychain Manager
 
 final class KeychainManager {

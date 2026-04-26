@@ -96,4 +96,13 @@ enum MockData {
     }()
 
     static var mockPhotos: [ClientPhoto] { [] }
+    
+    // MARK: - Expenses
+    
+    static var expenses: [Expense] = [
+        Expense(id: 1, category: "Материалы", amount: 3200, description: "Гель-лак OPI", date: "2026-04-20"),
+        Expense(id: 2, category: "Аренда", amount: 8000, description: "Аренда кабинета", date: "2026-04-01"),
+        Expense(id: 3, category: "Инструменты", amount: 1500, description: "Пилки и баффы", date: "2026-04-15"),
+        Expense(id: 4, category: "Материалы", amount: 2100, description: "Базовое покрытие", date: "2026-04-22"),
+    ]
 }

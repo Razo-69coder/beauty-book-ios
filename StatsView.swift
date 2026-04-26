@@ -6,6 +6,8 @@ final class StatsViewModel: ObservableObject {
     @Published var earningsByDay: [(String, Int)] = []
     @Published var isLoading = false
     @Published var selectedPeriod: Period = .month
+    @Published var expenses: [Expense] = []
+    @Published var showAddExpense = false
 
     enum Period: String, CaseIterable {
         case week = "Неделя"
@@ -15,6 +17,9 @@ final class StatsViewModel: ObservableObject {
 
     private let api = APIClient.shared
 
+    var totalExpenses: Int { expenses.reduce(0) { $0 + $1.amount } }
+    var netProfit: Int { (stats?.monthEarnings ?? 0) - totalExpenses }
+
     func load() async {
         isLoading = true
         if let s = try? await api.request(.stats, as: StatsResponse.self) {
@@ -23,6 +28,7 @@ final class StatsViewModel: ObservableObject {
             stats = MockData.stats
         }
         earningsByDay = MockData.earningsByDay
+        expenses = MockData.expenses
         isLoading = false
     }
 }
@@ -50,12 +56,17 @@ struct StatsView: View {
 
                 if let stats = vm.stats {
                     kpiGrid(stats: stats)
+                    profitCard(stats: stats)
                     earningsChart
+                    expensesSection
                     topProcedures
                 }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 100)
+        }
+        .sheet(isPresented: $vm.showAddExpense) {
+            AddExpenseSheet(vm: vm).environment(\.theme, theme)
         }
     }
 
@@ -165,6 +176,108 @@ struct StatsView: View {
                         maxCount: stats.topProcedures.first?.count ?? 1,
                         theme: theme
                     )
+                }
+            }
+        }
+    }
+
+    // MARK: - Profit Card
+
+    private func profitCard(stats: StatsResponse) -> some View {
+        BBGlassCard {
+            VStack(spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Выручка")
+                            .font(DS.bodySmall)
+                            .foregroundColor(theme.textMuted)
+                        Text(stats.monthEarnings.formatted + " ₽")
+                            .font(DS.headline)
+                            .foregroundColor(theme.textPrimary)
+                    }
+                    Spacer()
+                    Image(systemName: "minus")
+                        .foregroundColor(theme.textMuted)
+                    Spacer()
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Расходы")
+                            .font(DS.bodySmall)
+                            .foregroundColor(theme.textMuted)
+                        Text(vm.totalExpenses.formatted + " ₽")
+                            .font(DS.headline)
+                            .foregroundColor(theme.statusRed)
+                    }
+                    Spacer()
+                    Image(systemName: "equal")
+                        .foregroundColor(theme.textMuted)
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("Прибыль")
+                            .font(DS.bodySmall)
+                            .foregroundColor(theme.textMuted)
+                        Text(vm.netProfit.formatted + " ₽")
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundColor(vm.netProfit >= 0 ? theme.statusGreen : theme.statusRed)
+                    }
+                }
+                .padding(.horizontal, 4)
+
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(theme.backgroundInput).frame(height: 6)
+                        let ratio = stats.monthEarnings > 0 ? CGFloat(vm.totalExpenses) / CGFloat(stats.monthEarnings) : 0
+                        Capsule()
+                            .fill(LinearGradient(colors: [theme.statusRed, Color(hex: "#FF6B6B")], startPoint: .leading, endPoint: .trailing))
+                            .frame(width: geo.size.width * min(ratio, 1.0), height: 6)
+                    }
+                }
+                .frame(height: 6)
+
+                HStack {
+                    Text("Расходы \(Int((stats.monthEarnings > 0 ? Double(vm.totalExpenses) / Double(stats.monthEarnings) * 100 : 0).rounded()))% от выручки")
+                        .font(DS.caption)
+                        .foregroundColor(theme.textMuted)
+                    Spacer()
+                }
+            }
+            .padding(4)
+        }
+    }
+
+    // MARK: - Expenses Section
+
+    private var expensesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BBSectionHeader(title: "Расходы", action: { vm.showAddExpense = true }, actionTitle: "Добавить")
+
+            if vm.expenses.isEmpty {
+                BBGlassCard {
+                    VStack(spacing: 8) {
+                        Image(systemName: "tray").font(.system(size: 28)).foregroundColor(theme.accent.opacity(0.4))
+                        Text("Нет расходов").font(DS.body).foregroundColor(theme.textMuted)
+                    }
+                    .frame(maxWidth: .infinity).padding(.vertical, 20)
+                }
+            } else {
+                ForEach(vm.expenses) { expense in
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle().fill(theme.backgroundInput).frame(width: 40, height: 40)
+                            Image(systemName: ExpenseCategory(rawValue: expense.category)?.icon ?? "ellipsis.circle")
+                                .font(.system(size: 16)).foregroundColor(theme.accent)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(expense.description).font(DS.body).foregroundColor(theme.textPrimary)
+                            Text(expense.category).font(DS.bodySmall).foregroundColor(theme.textMuted)
+                        }
+                        Spacer()
+                        Text("−\(expense.amount.formatted) ₽")
+                            .font(DS.label).foregroundColor(theme.statusRed)
+                    }
+                    .padding(14)
+                    .background(theme.backgroundCard)
+                    .cornerRadius(DS.r12)
+                    .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
                 }
             }
         }
@@ -300,4 +413,66 @@ extension Int {
 #Preview {
     StatsView()
         .environment(\.theme, .pink)
+}
+
+struct AddExpenseSheet: View {
+    @ObservedObject var vm: StatsViewModel
+    @Environment(\.theme) private var theme
+    @Environment(\.dismiss) private var dismiss
+    @State private var amount = ""
+    @State private var description = ""
+    @State private var selectedCategory = ExpenseCategory.materials
+    private var isValid: Bool { !amount.isEmpty && !description.isEmpty }
+
+    var body: some View {
+        ZStack {
+            theme.backgroundDeep.ignoresSafeArea()
+            VStack(spacing: DS.s12) {
+                BBSectionHeader(title: "Категория").padding(.horizontal, 4)
+                HStack(spacing: 8) {
+                    ForEach(ExpenseCategory.allCases, id: \.self) { cat in
+                        VStack(spacing: 6) {
+                            Image(systemName: cat.icon)
+                                .font(.system(size: 20))
+                                .foregroundColor(selectedCategory == cat ? .white : theme.textMuted)
+                                .frame(width: 44, height: 44)
+                                .background(selectedCategory == cat ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
+                                .cornerRadius(DS.r12)
+                            Text(cat.rawValue)
+                                .font(DS.caption)
+                                .foregroundColor(selectedCategory == cat ? theme.accent : theme.textMuted)
+                        }
+                        .onTapGesture { selectedCategory = cat }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+
+                BBTextField(placeholder: "Сумма (₽)", text: $amount, keyboardType: .numberPad)
+                    .environment(\.theme, theme)
+                BBTextField(placeholder: "Описание (гель-лак, аренда...)", text: $description)
+                    .environment(\.theme, theme)
+
+                BBPrimaryButton(title: "Добавить расход", isDisabled: !isValid) {
+                    let expense = Expense(
+                        id: Int.random(in: 10000...99999),
+                        category: selectedCategory.rawValue,
+                        amount: Int(amount) ?? 0,
+                        description: description,
+                        date: {
+                            let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+                            return f.string(from: Date())
+                        }()
+                    )
+                    vm.expenses.insert(expense, at: 0)
+                    dismiss()
+                }
+                .environment(\.theme, theme)
+                Spacer()
+            }
+            .padding(DS.s20)
+            .padding(.top, 24)
+        }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+    }
 }
