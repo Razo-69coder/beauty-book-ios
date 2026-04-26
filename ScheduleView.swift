@@ -285,12 +285,8 @@ struct AppointmentCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: DS.r16)
-                    .fill(theme.backgroundCard)
-                RoundedRectangle(cornerRadius: DS.r16)
-                    .fill(.ultraThinMaterial.opacity(0.3))
-            }
+            RoundedRectangle(cornerRadius: DS.r16)
+                .fill(theme.backgroundCard)
         )
         .cornerRadius(DS.r16)
         .overlay(

@@ -190,7 +190,7 @@ struct AppointmentHistoryCard: View {
     let theme: AppTheme
 
     private var statusColor: Color {
-        switch item.status.lowercased() {
+        switch (item.status ?? "").lowercased() {
         case "completed": return theme.statusGreen
         case "cancelled": return theme.statusRed
         default: return theme.statusYellow
