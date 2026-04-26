@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 @MainActor
 final class SettingsViewModel: ObservableObject {
@@ -40,6 +41,10 @@ final class SettingsViewModel: ObservableObject {
     var masterInitials: String {
         let parts = masterName.split(separator: " ")
         return ((parts.first.map { String($0.prefix(1)) } ?? "") + (parts.dropFirst().first.map { String($0.prefix(1)) } ?? "")).uppercased()
+    }
+
+    var bookingLink: String {
+        return "https://beauty-bot-44ou.onrender.com/book/1"
     }
 
     func load() async {
@@ -134,6 +139,30 @@ struct SettingsView: View {
             Text("+7 (999) 123-45-67")
                 .font(DS.body)
                 .foregroundColor(theme.textMuted)
+
+            Button(action: {
+                HapticManager.medium()
+                let av = UIActivityViewController(activityItems: [vm.bookingLink], applicationActivities: nil)
+                if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let root = scene.windows.first?.rootViewController {
+                    root.present(av, animated: true)
+                }
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "link.circle.fill")
+                        .font(.system(size: 16))
+                    Text("Поделиться ссылкой записи")
+                        .font(DS.label)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(theme.gradientPrimary)
+                .cornerRadius(DS.r12)
+                .shadow(color: theme.accentGlow, radius: 8)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 20)
