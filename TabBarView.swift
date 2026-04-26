@@ -175,17 +175,15 @@ struct TabIconButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 0) {
-                ZStack {
-                    if isSelected {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(theme.accent.opacity(0.2))
-                            .frame(width: 44, height: 32)
-                    }
-                    Image(systemName: icon)
-                        .font(.system(size: 20, weight: isSelected ? .semibold : .regular))
-                        .foregroundStyle(isSelected ? theme.accent : theme.textMuted)
+            ZStack {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(theme.accent.opacity(0.25))
+                        .frame(width: 40, height: 30)
                 }
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(isSelected ? theme.accent : theme.textMuted)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 44)

@@ -135,6 +135,7 @@ struct NewAppointmentView: View {
                                 .datePickerStyle(.graphical)
                                 .accentColor(theme.accent)
                                 .colorScheme(.dark)
+                                .environment(\.locale, Locale(identifier: "ru_RU"))
                                 .onChange(of: vm.selectedDate) { _, _ in
                                     HapticManager.selection()
                                     Task { await vm.loadSlots() }

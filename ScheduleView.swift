@@ -51,6 +51,7 @@ struct ScheduleView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
                         headerSection
+                        todaySummary
                         dateStrip
                         if vm.isLoading {
                             ProgressView()
@@ -64,6 +65,21 @@ struct ScheduleView: View {
                 }
             }
             .task { await vm.loadSchedule() }
+    }
+
+    private var todaySummary: some View {
+        HStack(spacing: 16) {
+            Label("\(vm.appointments.count) записей", systemImage: "calendar.badge.clock")
+            Spacer()
+            let total = vm.appointments.reduce(0) { $0 + $1.price }
+            if total > 0 {
+                Label("\(total) ₽", systemImage: "rublesign.circle")
+            }
+        }
+        .font(.system(size: 13, weight: .medium))
+        .foregroundColor(theme.textMuted)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 6)
     }
 
     // MARK: - Header
@@ -81,9 +97,8 @@ struct ScheduleView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
-            .padding(.top, 12)
+            .padding(.top, 8)
         }
-        .frame(height: 80)
     }
 
     private var ambientGlow: some View {

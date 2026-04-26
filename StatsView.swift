@@ -74,7 +74,7 @@ struct StatsView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
-            .padding(.top, 12)
+            .padding(.top, 8)
         }
     }
 

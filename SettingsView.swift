@@ -132,7 +132,7 @@ struct SettingsView: View {
                             Circle()
                                 .fill(t == .pink ?
                                     LinearGradient(colors: [Color(hex: "#FF2D78"), Color(hex: "#BF00FF")], startPoint: .topLeading, endPoint: .bottomTrailing) :
-                                    LinearGradient(colors: [Color(hex: "#C9A84C"), Color(hex: "#9C7A2E")], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    LinearGradient(colors: [Color(hex: "#C4B8C8"), Color(hex: "#E8B4C8")], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 .frame(width: 40, height: 40)
                                 .overlay(
                                     Circle().stroke(Color.white, lineWidth: themeManager.current == t ? 2 : 0)

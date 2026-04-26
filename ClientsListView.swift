@@ -166,7 +166,7 @@ struct ClientsListView: View {
         }
         .padding(.horizontal, 20)
         .padding(.top, 8)
-        .padding(.bottom, 100)
+        .padding(.bottom, 120)
     }
 
     // MARK: - Empty State
@@ -216,7 +216,7 @@ struct ClientsListView: View {
                     .foregroundColor(.white)
             }
         }
-        .padding(.bottom, 100)
+        .padding(.bottom, 110)
         .padding(.trailing, 20)
     }
 }
@@ -294,7 +294,15 @@ struct AddClientSheet: View {
 
     var body: some View {
         ZStack {
-            theme.backgroundDeep.ignoresSafeArea()
+            Color(hex: "#0D0B0E").ignoresSafeArea()
+            if let img = UIImage(named: "bg_pink") {
+                Image(uiImage: img)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .ignoresSafeArea()
+                    .opacity(0.6)
+            }
+            Color.black.opacity(0.4).ignoresSafeArea()
             VStack(spacing: DS.s16) {
                 BBTextField(placeholder: "Имя клиента", text: $name)
                     .environment(\.theme, theme)
