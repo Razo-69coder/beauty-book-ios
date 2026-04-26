@@ -201,7 +201,7 @@ struct DateCapsule: View {
 
     private var dayName: String {
         let f = DateFormatter(); f.dateFormat = "EEE"; f.locale = Locale(identifier: "ru_RU")
-        return String(f.string(from: date).prefix(2).uppercased()
+        return String(f.string(from: date).prefix(2)).uppercased()
     }
 
     private var dayNumber: String {

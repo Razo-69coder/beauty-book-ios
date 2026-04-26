@@ -19,7 +19,7 @@ final class SettingsViewModel: ObservableObject {
 
     var masterInitials: String {
         let parts = masterName.split(separator: " ")
-        return ((parts.first.map { String($0.prefix(1)) ?? "") + (parts.dropFirst().first.map { String($0.prefix(1)) ?? "")).uppercased()
+        return ((parts.first.map { String($0.prefix(1)) } ?? "") + (parts.dropFirst().first.map { String($0.prefix(1)) } ?? "")).uppercased()
     }
 
     func load() async {

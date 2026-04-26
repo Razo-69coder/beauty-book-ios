@@ -277,7 +277,7 @@ struct ClientPickerRow: View {
     private var initials: String {
         guard let client = vm.selectedClient else { return "" }
         let parts = client.name.split(separator: " ")
-        return ((parts.first.map { String($0.prefix(1)) } ?? "") + (parts.dropFirst().first.map { String($0.prefix(1)) ?? "")).uppercased()
+        return ((parts.first.map { String($0.prefix(1)) } ?? "") + (parts.dropFirst().first.map { String($0.prefix(1)) } ?? "")).uppercased()
     }
 
     var body: some View {
