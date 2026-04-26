@@ -41,55 +41,60 @@ enum AppTheme: String, CaseIterable {
     var accent: Color {
         switch self {
         case .pink:     return Color(hex: "#FF2D78")
-        case .platinum: return Color(hex: "#C9A84C")
+        case .platinum: return Color(hex: "#C4B8C8")
         }
     }
 
     var accentSecondary: Color {
         switch self {
         case .pink:     return Color(hex: "#BF00FF")
-        case .platinum: return Color(hex: "#B76E79")
+        case .platinum: return Color(hex: "#E8B4C8")
         }
     }
 
     var accentGlow: Color {
         switch self {
         case .pink:     return Color(hex: "#FF2D78").opacity(0.4)
-        case .platinum: return Color(hex: "#C9A84C").opacity(0.3)
+        case .platinum: return Color(hex: "#C4B8C8").opacity(0.2)
         }
     }
 
     var backgroundDeep: Color {
         switch self {
         case .pink:     return Color(hex: "#06060E")
-        case .platinum: return Color(hex: "#0C0B09")
+        case .platinum: return Color(hex: "#0D0B0E")
         }
     }
 
     var backgroundCard: Color {
         switch self {
         case .pink:     return Color(hex: "#0F0F1A")
-        case .platinum: return Color(hex: "#141210")
+        case .platinum: return Color(hex: "#16121A")
         }
     }
 
     var backgroundInput: Color {
         switch self {
         case .pink:     return Color(hex: "#16162A")
-        case .platinum: return Color(hex: "#1C1A17")
+        case .platinum: return Color(hex: "#1E1824")
         }
     }
 
     var textPrimary: Color { .white }
 
-    var textSecondary: Color { Color(hex: "#A0A0C0") }
+    var textSecondary: Color {
+        switch self {
+        case .pink:     return Color(hex: "#A0A0C0")
+        case .platinum: return Color(hex: "#B8A8C0")
+        }
+    }
 
     var textMuted: Color { Color(hex: "#5A5A7A") }
 
     var borderSubtle: Color {
         switch self {
         case .pink:     return Color.white.opacity(0.08)
-        case .platinum: return Color.white.opacity(0.06)
+        case .platinum: return Color.white.opacity(0.07)
         }
     }
 
@@ -104,7 +109,7 @@ enum AppTheme: String, CaseIterable {
             )
         case .platinum:
             return LinearGradient(
-                colors: [Color(hex: "#C9A84C"), Color(hex: "#9C7A2E")],
+                colors: [Color(hex: "#C4B8C8"), Color(hex: "#E8B4C8"), Color(hex: "#9B8FA8")],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
         }
