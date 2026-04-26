@@ -25,17 +25,16 @@ struct ClientDetailView: View {
                     .padding(.bottom, 40)
                 }
             }
-        }
-        .task {
-            isLoading = true
-            if let resp = try? await APIClient.shared.request(.clientDetail(id: client.id), as: ClientDetail.self) {
-                history = resp.history
-            } else {
-                history = MockData.history(for: client.id)
+            .task {
+                isLoading = true
+                if let resp = try? await APIClient.shared.request(.clientDetail(id: client.id), as: ClientDetail.self) {
+                    history = resp.history
+                } else {
+                    history = MockData.history(for: client.id)
+                }
+                photos = MockData.mockPhotos
+                isLoading = false
             }
-            photos = MockData.mockPhotos
-            isLoading = false
-        }
     }
 
     private func formattedBirthday(_ bday: String) -> String {
