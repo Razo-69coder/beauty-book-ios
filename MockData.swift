@@ -37,12 +37,12 @@ enum MockData {
     // MARK: - Clients
 
     static let clients: [Client] = [
-        Client(id: 1, name: "Мария Иванова",    phone: "+7 (916) 234-56-78", notes: "Аллергия на акрил", lastVisit: "2026-04-20", username: "maria_i",   telegramId: nil),
-        Client(id: 2, name: "Елена Смирнова",   phone: "+7 (903) 345-67-89", notes: "",                   lastVisit: "2026-04-15", username: "lena_s",    telegramId: nil),
-        Client(id: 3, name: "Ольга Петрова",    phone: "+7 (925) 456-78-90", notes: "VIP клиент",         lastVisit: "2026-04-18", username: nil,          telegramId: nil),
-        Client(id: 4, name: "Дарья Козлова",    phone: "+7 (977) 567-89-01", notes: "",                   lastVisit: "2026-03-30", username: "dasha_k",   telegramId: nil),
-        Client(id: 5, name: "Анастасия Новикова",phone: "+7 (915) 678-90-12",notes: "Нравятся пастель",   lastVisit: "2026-04-22", username: nil,          telegramId: nil),
-        Client(id: 6, name: "Виктория Орлова",  phone: "+7 (926) 789-01-23", notes: "",                   lastVisit: "2026-04-10", username: "vika_o",    telegramId: nil),
+        Client(id: 1, name: "Мария Иванова",    phone: "+7 (916) 234-56-78", notes: "Аллергия на акрил", lastVisit: "2026-04-20", username: "maria_i",   telegramId: nil, appointmentsCount: 5),
+        Client(id: 2, name: "Елена Смирнова",   phone: "+7 (903) 345-67-89", notes: "",                   lastVisit: "2026-04-15", username: "lena_s",    telegramId: nil, appointmentsCount: 3),
+        Client(id: 3, name: "Ольга Петрова",    phone: "+7 (925) 456-78-90", notes: "VIP клиент",         lastVisit: "2026-04-18", username: nil,          telegramId: nil, appointmentsCount: 8),
+        Client(id: 4, name: "Дарья Козлова",    phone: "+7 (977) 567-89-01", notes: "",                   lastVisit: "2026-03-30", username: "dasha_k",   telegramId: nil, appointmentsCount: 2),
+        Client(id: 5, name: "Анастасия Новикова",phone: "+7 (915) 678-90-12",notes: "Нравятся пастель",   lastVisit: "2026-04-22", username: nil,          telegramId: nil, appointmentsCount: 12),
+        Client(id: 6, name: "Виктория Орлова",  phone: "+7 (926) 789-01-23", notes: "",                   lastVisit: "2026-04-10", username: "vika_o",    telegramId: nil, appointmentsCount: 1),
     ]
 
     // MARK: - Appointments (today)
@@ -64,8 +64,10 @@ enum MockData {
 
     static func history(for clientId: Int) -> [AppointmentHistory] {
         [
-            AppointmentHistory(procedure: "Маникюр с покрытием",  appointmentDate: "2026-04-20", price: 1800, notes: ""),
-            AppointmentHistory(procedure: "Педикюр классический", appointmentDate: "2026-03-15", price: 1500, notes: "Доволен"),
+            AppointmentHistory(procedure: "Маникюр с покрытием",  appointmentDate: "2026-04-20", time: "10:00", price: 1800, notes: "", status: "completed"),
+            AppointmentHistory(procedure: "Педикюр классический", appointmentDate: "2026-03-15", time: "14:00", price: 1500, notes: "Доволен", status: "completed"),
+            AppointmentHistory(procedure: "Наращивание",          appointmentDate: "2026-02-10", time: "12:00", price: 3500, notes: "", status: "completed"),
+        ]
             AppointmentHistory(procedure: "Маникюр с покрытием",  appointmentDate: "2026-02-28", price: 1800, notes: ""),
             AppointmentHistory(procedure: "Наращивание ногтей",   appointmentDate: "2026-01-10", price: 3200, notes: "Гель"),
         ]

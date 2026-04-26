@@ -2,15 +2,15 @@ import SwiftUI
 
 @MainActor
 final class StatsViewModel: ObservableObject {
-    @Published var stats: StatsResponse?     = nil
+    @Published var stats: StatsResponse? = nil
     @Published var earningsByDay: [(String, Int)] = []
-    @Published var isLoading                 = false
-    @Published var selectedPeriod: Period    = .month
+    @Published var isLoading = false
+    @Published var selectedPeriod: Period = .month
 
     enum Period: String, CaseIterable {
-        case week  = "Неделя"
+        case week = "Неделя"
         case month = "Месяц"
-        case year  = "Год"
+        case year = "Год"
     }
 
     private let api = APIClient.shared
@@ -45,136 +45,215 @@ struct StatsView: View {
 
     private var content: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: DS.s20) {
-                header
+            VStack(spacing: 20) {
+                headerSection
 
                 if let stats = vm.stats {
-                    // Главные цифры
-                    mainMetrics(stats: stats)
-                    // График
+                    kpiGrid(stats: stats)
                     earningsChart
-                    // Топ услуг
-                    topProcedures(stats: stats)
+                    topProcedures
                 }
             }
-            .padding(.horizontal, DS.s20)
+            .padding(.horizontal, 20)
             .padding(.bottom, 100)
         }
     }
 
-    private var header: some View {
-        HStack {
+    // MARK: - Header
+
+    private var headerSection: some View {
+        ZStack(alignment: .topLeading) {
+            ambientGlow
             VStack(alignment: .leading, spacing: 4) {
-                Text("Статистика").font(DS.titleSmall).foregroundColor(theme.textPrimary)
-                Text("Общая картина").font(DS.body).foregroundColor(theme.textSecondary)
+                Text("Аналитика")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(theme.textPrimary)
+                Text("За последние 30 дней")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(theme.textMuted)
             }
-            Spacer()
-            // Period Picker
-            HStack(spacing: 0) {
-                ForEach(StatsViewModel.Period.allCases, id: \.self) { p in
-                    Text(p.rawValue)
-                        .font(DS.labelSmall)
-                        .foregroundColor(vm.selectedPeriod == p ? .white : theme.textMuted)
-                        .padding(.horizontal, DS.s12)
-                        .padding(.vertical, DS.s8)
-                        .background(vm.selectedPeriod == p ? theme.accent : Color.clear)
-                        .cornerRadius(DS.r8)
-                        .onTapGesture { withAnimation(DS.springSnappy) { vm.selectedPeriod = p } }
-                }
-            }
-            .background(theme.backgroundInput).cornerRadius(DS.r8)
-        }
-        .padding(.top, DS.s16)
-    }
-
-    private func mainMetrics(stats: StatsResponse) -> some View {
-        VStack(spacing: DS.s12) {
-            // Главная карточка — месячная выручка
-            ZStack {
-                RoundedRectangle(cornerRadius: DS.r16)
-                    .fill(theme.gradientPrimary)
-                    .shadow(color: theme.accentGlow, radius: 20, x: 0, y: 8)
-                VStack(spacing: DS.s8) {
-                    Text("Выручка за месяц")
-                        .font(DS.body).foregroundColor(.white.opacity(0.8))
-                    Text("\(stats.monthEarnings.formatted)₽")
-                        .font(.system(size: 36, weight: .bold, design: .rounded)).foregroundColor(.white)
-                    Text("Всего: \(stats.totalEarnings.formatted)₽")
-                        .font(DS.bodySmall).foregroundColor(.white.opacity(0.7))
-                }
-                .padding(DS.s24)
-            }
-
-            // Мелкие метрики
-            HStack(spacing: DS.s12) {
-                MetricCard(
-                    icon: "person.2.fill", label: "Клиентов",
-                    value: "\(stats.totalClients)", theme: theme
-                )
-                MetricCard(
-                    icon: "calendar.badge.checkmark", label: "Записей",
-                    value: "\(stats.totalAppointments)", theme: theme
-                )
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
         }
     }
+
+    private var ambientGlow: some View {
+        Ellipse()
+            .fill(
+                RadialGradient(
+                    colors: [glowColor, .clear],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: 80
+                )
+            )
+            .frame(width: 300, height: 200)
+            .offset(x: -60, y: -40)
+            .blur(radius: 80)
+    }
+
+    private var glowColor: Color {
+        switch theme {
+        case .pink: return theme.accent.opacity(0.15)
+        case .platinum: return Color(hex: "#C9A84C").opacity(0.08)
+        }
+    }
+
+    // MARK: - KPI Grid
+
+    private func kpiGrid(stats: StatsResponse) -> some View {
+        let columns = [GridItem(.flexible()), GridItem(.flexible())]
+        return LazyVGrid(columns: columns, spacing: 12) {
+            KPICard(
+                icon: "rublesign.circle",
+                value: stats.monthEarnings.formatted,
+                label: "Выручка",
+                theme: theme
+            )
+            KPICard(
+                icon: "calendar.circle",
+                value: "\(stats.totalAppointments)",
+                label: "Записей",
+                theme: theme
+            )
+            KPICard(
+                icon: "person.2.circle",
+                value: "\(stats.totalClients)",
+                label: "Клиентов",
+                theme: theme
+            )
+            KPICard(
+                icon: "chart.line.uptrend.xyaxis.circle",
+                value: avgCheck.formatted,
+                label: "Ср. чек",
+                theme: theme
+            )
+        }
+    }
+
+    private var avgCheck: Int {
+        guard let stats = vm.stats, stats.totalAppointments > 0 else { return 0 }
+        return stats.monthEarnings / stats.totalAppointments
+    }
+
+    // MARK: - Earnings Chart
 
     private var earningsChart: some View {
-        VStack(spacing: DS.s8) {
-            BBSectionHeader(title: "Выручка за 14 дней").environment(\.theme, theme)
-            BBCard {
-                BarChart(data: vm.earningsByDay, theme: theme)
+        VStack(alignment: .leading, spacing: 12) {
+            BBSectionHeader(title: "Выручка по дням")
+
+            BBGlassCard {
+                BarChartView(data: vm.earningsByDay, theme: theme)
                     .frame(height: 140)
-            }.environment(\.theme, theme)
+            }
         }
     }
 
-    private func topProcedures(stats: StatsResponse) -> some View {
-        VStack(spacing: DS.s8) {
-            BBSectionHeader(title: "Топ услуг").environment(\.theme, theme)
-            VStack(spacing: DS.s8) {
+    // MARK: - Top Procedures
+
+    private var topProcedures: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BBSectionHeader(title: "Популярные услуги")
+
+            if let stats = vm.stats {
                 ForEach(Array(stats.topProcedures.prefix(5).enumerated()), id: \.offset) { index, proc in
-                    HStack(spacing: DS.s12) {
-                        Text("\(index + 1)")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(index == 0 ? theme.accent : theme.textMuted)
-                            .frame(width: 20)
-                        Text(proc.procedure).font(DS.body).foregroundColor(theme.textPrimary)
-                        Spacer()
-                        Text("\(proc.count) раз")
-                            .font(DS.labelSmall).foregroundColor(theme.textSecondary)
-                    }
-                    .padding(.horizontal, DS.s12)
-                    .padding(.vertical, DS.s8)
-                    .background(theme.backgroundCard)
-                    .cornerRadius(DS.r8)
+                    TopProcedureRow(
+                        index: index,
+                        name: proc.procedure,
+                        count: proc.count,
+                        maxCount: stats.topProcedures.first?.count ?? 1,
+                        theme: theme
+                    )
                 }
             }
         }
     }
 }
 
-// MARK: - Metric Card
+// MARK: - KPI Card
 
-struct MetricCard: View {
-    let icon: String; let label: String; let value: String; let theme: AppTheme
+struct KPICard: View {
+    let icon: String
+    let value: String
+    let label: String
+    let theme: AppTheme
+
     var body: some View {
-        VStack(spacing: DS.s8) {
-            Image(systemName: icon).font(.system(size: 22)).foregroundColor(theme.accent)
-            Text(value).font(.system(size: 24, weight: .bold, design: .rounded)).foregroundColor(theme.textPrimary)
-            Text(label).font(DS.caption).foregroundColor(theme.textSecondary)
+        BBGlassCard {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: icon)
+                        .font(.system(size: 20))
+                        .foregroundColor(theme.accent)
+                    Spacer()
+                }
+
+                Text(value)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(theme.textPrimary)
+
+                Text(label)
+                    .font(DS.bodySmall)
+                    .foregroundColor(theme.textMuted)
+            }
+            .padding(16)
         }
-        .frame(maxWidth: .infinity)
-        .padding(DS.s16)
-        .background(theme.backgroundCard)
-        .cornerRadius(DS.r16)
-        .overlay(RoundedRectangle(cornerRadius: DS.r16).stroke(theme.borderSubtle, lineWidth: 1))
     }
 }
 
-// MARK: - Bar Chart
+// MARK: - Top Procedure Row
 
-struct BarChart: View {
+struct TopProcedureRow: View {
+    let index: Int
+    let name: String
+    let count: Int
+    let maxCount: Int
+    let theme: AppTheme
+
+    private var ratio: CGFloat {
+        maxCount > 0 ? CGFloat(count) / CGFloat(maxCount) : 0
+    }
+
+    var body: some View {
+        HStack {
+            Text("#\(index + 1)")
+                .font(DS.labelSmall)
+                .foregroundColor(theme.textMuted)
+                .frame(width: 24)
+
+            Text(name)
+                .font(DS.body)
+                .foregroundColor(theme.textPrimary)
+
+            Spacer()
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(theme.backgroundInput)
+                        .frame(height: 4)
+                    Capsule()
+                        .fill(theme.gradientPrimary)
+                        .frame(width: geo.size.width * ratio, height: 4)
+                }
+            }
+            .frame(width: 80, height: 4)
+
+            Text("\(count)")
+                .font(DS.labelSmall)
+                .foregroundColor(theme.accent)
+                .frame(width: 30, alignment: .trailing)
+        }
+        .padding(14)
+        .background(theme.backgroundCard)
+        .cornerRadius(DS.r12)
+    }
+}
+
+// MARK: - Bar Chart View
+
+struct BarChartView: View {
     let data: [(String, Int)]
     let theme: AppTheme
 
@@ -188,18 +267,16 @@ struct BarChart: View {
                         let ratio = maxValue > 0 ? CGFloat(item.1) / CGFloat(maxValue) : 0
                         Spacer(minLength: 0)
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(item.1 > 0
-                                  ? AnyShapeStyle(theme.gradientPrimary)
-                                  : AnyShapeStyle(theme.backgroundInput))
+                            .fill(item.1 > 0 ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
                             .frame(height: max(4, geo.size.height * 0.8 * ratio))
                             .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(Double(idx) * 0.03), value: ratio)
                         if idx % 3 == 0 {
                             Text(item.0)
-                                .font(.system(size: 8))
+                                .font(DS.caption)
                                 .foregroundColor(theme.textMuted)
                                 .lineLimit(1)
                         } else {
-                            Text("").font(.system(size: 8))
+                            Text("").font(DS.caption)
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -208,6 +285,8 @@ struct BarChart: View {
         }
     }
 }
+
+// MARK: - Int Extension
 
 extension Int {
     var formatted: String {
@@ -219,5 +298,6 @@ extension Int {
 }
 
 #Preview {
-    StatsView().environment(\.theme, .pink)
+    StatsView()
+        .environment(\.theme, .pink)
 }

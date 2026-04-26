@@ -1,21 +1,22 @@
 import SwiftUI
+import UIKit
 
 // MARK: - ViewModel
 
 @MainActor
 final class NewAppointmentViewModel: ObservableObject {
-    @Published var selectedClient: Client?   = nil
+    @Published var selectedClient: Client? = nil
     @Published var selectedService: Service? = nil
-    @Published var selectedDate: Date        = Date()
-    @Published var selectedTime: String      = ""
-    @Published var price: String             = ""
-    @Published var notes: String             = ""
-    @Published var availableSlots: [String]  = []
-    @Published var clients: [Client]         = []
-    @Published var services: [Service]       = []
-    @Published var isLoading                 = false
-    @Published var isSaving                  = false
-    @Published var errorMessage: String?     = nil
+    @Published var selectedDate: Date = Date()
+    @Published var selectedTime: String = ""
+    @Published var price: String = ""
+    @Published var notes: String = ""
+    @Published var availableSlots: [String] = []
+    @Published var clients: [Client] = []
+    @Published var services: [Service] = []
+    @Published var isLoading = false
+    @Published var isSaving = false
+    @Published var errorMessage: String? = nil
 
     var onCreated: (() -> Void)?
 
@@ -56,7 +57,6 @@ final class NewAppointmentViewModel: ObservableObject {
         if let resp = try? await api.request(.slots(date: dateStr), as: SlotsResponse.self) {
             availableSlots = resp.slots
         } else {
-            // Мок-слоты
             availableSlots = stride(from: 9 * 60, to: 20 * 60, by: 60).map { m in
                 String(format: "%02d:%02d", m / 60, m % 60)
             }
@@ -66,7 +66,8 @@ final class NewAppointmentViewModel: ObservableObject {
 
     func save() async {
         guard let client = selectedClient, let service = selectedService, !selectedTime.isEmpty else { return }
-        isSaving = true; errorMessage = nil
+        isSaving = true
+        errorMessage = nil
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
         let req = AppointmentCreateRequest(
             clientId: client.id, procedure: service.name,
@@ -75,9 +76,13 @@ final class NewAppointmentViewModel: ObservableObject {
         )
         do {
             let _ = try await api.request(.createAppointment(req), as: MessageResponse.self)
+            HapticManager.success()
             onCreated?()
-        } catch let e as NetworkError { errorMessage = e.errorDescription
-        } catch { errorMessage = "Ошибка при создании записи" }
+        } catch let e as NetworkError {
+            errorMessage = e.errorDescription
+        } catch {
+            errorMessage = "Ошибка при создании записи"
+        }
         isSaving = false
     }
 }
@@ -89,98 +94,145 @@ struct NewAppointmentView: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
 
-    var onCreated: (() -> Void)? = nil
+    var onCreated: (() -> Void)?
+
+    @State private var appeared = false
 
     var body: some View {
-        NavigationView {
-            ZStack {
-                theme.backgroundDeep.ignoresSafeArea()
-                if vm.isLoading {
-                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
-                } else {
-                    formContent
-                }
-            }
-            .navigationTitle("Новая запись")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Отмена") { dismiss() }.foregroundColor(theme.accent)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Сохранить") { Task { await vm.save() } }
-                        .font(DS.label)
-                        .foregroundColor(vm.isValid ? theme.accent : theme.textMuted)
-                        .disabled(!vm.isValid || vm.isSaving)
-                }
+        ZStack {
+            theme.backgroundDeep.ignoresSafeArea()
+
+            if vm.isLoading {
+                ProgressView().progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
+            } else {
+                formContent
             }
         }
-        .preferredColorScheme(.dark)
         .task {
-            vm.onCreated = { dismiss(); onCreated?() }
+            vm.onCreated = { dismiss() }
             await vm.loadData()
         }
     }
 
     private var formContent: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: DS.s20) {
-                // Клиент
-                sectionBlock(title: "Клиент") {
-                    ClientPickerRow(vm: vm, theme: theme)
-                }
+        VStack(spacing: 0) {
+            dragIndicator
+            customHeader
 
-                // Услуга
-                sectionBlock(title: "Услуга") {
-                    ServicePickerRow(vm: vm, theme: theme)
-                }
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    sectionView(index: 0, title: "Клиент") {
+                        ClientPickerRow(vm: vm, theme: theme)
+                    }
 
-                // Дата
-                sectionBlock(title: "Дата") {
-                    DatePicker("", selection: $vm.selectedDate, in: Date()..., displayedComponents: .date)
-                        .datePickerStyle(.graphical)
-                        .accentColor(theme.accent)
-                        .colorScheme(.dark)
-                        .onChange(of: vm.selectedDate) { _, _ in Task { await vm.loadSlots() } }
-                }
+                    sectionView(index: 1, title: "Услуга") {
+                        ServicePickerRow(vm: vm, theme: theme)
+                    }
 
-                // Время
-                if !vm.availableSlots.isEmpty {
-                    sectionBlock(title: "Время") {
-                        SlotPicker(slots: vm.availableSlots, selected: $vm.selectedTime, theme: theme)
+                    sectionView(index: 2, title: "Дата и время") {
+                        VStack(spacing: 16) {
+                            DatePicker("", selection: $vm.selectedDate, in: Date()..., displayedComponents: .date)
+                                .datePickerStyle(.graphical)
+                                .accentColor(theme.accent)
+                                .colorScheme(.dark)
+                                .onChange(of: vm.selectedDate) { _, _ in
+                                    HapticManager.selection()
+                                    Task { await vm.loadSlots() }
+                                }
+
+                            if !vm.availableSlots.isEmpty {
+                                SlotPicker(slots: vm.availableSlots, selected: $vm.selectedTime, theme: theme)
+                            }
+                        }
+                    }
+
+                    sectionView(index: 3, title: "Детали") {
+                        VStack(spacing: 12) {
+                            BBTextField(placeholder: "Цена (₽)", text: $vm.price, keyboardType: .numberPad)
+                            BBTextField(placeholder: "Заметка", text: $vm.notes)
+                        }
+                    }
+                    .environment(\.theme, theme)
+
+                    if let err = vm.errorMessage {
+                        BBErrorBanner(message: err).environment(\.theme, theme)
                     }
                 }
-
-                // Цена и заметка
-                sectionBlock(title: "Детали") {
-                    VStack(spacing: DS.s12) {
-                        BBTextField(placeholder: "Цена (₽)", text: $vm.price, keyboardType: .numberPad)
-                            .environment(\.theme, theme)
-                        BBTextField(placeholder: "Заметка", text: $vm.notes)
-                            .environment(\.theme, theme)
-                    }
-                }
-
-                if let err = vm.errorMessage {
-                    BBErrorBanner(message: err).environment(\.theme, theme)
-                }
-
-                BBPrimaryButton(title: vm.isSaving ? "Сохраняю..." : "Записать клиента",
-                                isLoading: vm.isSaving,
-                                isDisabled: !vm.isValid) {
-                    Task { await vm.save() }
-                }.environment(\.theme, theme)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
             }
-            .padding(.horizontal, DS.s20)
-            .padding(.bottom, 40)
+
+            saveButton
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                appeared = true
+            }
         }
     }
 
-    private func sectionBlock<C: View>(title: String, @ViewBuilder content: () -> C) -> some View {
-        VStack(spacing: DS.s8) {
-            BBSectionHeader(title: title).environment(\.theme, theme)
-            BBCard { content() }.environment(\.theme, theme)
+    private var dragIndicator: some View {
+        Capsule()
+            .fill(theme.textMuted.opacity(0.3))
+            .frame(width: 36, height: 4)
+            .padding(.top, 8)
+            .frame(maxWidth: .infinity)
+    }
+
+    private var customHeader: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button(action: { dismiss() }) {
+                    Text("Отмена")
+                        .font(DS.body)
+                        .foregroundColor(theme.textMuted)
+                }
+                Spacer()
+                Text("Новая запись")
+                    .font(DS.headline)
+                    .foregroundColor(theme.textPrimary)
+                Spacer()
+                Button(action: { Task { await vm.save() } }) {
+                    Text("Сохранить")
+                        .font(DS.label)
+                        .foregroundColor(theme.accent)
+                }
+                .disabled(!vm.isValid)
+                .opacity(vm.isValid ? 1 : 0.4)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 8)
+
+            Divider()
+                .background(theme.borderSubtle)
         }
+    }
+
+    private func sectionView<C: View>(index: Int, title: String, @ViewBuilder content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            BBSectionHeader(title: title)
+            BBGlassCard {
+                content()
+            }
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 20)
+            .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(Double(index) * 0.08), value: appeared)
+        }
+        .environment(\.theme, theme)
+    }
+
+    private var saveButton: some View {
+        BBPrimaryButton(
+            title: vm.isSaving ? "Сохраняю..." : "Создать запись",
+            isLoading: vm.isSaving,
+            isDisabled: !vm.isValid
+        ) {
+            Task { await vm.save() }
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 32)
+        .environment(\.theme, theme)
     }
 }
 
@@ -190,10 +242,11 @@ struct SlotPicker: View {
     let slots: [String]
     @Binding var selected: String
     let theme: AppTheme
-    let columns = [GridItem(.adaptive(minimum: 72), spacing: DS.s8)]
+
+    private var columns = [GridItem(.adaptive(minimum: 72), spacing: 8]
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: DS.s8) {
+        LazyVGrid(columns: columns, spacing: 8) {
             ForEach(slots, id: \.self) { slot in
                 Text(slot)
                     .font(DS.label)
@@ -205,7 +258,10 @@ struct SlotPicker: View {
                             .fill(selected == slot ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
                     )
                     .cornerRadius(DS.r8)
-                    .onTapGesture { withAnimation(DS.springSnappy) { selected = slot } }
+                    .onTapGesture {
+                        HapticManager.selection()
+                        withAnimation(DS.springSnappy) { selected = slot }
+                    }
             }
         }
     }
@@ -218,18 +274,41 @@ struct ClientPickerRow: View {
     let theme: AppTheme
     @State private var showPicker = false
 
+    private var initials: String {
+        guard let client = vm.selectedClient else { return "" }
+        let parts = client.name.split(separator: " ")
+        return ((parts.first.map { String($0.prefix(1)) } ?? "") + (parts.dropFirst().first.map { String($0.prefix(1)) ?? "")).uppercased()
+    }
+
     var body: some View {
         Button(action: { showPicker = true }) {
             HStack {
                 if let client = vm.selectedClient {
-                    Text(client.name).font(DS.body).foregroundColor(theme.textPrimary)
-                    Spacer()
-                    Text(client.phone).font(DS.bodySmall).foregroundColor(theme.textSecondary)
+                    ZStack {
+                        Circle()
+                            .fill(theme.gradientPrimary)
+                            .frame(width: 36, height: 36)
+                        Text(initials)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(client.name)
+                            .font(DS.body)
+                            .foregroundColor(theme.textPrimary)
+                        Text(client.phone)
+                            .font(DS.bodySmall)
+                            .foregroundColor(theme.textMuted)
+                    }
                 } else {
-                    Text("Выбрать клиента").font(DS.body).foregroundColor(theme.textMuted)
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 14)).foregroundColor(theme.textMuted)
+                    Text("Выбрать клиента")
+                        .font(DS.body)
+                        .foregroundColor(theme.textMuted)
                 }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(theme.textMuted.opacity(0.5))
             }
         }
         .sheet(isPresented: $showPicker) {
@@ -251,14 +330,22 @@ struct ServicePickerRow: View {
         Button(action: { showPicker = true }) {
             HStack {
                 if let service = vm.selectedService {
-                    Text(service.name).font(DS.body).foregroundColor(theme.textPrimary)
+                    Text(service.name)
+                        .font(DS.body)
+                        .foregroundColor(theme.textPrimary)
                     Spacer()
-                    Text("\(service.priceDefault)₽").font(DS.bodySmall).foregroundColor(theme.accent)
+                    Text("\(service.priceDefault)₽")
+                        .font(DS.bodySmall)
+                        .foregroundColor(theme.accent)
                 } else {
-                    Text("Выбрать услугу").font(DS.body).foregroundColor(theme.textMuted)
+                    Text("Выбрать услугу")
+                        .font(DS.body)
+                        .foregroundColor(theme.textMuted)
                     Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 14)).foregroundColor(theme.textMuted)
                 }
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(theme.textMuted.opacity(0.5))
             }
         }
         .sheet(isPresented: $showPicker) {
@@ -285,40 +372,43 @@ struct PickerSheet<T: Identifiable>: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
-            ZStack {
-                theme.backgroundDeep.ignoresSafeArea()
-                List {
+        ZStack {
+            theme.backgroundDeep.ignoresSafeArea()
+            ScrollView {
+                VStack(spacing: 8) {
                     ForEach(items) { item in
                         Button(action: { onSelect(item) }) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(itemTitle(item)).font(DS.label).foregroundColor(theme.textPrimary)
-                                    Text(itemSubtitle(item)).font(DS.bodySmall).foregroundColor(theme.textSecondary)
+                                    Text(itemTitle(item))
+                                        .font(DS.label)
+                                        .foregroundColor(theme.textPrimary)
+                                    Text(itemSubtitle(item))
+                                        .font(DS.bodySmall)
+                                        .foregroundColor(theme.textSecondary)
                                 }
                                 Spacer()
                             }
+                            .padding(16)
+                            .background(theme.backgroundCard)
+                            .cornerRadius(DS.r12)
                         }
-                        .listRowBackground(theme.backgroundCard)
-                        .listRowSeparatorTint(theme.borderSubtle)
                     }
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .background(theme.backgroundDeep)
-            }
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Отмена") { dismiss() }.foregroundColor(theme.accent)
-                }
+                .padding(.horizontal, 20)
             }
         }
-        .preferredColorScheme(.dark)
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Отмена") { dismiss() }.foregroundColor(theme.accent)
+            }
+        }
     }
 }
 
 #Preview {
-    NewAppointmentView().environment(\.theme, .pink)
+    NewAppointmentView()
+        .environment(\.theme, .pink)
 }

@@ -19,6 +19,8 @@ final class ScheduleViewModel: ObservableObject {
         return f.string(from: selectedDate)
     }
 
+    var isToday: Bool { Calendar.current.isDateInToday(selectedDate) }
+
     func isToday(_ date: Date) -> Bool { Calendar.current.isDateInToday(date) }
 
     func loadSchedule() async {
@@ -42,68 +44,66 @@ final class ScheduleViewModel: ObservableObject {
 struct ScheduleView: View {
     @StateObject private var vm = ScheduleViewModel()
     @Environment(\.theme) private var theme
-    @State private var showNewAppointment = false
 
     var body: some View {
         ZStack {
             theme.backgroundDeep.ignoresSafeArea()
-            VStack(spacing: 0) {
-                headerSection
-                dateStrip
-                if vm.isLoading {
-                    Spacer()
-                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
-                    Spacer()
-                } else {
-                    appointmentsList
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    headerSection
+                    dateStrip
+                    if vm.isLoading {
+                        Spacer().frame(height: 200)
+                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
+                        Spacer()
+                    } else {
+                        appointmentsList
+                    }
                 }
             }
         }
         .task { await vm.loadSchedule() }
-        .sheet(isPresented: $showNewAppointment) {
-            NewAppointmentView(onCreated: { Task { await vm.loadSchedule() } })
-                .environment(\.theme, theme)
-        }
     }
 
     // MARK: - Header
 
     private var headerSection: some View {
-        HStack {
+        ZStack(alignment: .topLeading) {
+            ambientGlow
             VStack(alignment: .leading, spacing: 4) {
-                Text("Расписание").font(DS.titleSmall).foregroundColor(theme.textPrimary)
-                Text(vm.selectedDateFormatted)
-                    .font(DS.body).foregroundColor(theme.textSecondary)
+                Text("Привет, Мастер 👋")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(theme.textMuted)
+                Text("Расписание")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(theme.textPrimary)
             }
-            Spacer()
-            HStack(spacing: DS.s12) {
-                // Кнопка "сегодня"
-                Button(action: {
-                    withAnimation(DS.springSnappy) { vm.selectedDate = Date() }
-                    Task { await vm.loadSchedule() }
-                }) {
-                    Text("Сегодня")
-                        .font(DS.labelSmall)
-                        .foregroundColor(theme.accent)
-                        .padding(.horizontal, DS.s12)
-                        .padding(.vertical, DS.s8)
-                        .background(theme.accent.opacity(0.1))
-                        .cornerRadius(DS.r8)
-                }
-
-                Button { Task { await vm.loadSchedule() } } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(theme.accent)
-                        .rotationEffect(.degrees(vm.isLoading ? 360 : 0))
-                        .animation(vm.isLoading ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default,
-                                   value: vm.isLoading)
-                }
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
         }
-        .padding(.horizontal, DS.s20)
-        .padding(.top, DS.s16)
-        .padding(.bottom, DS.s12)
+    }
+
+    private var ambientGlow: some View {
+        Ellipse()
+            .fill(
+                RadialGradient(
+                    colors: [glowColor, .clear],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: 80
+                )
+            )
+            .frame(width: 300, height: 200)
+            .offset(x: -60, y: -40)
+            .blur(radius: 80)
+    }
+
+    private var glowColor: Color {
+        switch theme {
+        case .pink: return theme.accent.opacity(0.15)
+        case .platinum: return Color(hex: "#C9A84C").opacity(0.08)
+        }
     }
 
     // MARK: - Date Strip
@@ -111,20 +111,25 @@ struct ScheduleView: View {
     private var dateStrip: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: DS.s6) {
+                HStack(spacing: 6) {
                     ForEach(vm.dates, id: \.self) { date in
-                        DateCell(date: date, isSelected: vm.selectedDate.isSameDay(as: date),
-                                 isToday: vm.isToday(date), theme: theme)
-                            .id(date)
-                            .onTapGesture {
-                                withAnimation(DS.springSnappy) { vm.selectedDate = date }
-                                Task { await vm.loadSchedule() }
-                            }
+                        DateCapsule(
+                            date: date,
+                            isSelected: vm.selectedDate.isSameDay(as: date),
+                            isToday: vm.isToday(date),
+                            theme: theme
+                        )
+                        .id(date)
+                        .onTapGesture {
+                            HapticManager.selection()
+                            withAnimation(DS.springSnappy) { vm.selectedDate = date }
+                            Task { await vm.loadSchedule() }
+                        }
                     }
                 }
-                .padding(.horizontal, DS.s20)
+                .padding(.horizontal, 20)
             }
-            .frame(height: 76)
+            .frame(height: 80)
             .onAppear {
                 proxy.scrollTo(vm.selectedDate, anchor: .center)
             }
@@ -137,50 +142,68 @@ struct ScheduleView: View {
     // MARK: - Appointments List
 
     private var appointmentsList: some View {
-        ScrollView(showsIndicators: false) {
-            LazyVStack(spacing: DS.s10) {
-                if vm.appointments.isEmpty {
-                    emptyState
-                } else {
-                    ForEach(vm.appointments) { appt in
-                        AppointmentCard(appointment: appt, theme: theme)
-                            .contextMenu {
-                                Button(role: .destructive, action: {
-                                    Task { await vm.cancelAppointment(appt.id) }
-                                }) {
-                                    Label("Отменить запись", systemImage: "xmark.circle")
-                                }
+        VStack(alignment: .leading, spacing: 12) {
+            if vm.isToday {
+                BBSectionHeader(title: "Сегодня, \(formattedDate)")
+            } else {
+                BBSectionHeader(title: formattedDate)
+            }
+
+            if vm.appointments.isEmpty {
+                emptyState
+            } else {
+                ForEach(vm.appointments) { appt in
+                    AppointmentCard(appointment: appt, theme: theme)
+                        .contextMenu {
+                            Button(role: .destructive, action: {
+                                Task { await vm.cancelAppointment(appt.id) }
+                            }) {
+                                Label("Отменить запись", systemImage: "xmark.circle")
                             }
-                    }
+                        }
                 }
             }
-            .padding(.horizontal, DS.s20)
-            .padding(.top, DS.s12)
-            .padding(.bottom, 100)
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 100)
+    }
+
+    private var formattedDate: String {
+        let f = DateFormatter(); f.dateFormat = "d MMMM"; f.locale = Locale(identifier: "ru_RU")
+        return f.string(from: vm.selectedDate)
     }
 
     private var emptyState: some View {
-        VStack(spacing: DS.s16) {
+        VStack(spacing: 16) {
             Image(systemName: "calendar.badge.plus")
-                .font(.system(size: 44))
+                .font(.system(size: 48))
+                .foregroundColor(theme.accent.opacity(0.5))
+            Text("Нет записей на этот день")
+                .font(DS.headline)
+                .foregroundColor(theme.textSecondary)
+            Text("Нажмите + чтобы добавить запись")
+                .font(DS.body)
                 .foregroundColor(theme.textMuted)
-            Text("Нет записей").font(DS.headline).foregroundColor(theme.textPrimary)
-            Text("Нажми + чтобы записать клиента").font(DS.body).foregroundColor(theme.textSecondary)
         }
-        .frame(maxWidth: .infinity, minHeight: 280)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
     }
 }
 
-// MARK: - Date Cell
+// MARK: - Date Capsule
 
-struct DateCell: View {
-    let date: Date; let isSelected: Bool; let isToday: Bool; let theme: AppTheme
+struct DateCapsule: View {
+    let date: Date
+    let isSelected: Bool
+    let isToday: Bool
+    let theme: AppTheme
 
     private var dayName: String {
         let f = DateFormatter(); f.dateFormat = "EEE"; f.locale = Locale(identifier: "ru_RU")
-        return f.string(from: date).prefix(2).uppercased()
+        return String(f.string(from: date).prefix(2).uppercased()
     }
+
     private var dayNumber: String {
         let f = DateFormatter(); f.dateFormat = "d"; return f.string(from: date)
     }
@@ -188,21 +211,25 @@ struct DateCell: View {
     var body: some View {
         VStack(spacing: 6) {
             Text(dayName)
-                .font(.system(size: 10, weight: isSelected ? .bold : .medium))
-                .foregroundColor(isSelected ? theme.accent : theme.textMuted)
-            ZStack {
-                Circle()
-                    .fill(isSelected ? theme.accent : (isToday ? theme.accent.opacity(0.15) : Color.clear))
-                    .frame(width: 38, height: 38)
-                Text(dayNumber)
-                    .font(.system(size: 16, weight: isSelected ? .bold : .medium, design: .rounded))
-                    .foregroundColor(isSelected ? .white : (isToday ? theme.accent : theme.textPrimary))
-            }
+                .font(DS.labelSmall)
+                .foregroundColor(isSelected ? .white : theme.textMuted)
+
+            Text(dayNumber)
+                .font(DS.headline)
+                .foregroundColor(isSelected ? .white : theme.textPrimary)
         }
-        .frame(width: 50, height: 68)
-        .background(isSelected ? theme.accent.opacity(0.12) : Color.clear)
-        .cornerRadius(DS.r12)
-        .animation(DS.springSnappy, value: isSelected)
+        .frame(width: 44, height: 68)
+        .background(
+            Capsule()
+                .fill(isSelected ? theme.gradientPrimary : (isToday ? theme.backgroundInput : Color.clear))
+        )
+        .overlay(
+            Capsule()
+                .stroke(isSelected ? Color.clear : (isToday ? theme.accent.opacity(0.3) : Color.clear), lineWidth: 1)
+        )
+        .scaleEffect(isSelected ? 1.05 : 1.0)
+        .shadow(color: isSelected ? theme.accentGlow : .clear, radius: isSelected ? 8 : 0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
     }
 }
 
@@ -218,49 +245,57 @@ struct AppointmentCard: View {
     }
 
     var body: some View {
-        HStack(spacing: DS.s12) {
-            // Время + статус-точка
-            VStack(spacing: 6) {
-                Text(appointment.time)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundColor(theme.textPrimary)
-                Circle().fill(statusColor).frame(width: 8, height: 8)
-            }
-            .frame(width: 44)
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(statusColor)
+                .frame(width: 3)
+                .cornerRadius(2)
 
-            // Контент
-            VStack(alignment: .leading, spacing: 5) {
-                Text(appointment.clientName ?? "Клиент")
-                    .font(DS.label).foregroundColor(theme.textPrimary)
-                HStack(spacing: DS.s6) {
-                    Text(appointment.procedure)
-                        .font(DS.body).foregroundColor(theme.textSecondary)
-                    Text("·").foregroundColor(theme.textMuted)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(appointment.clientName ?? "Клиент")
+                        .font(DS.headline)
+                        .foregroundColor(theme.textPrimary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer()
+                    Text(appointment.time)
+                        .font(DS.labelSmall)
+                        .foregroundColor(theme.textMuted)
+                }
+
+                Text(appointment.procedure)
+                    .font(DS.body)
+                    .foregroundColor(theme.textSecondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.leading)
+
+                HStack(spacing: 6) {
+                    statusBadge
+                    Spacer()
                     Text("\(appointment.price)₽")
-                        .font(DS.body).foregroundColor(theme.accent).fontWeight(.medium)
+                        .font(DS.label)
+                        .foregroundColor(theme.accent)
                 }
-                if let notes = appointment.notes, !notes.isEmpty {
-                    Text(notes).font(DS.bodySmall).foregroundColor(theme.textMuted).lineLimit(1)
-                }
+                .frame(maxWidth: .infinity)
             }
-
-            Spacer()
-
-            // Статус-бейдж
-            Text(appointment.status.displayName)
-                .font(DS.caption).fontWeight(.semibold)
-                .foregroundColor(statusColor)
-                .padding(.horizontal, DS.s8)
-                .padding(.vertical, DS.s4)
-                .background(statusColor.opacity(0.14))
-                .cornerRadius(DS.r8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
         }
-        .padding(DS.s14)
-        .background(theme.backgroundCard)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: DS.r16)
+                    .fill(theme.backgroundCard)
+                RoundedRectangle(cornerRadius: DS.r16)
+                    .fill(.ultraThinMaterial.opacity(0.3))
+            }
+        )
         .cornerRadius(DS.r16)
         .overlay(
             RoundedRectangle(cornerRadius: DS.r16)
-                .stroke(statusColor.opacity(0.25), lineWidth: 1)
+                .stroke(theme.borderSubtle, lineWidth: 1)
         )
         .scaleEffect(isPressed ? 0.98 : 1.0)
         .animation(DS.springSnappy, value: isPressed)
@@ -269,6 +304,17 @@ struct AppointmentCard: View {
                 .onChanged { _ in isPressed = true }
                 .onEnded   { _ in isPressed = false }
         )
+    }
+
+    private var statusBadge: some View {
+        Text(appointment.status.displayName)
+            .font(DS.caption)
+            .fontWeight(.semibold)
+            .foregroundColor(statusColor)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(statusColor.opacity(0.15))
+            .cornerRadius(DS.rFull)
     }
 }
 
@@ -289,5 +335,6 @@ extension Date {
 }
 
 #Preview {
-    ScheduleView().environment(\.theme, .pink)
+    ScheduleView()
+        .environment(\.theme, .pink)
 }

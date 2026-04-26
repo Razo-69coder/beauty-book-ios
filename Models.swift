@@ -84,6 +84,7 @@ struct Client: Decodable, Identifiable {
     let lastVisit: String?
     let username: String?
     let telegramId: Int?
+    var appointmentsCount: Int?
 }
 
 struct ClientDetail: Decodable, Identifiable {
@@ -100,8 +101,10 @@ struct AppointmentHistory: Decodable, Identifiable {
     var id: String { "\(procedure)-\(appointmentDate)" }
     let procedure: String
     let appointmentDate: String
+    let time: String
     let price: Int
     let notes: String?
+    let status: String?
 }
 
 struct ClientsResponse: Decodable {

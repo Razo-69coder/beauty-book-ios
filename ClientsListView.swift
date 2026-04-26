@@ -17,6 +17,10 @@ final class ClientsViewModel: ObservableObject {
         return clients.filter { $0.name.localizedCaseInsensitiveContains(searchText) || $0.phone.contains(searchText) }
     }
 
+    var totalVisits: Int {
+        clients.reduce(0) { $0 + ($1.appointmentsCount ?? 0) }
+    }
+
     func load() async {
         isLoading = true
         do {
@@ -52,17 +56,19 @@ struct ClientsListView: View {
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             theme.backgroundDeep.ignoresSafeArea()
-            VStack(spacing: 0) {
-                header
-                searchBar
-                if vm.isLoading {
-                    Spacer()
-                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
-                    Spacer()
-                } else if vm.filtered.isEmpty {
-                    emptyState
-                } else {
-                    clientsList
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    headerSection
+                    searchBar
+                    if vm.isLoading {
+                        Spacer().frame(height: 200)
+                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
+                        Spacer()
+                    } else if vm.filtered.isEmpty {
+                        emptyState
+                    } else {
+                        clientsList
+                    }
                 }
             }
             fabButton
@@ -76,88 +82,145 @@ struct ClientsListView: View {
         }
     }
 
+    // MARK: - Header
+
+    private var headerSection: some View {
+        ZStack(alignment: .topLeading) {
+            ambientGlow
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Клиентская база")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(theme.textPrimary)
+                Text("\(vm.clients.count) клиентов")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(theme.textMuted)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+        }
+    }
+
+    private var ambientGlow: some View {
+        Ellipse()
+            .fill(
+                RadialGradient(
+                    colors: [glowColor, .clear],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: 80
+                )
+            )
+            .frame(width: 300, height: 200)
+            .offset(x: -60, y: -40)
+            .blur(radius: 80)
+    }
+
+    private var glowColor: Color {
+        switch theme {
+        case .pink: return theme.accent.opacity(0.15)
+        case .platinum: return Color(hex: "#C9A84C").opacity(0.08)
+        }
+    }
+
+    // MARK: - Search Bar
+
+    private var searchBar: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(theme.textMuted)
+                .font(.system(size: 16))
+            TextField("Поиск по имени или телефону", text: $vm.searchText)
+                .font(DS.body)
+                .foregroundColor(theme.textPrimary)
+            if !vm.searchText.isEmpty {
+                Button(action: { vm.searchText = "" }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(theme.textMuted)
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(theme.backgroundInput)
+        .cornerRadius(DS.r16)
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.r16)
+                .stroke(theme.borderSubtle, lineWidth: 1)
+        )
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+    }
+
+    // MARK: - Clients List
+
+    private var clientsList: some View {
+        VStack(spacing: 8) {
+            ForEach(vm.filtered) { client in
+                ClientCard(client: client, theme: theme)
+                    .onTapGesture { vm.selectedClient = client }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 100)
+    }
+
+    // MARK: - Empty State
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            if vm.searchText.isEmpty {
+                Image(systemName: "person.2.slash")
+                    .font(.system(size: 40))
+                    .foregroundColor(theme.accent.opacity(0.4))
+                Text("Нет клиентов")
+                    .font(DS.headline)
+                    .foregroundColor(theme.textSecondary)
+                Text("Добавьте первого клиента, нажав +")
+                    .font(DS.body)
+                    .foregroundColor(theme.textMuted)
+            } else {
+                Image(systemName: "person.slash")
+                    .font(.system(size: 40))
+                    .foregroundColor(theme.accent.opacity(0.4))
+                Text("Клиент не найден")
+                    .font(DS.headline)
+                    .foregroundColor(theme.textSecondary)
+                Text("Попробуйте другой запрос")
+                    .font(DS.body)
+                    .foregroundColor(theme.textMuted)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
+    }
+
+    // MARK: - FAB
+
     private var fabButton: some View {
-        Button(action: { vm.showAddSheet = true }) {
-            Image(systemName: "person.badge.plus")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(.white)
-                .frame(width: 58, height: 58)
-                .background(theme.gradientPrimary)
-                .clipShape(Circle())
-                .shadow(color: theme.accentGlow, radius: 12, x: 0, y: 6)
+        Button(action: {
+            HapticManager.medium()
+            vm.showAddSheet = true
+        }) {
+            ZStack {
+                Circle()
+                    .fill(theme.gradientPrimary)
+                    .frame(width: 58, height: 58)
+                    .shadow(color: theme.accentGlow, radius: 12, x: 0, y: 6)
+                Image(systemName: "person.badge.plus")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(.white)
+            }
         }
         .padding(.bottom, 100)
         .padding(.trailing, 20)
     }
-
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Клиенты").font(DS.titleSmall).foregroundColor(theme.textPrimary)
-                Text("\(vm.clients.count) клиентов").font(DS.body).foregroundColor(theme.textSecondary)
-            }
-            Spacer()
-        }
-        .padding(.horizontal, DS.s20)
-        .padding(.top, DS.s16)
-        .padding(.bottom, DS.s8)
-    }
-
-    private var searchBar: some View {
-        HStack(spacing: DS.s8) {
-            Image(systemName: "magnifyingglass").foregroundColor(theme.textMuted).font(.system(size: 16))
-            ZStack(alignment: .leading) {
-                if vm.searchText.isEmpty {
-                    Text("Поиск по имени или телефону").foregroundColor(theme.textMuted).font(DS.body)
-                }
-                TextField("", text: $vm.searchText).font(DS.body).foregroundColor(theme.textPrimary)
-            }
-        }
-        .padding(.horizontal, DS.s12)
-        .frame(height: 44)
-        .background(theme.backgroundInput)
-        .cornerRadius(DS.r12)
-        .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
-        .padding(.horizontal, DS.s20)
-        .padding(.bottom, DS.s8)
-    }
-
-    private var clientsList: some View {
-        List {
-            ForEach(vm.filtered) { client in
-                ClientRow(client: client, theme: theme)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 4, leading: DS.s20, bottom: 4, trailing: DS.s20))
-                    .onTapGesture { vm.selectedClient = client }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            Task { await vm.delete(client: client) }
-                        } label: { Label("Удалить", systemImage: "trash") }
-                    }
-            }
-        }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(theme.backgroundDeep)
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            Image(systemName: "person.2.slash").font(.system(size: 48)).foregroundColor(theme.textMuted)
-            Text(vm.searchText.isEmpty ? "Нет клиентов" : "Ничего не найдено")
-                .font(DS.headline).foregroundColor(theme.textPrimary)
-            Text(vm.searchText.isEmpty ? "Добавь первого клиента, нажав +" : "Попробуй другой запрос")
-                .font(DS.body).foregroundColor(theme.textSecondary).multilineTextAlignment(.center)
-            Spacer()
-        }.padding(.horizontal, DS.s32)
-    }
 }
 
-// MARK: - Client Row
+// MARK: - Client Card
 
-struct ClientRow: View {
+struct ClientCard: View {
     let client: Client
     let theme: AppTheme
     @State private var isPressed = false
@@ -167,38 +230,44 @@ struct ClientRow: View {
         return ((parts.first.map { String($0.prefix(1)) } ?? "") + (parts.dropFirst().first.map { String($0.prefix(1)) } ?? "")).uppercased()
     }
 
-    private var lastVisitText: String {
-        guard let lv = client.lastVisit else { return "Нет визитов" }
-        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
-        guard let d = f.date(from: lv) else { return lv }
-        let f2 = DateFormatter(); f2.dateFormat = "d MMM"; f2.locale = Locale(identifier: "ru_RU")
-        return f2.string(from: d)
-    }
-
     var body: some View {
-        HStack(spacing: DS.s12) {
+        HStack(spacing: 14) {
             ZStack {
-                Circle().fill(theme.accent.opacity(0.15)).frame(width: 48, height: 48)
+                Circle()
+                    .fill(theme.gradientPrimary)
+                    .frame(width: 48, height: 48)
                 Text(initials.isEmpty ? "?" : initials)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundColor(theme.accent)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(.white)
             }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(client.name).font(DS.label).foregroundColor(theme.textPrimary)
-                Text(client.phone).font(DS.body).foregroundColor(theme.textSecondary)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(client.name)
+                    .font(DS.headline)
+                    .foregroundColor(theme.textPrimary)
+                Text(client.phone)
+                    .font(DS.bodySmall)
+                    .foregroundColor(theme.textMuted)
             }
+
             Spacer()
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(lastVisitText).font(DS.caption).foregroundColor(theme.textMuted)
-                if let notes = client.notes, !notes.isEmpty {
-                    Text(notes).font(DS.caption).foregroundColor(theme.accent.opacity(0.8)).lineLimit(1)
-                }
+
+            VStack(alignment: .trailing, spacing: 3) {
+                Text("\(client.appointmentsCount ?? 0) визитов")
+                    .font(DS.labelSmall)
+                    .foregroundColor(theme.textMuted)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(theme.textMuted.opacity(0.5))
             }
         }
-        .padding(DS.s12)
+        .padding(16)
         .background(theme.backgroundCard)
         .cornerRadius(DS.r16)
-        .overlay(RoundedRectangle(cornerRadius: DS.r16).stroke(theme.borderSubtle, lineWidth: 1))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.r16)
+                .stroke(theme.borderSubtle, lineWidth: 1)
+        )
         .scaleEffect(isPressed ? 0.98 : 1.0)
         .animation(DS.springSnappy, value: isPressed)
         .simultaneousGesture(
@@ -215,34 +284,37 @@ struct AddClientSheet: View {
     @ObservedObject var vm: ClientsViewModel
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
-    @State private var name = ""; @State private var phone = ""; @State private var notes = ""
+    @State private var name = ""
+    @State private var phone = ""
+    @State private var notes = ""
     private var isValid: Bool { !name.isEmpty && !phone.isEmpty }
 
     var body: some View {
-        NavigationView {
-            ZStack {
-                theme.backgroundDeep.ignoresSafeArea()
-                VStack(spacing: DS.s16) {
-                    BBTextField(placeholder: "Имя клиента", text: $name).environment(\.theme, theme)
-                    BBTextField(placeholder: "+7 (___) ___-__-__", text: $phone, keyboardType: .phonePad).environment(\.theme, theme)
-                    BBTextField(placeholder: "Заметка (необязательно)", text: $notes).environment(\.theme, theme)
-                    BBPrimaryButton(title: "Добавить клиента", isDisabled: !isValid) {
-                        Task { await vm.add(name: name, phone: phone, notes: notes) }
-                        dismiss()
-                    }.environment(\.theme, theme)
-                    Spacer()
+        ZStack {
+            theme.backgroundDeep.ignoresSafeArea()
+            VStack(spacing: DS.s16) {
+                BBTextField(placeholder: "Имя клиента", text: $name)
+                    .environment(\.theme, theme)
+                BBTextField(placeholder: "+7 (___) ___-__-__", text: $phone, keyboardType: .phonePad)
+                    .environment(\.theme, theme)
+                BBTextField(placeholder: "Заметка (необязательно)", text: $notes)
+                    .environment(\.theme, theme)
+                BBPrimaryButton(title: "Добавить клиента", isDisabled: !isValid) {
+                    Task { await vm.add(name: name, phone: phone, notes: notes) }
+                    dismiss()
                 }
-                .padding(DS.s20)
+                .environment(\.theme, theme)
+                Spacer()
             }
-            .navigationTitle("Новый клиент")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Отмена") { dismiss() }.foregroundColor(theme.accent)
-                }
+            .padding(DS.s20)
+        }
+        .navigationTitle("Новый клиент")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Отмена") { dismiss() }.foregroundColor(theme.accent)
             }
         }
-        .preferredColorScheme(.dark)
     }
 }
 

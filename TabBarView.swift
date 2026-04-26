@@ -28,11 +28,17 @@ struct TabBarView: View {
         }
     }
 
+    private var screenWidth: CGFloat {
+        UIScreen.main.bounds.width
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
-            theme.backgroundDeep.ignoresSafeArea()
+            Color(theme.backgroundDeep)
+                .ignoresSafeArea(edges: .all)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // Контент
+            // Контент с отступом снизу
             Group {
                 switch selectedTab {
                 case .schedule: ScheduleView()
@@ -44,58 +50,103 @@ struct TabBarView: View {
             .environment(\.theme, theme)
             .environmentObject(appState)
             .environmentObject(themeManager)
+            .padding(.bottom, 90)
 
-            // Tab Bar
-            VStack(spacing: 0) {
-                Divider().background(theme.borderSubtle)
-                HStack(spacing: 0) {
-                    // Первые 2 вкладки
-                    ForEach([Tab.schedule, Tab.clients], id: \.title) { tab in
-                        TabButton(tab: tab, isSelected: selectedTab == tab, theme: theme) {
-                            withAnimation(DS.springSnappy) { selectedTab = tab }
-                        }
-                    }
-
-                    // Центральная кнопка + (Новая запись)
-                    Button(action: { showNewAppointment = true }) {
-                        ZStack {
-                            Circle()
-                                .fill(theme.gradientPrimary)
-                                .frame(width: 56, height: 56)
-                                .shadow(color: theme.accentGlow, radius: 12, x: 0, y: 4)
-                            Image(systemName: "plus")
-                                .font(.system(size: 22, weight: .bold))
-                                .foregroundColor(.white)
-                        }
-                    }
-                    .offset(y: -12)
-                    .frame(maxWidth: .infinity)
-
-                    // Последние 2 вкладки
-                    ForEach([Tab.stats, Tab.settings], id: \.title) { tab in
-                        TabButton(tab: tab, isSelected: selectedTab == tab, theme: theme) {
-                            withAnimation(DS.springSnappy) { selectedTab = tab }
-                        }
-                    }
-                }
-                .padding(.horizontal, DS.s8)
-                .padding(.top, DS.s8)
-                .padding(.bottom, DS.s20)
-                .background(
-                    theme.backgroundCard
-                        .shadow(color: .black.opacity(0.3), radius: 16, x: 0, y: -4)
-                )
-            }
+            // Floating Pill Tab Bar
+            floatingTabBar
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
         }
         .sheet(isPresented: $showNewAppointment) {
             NewAppointmentView(onCreated: nil)
                 .environment(\.theme, theme)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
+    }
+
+    private var floatingTabBar: some View {
+        HStack(spacing: 0) {
+            ForEach([Tab.schedule, Tab.clients], id: \.title) { tab in
+                TabIconButton(
+                    icon: selectedTab == tab ? tab.icon + ".fill" : tab.icon,
+                    isSelected: selectedTab == tab,
+                    theme: theme
+                ) {
+                    HapticManager.light()
+                    withAnimation(DS.springSnappy) { selectedTab = tab }
+                }
+            }
+
+            // FAB
+            fabButton
+                .frame(maxWidth: .infinity)
+
+            ForEach([Tab.stats, Tab.settings], id: \.title) { tab in
+                TabIconButton(
+                    icon: selectedTab == tab ? tab.icon + ".fill" : tab.icon,
+                    isSelected: selectedTab == tab,
+                    theme: theme
+                ) {
+                    HapticManager.light()
+                    withAnimation(DS.springSnappy) { selectedTab = tab }
+                }
+            }
+        }
+        .frame(width: screenWidth - 48)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(
+            ZStack {
+                Capsule()
+                    .fill(.ultraThinMaterial)
+                Capsule()
+                    .fill(theme.backgroundCard.opacity(0.85))
+            }
+        )
+        .overlay(
+            Capsule()
+                .stroke(borderColor, lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: -4)
+    }
+
+    private var borderColor: Color {
+        switch theme {
+        case .pink: return theme.accent.opacity(0.2)
+        case .platinum: return theme.accent.opacity(0.1)
+        }
+    }
+
+    private var fabButton: some View {
+        Button(action: {
+            HapticManager.medium()
+            showNewAppointment = true
+        }) {
+            ZStack {
+                if theme == .pink {
+                    Circle()
+                        .stroke(theme.accent.opacity(0.5), lineWidth: 2)
+                        .frame(width: 60, height: 60)
+                        .modifier(PulseRingModifier())
+                }
+
+                Circle()
+                    .fill(theme.gradientPrimary)
+                    .frame(width: 52, height: 52)
+                    .shadow(color: theme.accentGlow, radius: 16, y: 4)
+
+                Image(systemName: "plus")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(.white)
+            }
+        }
+        .offset(y: -6)
     }
 }
 
-struct TabButton: View {
-    let tab: TabBarView.Tab
+struct TabIconButton: View {
+    let icon: String
     let isSelected: Bool
     let theme: AppTheme
     let action: () -> Void
@@ -103,23 +154,39 @@ struct TabButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: isSelected ? tab.icon + ".fill" : tab.icon)
-                    .font(.system(size: 22, weight: isSelected ? .semibold : .regular))
+            ZStack {
+                if isSelected {
+                    Capsule()
+                        .fill(theme.accent.opacity(0.15))
+                }
+
+                Image(systemName: icon)
+                    .font(.system(size: 20))
                     .foregroundColor(isSelected ? theme.accent : theme.textMuted)
-                    .scaleEffect(isPressed ? 0.88 : 1.0)
-                Text(tab.title)
-                    .font(DS.caption)
-                    .foregroundColor(isSelected ? theme.accent : theme.textMuted)
+                    .scaleEffect(isPressed ? 1.1 : 1.0)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, DS.s4)
+            .frame(height: 44)
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in withAnimation(.easeInOut(duration: 0.1)) { isPressed = true } }
                 .onEnded   { _ in withAnimation(DS.springSnappy) { isPressed = false } }
         )
+    }
+}
+
+struct PulseRingModifier: ViewModifier {
+    @State private var isAnimating = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isAnimating ? 0.5 : 0)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: false)) {
+                    isAnimating = true
+                }
+            }
     }
 }
 
