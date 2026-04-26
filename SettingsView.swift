@@ -74,19 +74,20 @@ struct SettingsView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        ZStack {
-            theme.backgroundDeep.ignoresSafeArea()
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
-                    profileHeader
-                    themeSelector
-                    profileSection
-                    scheduleSection
-                    appSection
-                    logoutButton
+        Color.clear
+            .overlay {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        profileHeader
+                        themeSelector
+                        profileSection
+                        scheduleSection
+                        appSection
+                        logoutButton
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 100)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 100)
             }
         }
         .task { await vm.load() }

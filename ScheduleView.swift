@@ -46,19 +46,20 @@ struct ScheduleView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        ZStack {
-            theme.backgroundDeep.ignoresSafeArea()
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    headerSection
-                    dateStrip
-                    if vm.isLoading {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 60)
-                    } else {
-                        appointmentsList
+        Color.clear
+            .overlay {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        headerSection
+                        dateStrip
+                        if vm.isLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, 60)
+                        } else {
+                            appointmentsList
+                        }
                     }
                 }
             }
@@ -83,6 +84,7 @@ struct ScheduleView: View {
             .padding(.horizontal, 20)
             .padding(.top, 12)
         }
+        .frame(height: 80)
     }
 
     private var ambientGlow: some View {

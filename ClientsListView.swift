@@ -54,24 +54,28 @@ struct ClientsListView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            theme.backgroundDeep.ignoresSafeArea()
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    headerSection
-                    searchBar
-                    if vm.isLoading {
-                        Spacer().frame(height: 200)
-                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
-                        Spacer()
-                    } else if vm.filtered.isEmpty {
-                        emptyState
-                    } else {
-                        clientsList
+        Color.clear
+            .overlay {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        headerSection
+                        searchBar
+                        if vm.isLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, 60)
+                        } else if vm.filtered.isEmpty {
+                            emptyState
+                        } else {
+                            clientsList
+                        }
                     }
                 }
             }
-            fabButton
+            .overlay(alignment: .bottomTrailing) {
+                fabButton
+            }
         }
         .task { await vm.load() }
         .sheet(isPresented: $vm.showAddSheet) {

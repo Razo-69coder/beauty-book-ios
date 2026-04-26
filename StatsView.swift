@@ -32,12 +32,13 @@ struct StatsView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        ZStack {
-            theme.backgroundDeep.ignoresSafeArea()
-            if vm.isLoading {
-                ProgressView().progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
-            } else {
-                content
+        Color.clear
+            .overlay {
+                if vm.isLoading {
+                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
+                } else {
+                    content
+                }
             }
         }
         .task { await vm.load() }

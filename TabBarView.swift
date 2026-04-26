@@ -172,29 +172,26 @@ struct TabIconButton: View {
     let isSelected: Bool
     let theme: AppTheme
     let action: () -> Void
-    @State private var isPressed = false
 
     var body: some View {
         Button(action: action) {
-            ZStack {
-                if isSelected {
-                    Capsule()
-                        .fill(theme.accent.opacity(0.15))
+            VStack(spacing: 0) {
+                ZStack {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(theme.accent.opacity(0.2))
+                            .frame(width: 44, height: 32)
+                    }
+                    Image(systemName: icon)
+                        .font(.system(size: 20, weight: isSelected ? .semibold : .regular))
+                        .foregroundStyle(isSelected ? theme.accent : theme.textMuted)
                 }
-
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundColor(isSelected ? theme.accent : theme.textMuted)
-                    .scaleEffect(isPressed ? 1.1 : 1.0)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 44)
+            .contentShape(Rectangle())
         }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in withAnimation(.easeInOut(duration: 0.1)) { isPressed = true } }
-                .onEnded   { _ in withAnimation(DS.springSnappy) { isPressed = false } }
-        )
+        .buttonStyle(.plain)
     }
 }
 
