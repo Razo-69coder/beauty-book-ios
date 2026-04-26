@@ -443,17 +443,35 @@ struct SettingsView: View {
                         display: "\(vm.workEnd):00",
                         theme: theme
                     )
-                    Divider().background(theme.borderSubtle)
-                    StepperRow(
-                        label: "Слот",
-                        value: $vm.slotDuration,
-                        range: 30...120,
-                        step: 15,
-                        display: "\(vm.slotDuration) мин",
-                        theme: theme
-                    )
                 }
             }
+
+            BBSectionHeader(title: "Длительность слота")
+
+            BBGlassCard {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Длительность слота")
+                            .font(DS.body).foregroundColor(theme.textPrimary)
+                        Text("Минимальное время на запись")
+                            .font(DS.bodySmall).foregroundColor(theme.textMuted)
+                    }
+                    Spacer()
+                    HStack(spacing: 6) {
+                        ForEach([30, 45, 60, 90, 120], id: \.self) { mins in
+                            Text(mins < 60 ? "\(mins)м" : (mins == 60 ? "1ч" : (mins == 90 ? "1.5ч" : "2ч")))
+                                .font(DS.labelSmall)
+                                .foregroundColor(vm.slotDuration == mins ? .white : theme.textSecondary)
+                                .padding(.horizontal, 8).padding(.vertical, 6)
+                                .background(vm.slotDuration == mins ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
+                                .cornerRadius(DS.r8)
+                                .onTapGesture { vm.slotDuration = mins }
+                        }
+                    }
+                }
+                .padding(16)
+            }
+            .environment(\.theme, theme)
 
             BBPrimaryButton(title: vm.isSaving ? "Сохранение..." : "Сохранить изменения", isLoading: vm.isSaving) {
                 Task { await vm.save() }

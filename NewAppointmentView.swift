@@ -119,11 +119,105 @@ struct NewAppointmentView: View {
             dragIndicator
             customHeader
 
-            ScrollView(showsIndicators: false) {
+ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
                     sectionView(index: 0, title: "Клиент") {
                         ClientPickerRow(vm: vm, theme: theme)
                     }
+
+                    sectionView(index: 1, title: "Услуга") {
+                        ServicePickerRow(vm: vm, theme: theme)
+                    }
+
+                    sectionView(index: 2, title: "Дата и время") {
+                        VStack(spacing: 16) {
+                            DatePicker("", selection: $vm.selectedDate, in: Date()..., displayedComponents: .date)
+                                .datePickerStyle(.graphical)
+                                .accentColor(theme.accent)
+                                .colorScheme(.dark)
+                                .environment(\.locale, Locale(identifier: "ru_RU"))
+                                .onChange(of: vm.selectedDate) { _, _ in
+                                    HapticManager.selection()
+                                    Task { await vm.loadSlots() }
+                                }
+
+                            if !vm.availableSlots.isEmpty {
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 70))], spacing: 8) {
+                                    ForEach(vm.availableSlots, id: \.self) { slot in
+                                        Button(action: {
+                                            HapticManager.selection()
+                                            vm.selectedSlot = slot
+                                        }) {
+                                            Text(slot)
+                                                .font(DS.label)
+                                                .foregroundColor(vm.selectedSlot == slot ? .white : theme.textSecondary)
+                                                .padding(.horizontal, 12).padding(.vertical, 8)
+                                                .background(vm.selectedSlot == slot ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
+                                                .cornerRadius(DS.r8)
+                                        }
+                                    }
+                                }
+                            }
+
+                            HStack {
+                                Text("Длительность")
+                                    .font(DS.body).foregroundColor(theme.textPrimary)
+                                Spacer()
+                                Stepper("", value: $vm.duration, in: 30...240, step: 30)
+                                    .labelsHidden()
+                                    .tint(theme.accent)
+                            }
+                        }
+                    }
+
+                    sectionView(index: 3, title: "Стоимость") {
+                        VStack(spacing: 16) {
+                            HStack {
+                                Text("Цена")
+                                    .font(DS.body).foregroundColor(theme.textPrimary)
+                                Spacer()
+                                TextField("0", text: $vm.priceText)
+                                    .keyboardType(.numberPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .foregroundColor(theme.textPrimary)
+                                    .frame(width: 80)
+                            }
+                            .environment(\.theme, theme)
+
+                            HStack {
+                                Text("Предоплата")
+                                    .font(DS.body).foregroundColor(theme.textPrimary)
+                                Spacer()
+                                TextField("0", text: $vm.depositText)
+                                    .keyboardType(.numberPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .foregroundColor(theme.textPrimary)
+                                    .frame(width: 80)
+                            }
+                            .environment(\.theme, theme)
+                        }
+                    }
+
+                    sectionView(index: 4, title: "Заметка") {
+                        TextEditor(text: $vm.notes)
+                            .frame(height: 80)
+                            .padding(8)
+                            .background(theme.backgroundInput)
+                            .foregroundColor(theme.textPrimary)
+                            .cornerRadius(DS.r12)
+                    }
+
+                    if let err = vm.errorMessage {
+                        BBErrorBanner(message: err).environment(\.theme, theme)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
+            }
+            .ignoresSafeArea(.keyboard)
+
+            saveButton
+        }
 
                     sectionView(index: 1, title: "Услуга") {
                         ServicePickerRow(vm: vm, theme: theme)

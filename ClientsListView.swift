@@ -166,7 +166,7 @@ struct ClientsListView: View {
         }
         .padding(.horizontal, 20)
         .padding(.top, 8)
-        .padding(.bottom, 120)
+        .padding(.bottom, 140)
     }
 
     // MARK: - Empty State
@@ -216,7 +216,7 @@ struct ClientsListView: View {
                     .foregroundColor(.white)
             }
         }
-        .padding(.bottom, 110)
+        .padding(.bottom, 100)
         .padding(.trailing, 20)
     }
 }
@@ -238,6 +238,17 @@ struct ClientCard: View {
     }
 
     private var visitCount: Int { client.appointmentsCount ?? 0 }
+
+    private func visitWord(_ count: Int) -> String {
+        let rem100 = count % 100
+        let rem10  = count % 10
+        if rem100 >= 11 && rem100 <= 19 { return "визитов" }
+        switch rem10 {
+        case 1:        return "визит"
+        case 2, 3, 4:  return "визита"
+        default:       return "визитов"
+        }
+    }
 
     private var progressToNextReward: String {
         let threshold = loyaltyThreshold
@@ -282,7 +293,7 @@ struct ClientCard: View {
                         Text("🎂")
                             .font(.system(size: 14))
                     }
-                    Text("\(visitCount) визитов")
+                    Text("\(visitCount) \(visitWord(visitCount)))")
                         .font(DS.labelSmall)
                         .foregroundColor(theme.textMuted)
                 }
@@ -334,70 +345,82 @@ struct AddClientSheet: View {
     }
 
     var body: some View {
-        ZStack {
-            Color(hex: "#0D0B0E").ignoresSafeArea()
-            if let img = UIImage(named: "bg_pink") {
-                Image(uiImage: img)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .ignoresSafeArea()
-                    .opacity(0.6)
-            }
-            Color.black.opacity(0.4).ignoresSafeArea()
-            ScrollView {
-                VStack(spacing: DS.s16) {
-                    BBTextField(placeholder: "Имя клиента", text: $name)
-                    BBTextField(placeholder: "+7 (___) ___-__-__", text: $phone, keyboardType: .phonePad)
-                    BBTextField(placeholder: "Заметка (необязательно)", text: $notes)
+        NavigationView {
+            ZStack {
+                Color(hex: "#0D0B0E").ignoresSafeArea()
+                if let img = UIImage(named: "bg_pink") {
+                    Image(uiImage: img)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(
+                            width: UIScreen.main.bounds.width,
+                            height: UIScreen.main.bounds.height
+                        )
+                        .clipped()
+                        .ignoresSafeArea()
+                }
+                Color.black.opacity(0.5).ignoresSafeArea()
 
-                    Button(action: { showBirthdayPicker.toggle() }) {
-                        HStack {
-                            Image(systemName: "gift")
-                                .foregroundColor(birthday.isEmpty ? theme.textMuted : theme.accent)
-                            Text(birthday.isEmpty ? "День рождения (необязательно)" : formattedBirthday(birthday))
-                                .font(DS.body)
-                                .foregroundColor(birthday.isEmpty ? theme.textMuted : theme.textPrimary)
-                            Spacer()
-                            if !birthday.isEmpty {
-                                Button(action: { birthday = "" }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(theme.textMuted)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: DS.s12) {
+                        BBTextField(placeholder: "Имя клиента", text: $name)
+                            .environment(\.theme, theme)
+                        BBTextField(placeholder: "+7 (___) ___-__-__", text: $phone, keyboardType: .phonePad)
+                            .environment(\.theme, theme)
+                        BBTextField(placeholder: "Заметка (необязательно)", text: $notes)
+                            .environment(\.theme, theme)
+
+                        Button(action: { showBirthdayPicker.toggle() }) {
+                            HStack {
+                                Image(systemName: "gift")
+                                    .foregroundColor(birthday.isEmpty ? theme.textMuted : theme.accent)
+                                Text(birthday.isEmpty ? "День рождения (необязательно)" : formattedBirthday(birthday))
+                                    .font(DS.body)
+                                    .foregroundColor(birthday.isEmpty ? theme.textMuted : theme.textPrimary)
+                                Spacer()
+                                if !birthday.isEmpty {
+                                    Button(action: { birthday = "" }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(theme.textMuted)
+                                    }
                                 }
                             }
+                            .padding(16)
+                            .background(theme.backgroundInput)
+                            .cornerRadius(DS.r12)
+                            .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
                         }
-                        .padding(16)
-                        .background(theme.backgroundInput)
-                        .cornerRadius(DS.r12)
-                        .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
-                    }
 
-                    if showBirthdayPicker {
-                        DatePicker("", selection: $birthdayDate, displayedComponents: [.date])
-                            .datePickerStyle(.graphical)
-                            .accentColor(theme.accent)
-                            .colorScheme(.dark)
-                            .environment(\.locale, Locale(identifier: "ru_RU"))
-                            .onChange(of: birthdayDate) { _, newDate in
-                                let f = DateFormatter(); f.dateFormat = "MM-dd"
-                                birthday = f.string(from: newDate)
-                                showBirthdayPicker = false
-                            }
-                    }
+                        if showBirthdayPicker {
+                            DatePicker("", selection: $birthdayDate, displayedComponents: [.date])
+                                .datePickerStyle(.graphical)
+                                .accentColor(theme.accent)
+                                .colorScheme(.dark)
+                                .environment(\.locale, Locale(identifier: "ru_RU"))
+                                .onChange(of: birthdayDate) { _, newDate in
+                                    let f = DateFormatter(); f.dateFormat = "MM-dd"
+                                    birthday = f.string(from: newDate)
+                                    showBirthdayPicker = false
+                                }
+                        }
 
-                    BBPrimaryButton(title: "Добавить клиента", isDisabled: !isValid) {
-                        Task { await vm.add(name: name, phone: phone, notes: notes, birthday: birthday) }
-                        dismiss()
+                        BBPrimaryButton(title: "Добавить клиента", isDisabled: !isValid) {
+                            Task { await vm.add(name: name, phone: phone, notes: notes, birthday: birthday.isEmpty ? nil : birthday) }
+                            dismiss()
+                        }
+                        .environment(\.theme, theme)
                     }
-                    Spacer()
+                    .padding(DS.s20)
+                    .padding(.top, 8)
                 }
-                .padding(DS.s20)
+                .ignoresSafeArea(.keyboard)
             }
-        }
-        .navigationTitle("Новый клиент")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button("Отмена") { dismiss() }.foregroundColor(theme.accent)
+            .navigationTitle("Новый клиент")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Отмена") { dismiss() }.foregroundColor(theme.accent)
+                }
             }
         }
     }
