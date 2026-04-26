@@ -243,7 +243,7 @@ struct SlotPicker: View {
     @Binding var selected: String
     let theme: AppTheme
 
-    private var columns = [GridItem(.adaptive(minimum: 72), spacing: 8)]
+    var columns = [GridItem(.adaptive(minimum: 72), spacing: 8)]
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: 8) {
