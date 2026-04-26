@@ -28,6 +28,11 @@ targets:
           - "Package.swift"
           - "commit.ps1"
           - "push*.ps1"
+    resources:
+      - path: .
+        includes:
+          - "*.png"
+          - "*.jpg"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.beautybook.app

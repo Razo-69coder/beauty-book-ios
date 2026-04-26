@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct TabBarView: View {
     @State private var selectedTab: Tab = .schedule
@@ -32,11 +33,27 @@ struct TabBarView: View {
         UIScreen.main.bounds.width
     }
 
+    private var backgroundLayer: some View {
+        ZStack {
+            if let uiImage = UIImage(named: theme.backgroundImageName) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .ignoresSafeArea()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            } else {
+                Color(theme.backgroundDeep)
+                    .ignoresSafeArea(edges: .all)
+            }
+            theme.backgroundDeep.opacity(0.55)
+                .ignoresSafeArea()
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
-            Color(theme.backgroundDeep)
-                .ignoresSafeArea(edges: .all)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            backgroundLayer
 
             // Контент с отступом снизу
             Group {

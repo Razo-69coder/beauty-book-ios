@@ -98,6 +98,13 @@ enum AppTheme: String, CaseIterable {
         }
     }
 
+    var backgroundImageName: String {
+        switch self {
+        case .pink:     return "bg_pink"
+        case .platinum: return "bg_platinum"
+        }
+    }
+
     // MARK: - Gradient
 
     var gradientPrimary: LinearGradient {
