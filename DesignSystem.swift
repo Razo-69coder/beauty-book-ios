@@ -498,3 +498,96 @@ extension Color {
         self.init(.sRGB, red: Double(r)/255, green: Double(g)/255, blue: Double(b)/255, opacity: Double(a)/255)
     }
 }
+
+// MARK: - App Background
+
+struct AppBackground: View {
+    let theme: AppTheme
+
+    var body: some View {
+        switch theme {
+        case .pink:
+            PinkGlamBackground()
+        case .platinum:
+            PlatinumMarbleBackground()
+        }
+    }
+}
+
+private struct PinkGlamBackground: View {
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                Color(hex: "#0D0018")
+
+                // top-left hot pink glow
+                RadialGradient(
+                    colors: [Color(hex: "#FF2D78").opacity(0.55), .clear],
+                    center: .topLeading,
+                    startRadius: 0,
+                    endRadius: geo.size.width * 0.85
+                )
+
+                // bottom-right magenta glow
+                RadialGradient(
+                    colors: [Color(hex: "#BF00FF").opacity(0.45), .clear],
+                    center: .bottomTrailing,
+                    startRadius: 0,
+                    endRadius: geo.size.width * 0.9
+                )
+
+                // bottom-left deep pink
+                RadialGradient(
+                    colors: [Color(hex: "#FF006E").opacity(0.35), .clear],
+                    center: .bottomLeading,
+                    startRadius: 0,
+                    endRadius: geo.size.width * 0.7
+                )
+
+                // subtle center shimmer
+                RadialGradient(
+                    colors: [Color.white.opacity(0.04), .clear],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: geo.size.width * 0.5
+                )
+
+                // sparkle dots
+                Canvas { ctx, size in
+                    let dots: [(CGFloat, CGFloat, CGFloat)] = [
+                        (0.15, 0.12, 2.5), (0.82, 0.08, 1.8), (0.55, 0.22, 1.2),
+                        (0.25, 0.45, 1.5), (0.9, 0.35, 2.0), (0.1, 0.68, 1.3),
+                        (0.7, 0.55, 2.2), (0.4, 0.78, 1.6), (0.88, 0.72, 1.9),
+                        (0.33, 0.92, 1.1), (0.62, 0.88, 2.4), (0.05, 0.3, 1.4),
+                    ]
+                    for (rx, ry, r) in dots {
+                        let rect = CGRect(
+                            x: rx * size.width - r,
+                            y: ry * size.height - r,
+                            width: r * 2, height: r * 2
+                        )
+                        ctx.fill(Path(ellipseIn: rect), with: .color(.white.opacity(0.6)))
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct PlatinumMarbleBackground: View {
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                Color(hex: "#F5EDE0")
+                if let img = UIImage(named: "bg_platinum") {
+                    Image(uiImage: img)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
+                }
+                Color.white.opacity(0.15)
+            }
+        }
+    }
+}

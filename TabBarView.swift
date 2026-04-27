@@ -26,11 +26,11 @@ struct TabBarView: View {
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            theme.backgroundDeep.ignoresSafeArea()
-            
+            AppBackground(theme: theme).ignoresSafeArea()
+
             TabContent(selectedTab: selectedTab)
                 .opacity(tabOpacity)
-            
+
             customTabBar
         }
         .onAppear {
