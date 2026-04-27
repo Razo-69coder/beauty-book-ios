@@ -298,6 +298,7 @@ struct StatsView: View {
             }
         }
     }
+}
 
 // MARK: - KPI Card
 
