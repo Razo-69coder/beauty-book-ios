@@ -34,14 +34,18 @@ struct AuthView: View {
     private var logoSection: some View {
         VStack(spacing: 14) {
             ZStack {
-                Circle()
-                    .fill(theme.gradientPrimary)
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color.white)
                     .frame(width: 80, height: 80)
-                    .shadow(color: theme.accentGlow, radius: 20, x: 0, y: 8)
-                Text("✿").font(.system(size: 38))
+                    .shadow(color: theme.accentGlow, radius: 24, x: 0, y: 8)
+                Image("solva_logo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 64, height: 64)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             VStack(spacing: 6) {
-                Text("Beauty Book")
+                Text("Solva Beauty")
                     .font(DS.titleMedium)
                     .foregroundColor(theme.textPrimary)
                 Text("CRM для бьюти-мастера")
