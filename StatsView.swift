@@ -8,6 +8,8 @@ final class StatsViewModel: ObservableObject {
     @Published var selectedPeriod: Period = .month
     @Published var expenses: [Expense] = []
     @Published var showAddExpense = false
+    @Published var expenseError: String? = nil
+    @Published var isAddingExpense = false
 
     enum Period: String, CaseIterable {
         case week = "Неделя"
@@ -32,19 +34,26 @@ final class StatsViewModel: ObservableObject {
         isLoading = false
     }
     
-    func addExpense(category: String, amount: Int, description: String, date: String = "") async {
+    func addExpense(category: String, amount: Int, description: String, date: String = "") async -> Bool {
+        isAddingExpense = true
+        expenseError = nil
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
         let req = ExpenseCreateRequest(
             category: category,
             amount: amount,
             description: description,
-            date: date.isEmpty ? {
-                let f = DateFormatter()
-                f.dateFormat = "yyyy-MM-dd"
-                return f.string(from: Date())
-            }() : date
+            date: date.isEmpty ? f.string(from: Date()) : date
         )
-        _ = try? await api.addExpense(req)
-        await load()
+        do {
+            _ = try await api.addExpense(req)
+            await load()
+            isAddingExpense = false
+            return true
+        } catch {
+            expenseError = error.localizedDescription
+            isAddingExpense = false
+            return false
+        }
     }
     
     func deleteExpense(id: Int) async {
@@ -468,14 +477,22 @@ struct AddExpenseSheet: View {
                 BBTextField(placeholder: "Описание (гель-лак, аренда...)", text: $description)
                     .environment(\.theme, theme)
 
-                BBPrimaryButton(title: "Добавить расход", isDisabled: !isValid) {
+                if let err = vm.expenseError {
+                    Text(err)
+                        .font(DS.bodySmall)
+                        .foregroundColor(theme.statusRed)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 4)
+                }
+
+                BBPrimaryButton(title: "Добавить расход", isLoading: vm.isAddingExpense, isDisabled: !isValid) {
                     Task {
-                        await vm.addExpense(
+                        let ok = await vm.addExpense(
                             category: selectedCategory.rawValue,
                             amount: Int(amount) ?? 0,
                             description: description
                         )
-                        dismiss()
+                        if ok { dismiss() }
                     }
                 }
                 .environment(\.theme, theme)

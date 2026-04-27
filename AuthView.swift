@@ -38,7 +38,7 @@ struct AuthView: View {
                     .fill(Color.white)
                     .frame(width: 80, height: 80)
                     .shadow(color: theme.accentGlow, radius: 24, x: 0, y: 8)
-                Image("solva_logo")
+                Image("solva_logo").renderingMode(.original)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 64, height: 64)

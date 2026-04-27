@@ -552,23 +552,6 @@ private struct PinkGlamBackground: View {
                     endRadius: geo.size.width * 0.5
                 )
 
-                // sparkle dots
-                Canvas { ctx, size in
-                    let dots: [(CGFloat, CGFloat, CGFloat)] = [
-                        (0.15, 0.12, 2.5), (0.82, 0.08, 1.8), (0.55, 0.22, 1.2),
-                        (0.25, 0.45, 1.5), (0.9, 0.35, 2.0), (0.1, 0.68, 1.3),
-                        (0.7, 0.55, 2.2), (0.4, 0.78, 1.6), (0.88, 0.72, 1.9),
-                        (0.33, 0.92, 1.1), (0.62, 0.88, 2.4), (0.05, 0.3, 1.4),
-                    ]
-                    for (rx, ry, r) in dots {
-                        let rect = CGRect(
-                            x: rx * size.width - r,
-                            y: ry * size.height - r,
-                            width: r * 2, height: r * 2
-                        )
-                        ctx.fill(Path(ellipseIn: rect), with: .color(.white.opacity(0.6)))
-                    }
-                }
             }
         }
     }

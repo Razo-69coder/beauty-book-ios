@@ -52,7 +52,7 @@ struct SplashView: View {
                         .fill(Color.white)
                         .frame(width: 100, height: 100)
                         .shadow(color: theme.accentGlow, radius: 30, x: 0, y: 10)
-                    Image("solva_logo")
+                    Image("solva_logo").renderingMode(.original)
                         .resizable()
                         .scaledToFit()
                         .frame(width: 80, height: 80)
