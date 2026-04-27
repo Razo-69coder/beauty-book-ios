@@ -134,6 +134,7 @@ struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.theme) private var theme
+    @State private var showLogoutAlert = false
 
     var body: some View {
         Color.clear
@@ -154,6 +155,14 @@ struct SettingsView: View {
                 }
             }
             .task { await vm.load() }
+            .alert("Выйти из аккаунта?", isPresented: $showLogoutAlert) {
+                Button("Отмена", role: .cancel) {}
+                Button("Выйти", role: .destructive) {
+                    appState.logout()
+                }
+            } message: {
+                Text("Вы уверены?")
+            }
     }
 
     // MARK: - Profile Header
@@ -521,8 +530,8 @@ struct SettingsView: View {
     // MARK: - Logout
 
     private var logoutButton: some View {
-        BBSecondaryButton(title: "Войти из аккаунта", color: theme.statusRed) {
-            appState.logout()
+        BBSecondaryButton(title: "Выйти из аккаунта", color: theme.statusRed) {
+            showLogoutAlert = true
         }
         .padding(.bottom, 40)
     }
