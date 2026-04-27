@@ -1,233 +1,379 @@
 import SwiftUI
 
-// MARK: - Services ViewModel
-
-@MainActor
-final class ServicesViewModel: ObservableObject {
-    @Published var services: [Service]  = []
-    @Published var isLoading            = false
-    @Published var errorMessage: String? = nil
-    @Published var showAddSheet         = false
-
-    private let api = APIClient.shared
-
-    func load() async {
-        isLoading = true
-        do {
-            let resp = try await api.request(.services, as: ServicesResponse.self)
-            services = resp.services
-        } catch {
-            // Фолбэк на мок-данные если нет сети
-            services = MockData.services
-        }
-        isLoading = false
-    }
-
-    func delete(service: Service) async {
-        services.removeAll { $0.id == service.id }
-        do {
-            let _ = try await api.request(.deleteService(id: service.id), as: MessageResponse.self)
-        } catch {
-            services.append(service) // откат
-        }
-    }
-
-    func add(name: String, price: Int, duration: Int) async {
-        let req = ServiceCreateRequest(name: name, priceDefault: price, durationMin: duration)
-        do {
-            let _ = try await api.request(.createService(req), as: MessageResponse.self)
-            await load()
-        } catch {
-            // Оптимистичное добавление с временным id
-            let temp = Service(id: Int.random(in: 10000...99999), name: name, priceDefault: price, durationMin: duration)
-            services.append(temp)
-        }
-    }
-}
-
-// MARK: - Services View
-
 struct ServicesView: View {
-    @StateObject private var vm = ServicesViewModel()
-    @Environment(\.theme) private var theme
-    @State private var showAdd = false
-
+    @StateObject private var viewModel = ServicesViewModel()
+    @State private var searchText: String = ""
+    @State private var listOpacity: Double = 0
+    @State private var showAddSheet: Bool = false
+    
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            theme.backgroundDeep.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                header
-                if vm.isLoading {
-                    Spacer()
-                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
-                    Spacer()
-                } else if vm.services.isEmpty {
-                    emptyState
-                } else {
-                    servicesList
-                }
-            }
-
-            // FAB
-            Button(action: { showAdd = true }) {
-                Image(systemName: "plus")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 58, height: 58)
-                    .background(theme.gradientPrimary)
-                    .clipShape(Circle())
-                    .shadow(color: theme.accentGlow, radius: 12, x: 0, y: 6)
-            }
-            .padding(.bottom, 100)
-            .padding(.trailing, 20)
+        VStack(spacing: 0) {
+            headerSection
+            
+            searchBar
+            
+            servicesList
+            
+            addButton
         }
-        .task { await vm.load() }
-        .sheet(isPresented: $showAdd) {
-            AddServiceSheet(vm: vm)
-                .environment(\.theme, theme)
+        .background(Color(hex: "#080810"))
+        .sheet(isPresented: $showAddSheet) {
+            AddServiceSheet(viewModel: viewModel)
+        }
+        .onAppear {
+            Task { await viewModel.loadServices() }
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.1)) {
+                listOpacity = 1.0
+            }
+        }
+        .onChange(of: searchText) { _, newValue in
+            viewModel.searchQuery = newValue
+            Task { await viewModel.loadServices() }
         }
     }
-
-    private var header: some View {
+    
+    private var headerSection: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Услуги")
-                    .font(DS.titleSmall)
-                    .foregroundColor(theme.textPrimary)
-                Text("\(vm.services.count) услуг")
-                    .font(DS.body)
-                    .foregroundColor(theme.textSecondary)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                
+                Text("\(viewModel.total) услуг")
+                    .font(.system(size: 15))
+                    .foregroundColor(Color(hex: "#A0A0C0"))
             }
             Spacer()
+            
+            Button {
+                Task { await viewModel.loadServices() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(Color(hex: "#FF2D78"))
+                    .rotationEffect(.degrees(viewModel.isLoading ? 360 : 0))
+                    .animation(viewModel.isLoading ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: viewModel.isLoading)
+            }
         }
-        .padding(.horizontal, DS.s20)
-        .padding(.top, DS.s16)
-        .padding(.bottom, DS.s16)
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+        .padding(.bottom, 12)
     }
-
+    
+    private var searchBar: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 16))
+                .foregroundColor(Color(hex: "#5A5A7A"))
+            
+            TextField("Поиск услуг", text: $searchText)
+                .font(.system(size: 15))
+                .foregroundColor(.white)
+                .autocorrectionDisabled()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(hex: "#1A1A2E"))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .padding(.horizontal, 20)
+        .padding(.bottom, 12)
+    }
+    
     private var servicesList: some View {
-        List {
-            ForEach(vm.services) { service in
-                ServiceRow(service: service, theme: theme)
-                    .listRowBackground(theme.backgroundCard)
-                    .listRowSeparatorTint(theme.borderSubtle)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            Task { await vm.delete(service: service) }
-                        } label: {
-                            Label("Удалить", systemImage: "trash")
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                if viewModel.isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "#FF2D78")))
+                        .frame(maxWidth: .infinity, minHeight: 200)
+                } else if viewModel.services.isEmpty {
+                    emptyState
+                } else {
+                    ForEach(viewModel.services) { service in
+                        ServiceCard(service: service) {
+                            Task { await viewModel.deleteService(service) }
                         }
                     }
+                }
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 100)
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(theme.backgroundDeep)
+        .opacity(listOpacity)
     }
-
-    private var emptyState: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            Image(systemName: "scissors")
-                .font(.system(size: 48))
-                .foregroundColor(theme.textMuted)
-            Text("Нет услуг")
-                .font(DS.headline)
-                .foregroundColor(theme.textPrimary)
-            Text("Добавь услуги, которые ты оказываешь,\nи они появятся при создании записи")
-                .font(DS.body)
-                .foregroundColor(theme.textSecondary)
-                .multilineTextAlignment(.center)
-            Spacer()
+    
+    private var addButton: some View {
+        Button {
+            showAddSheet = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "plus")
+                    .font(.system(size: 16, weight: .semibold))
+                Text("Добавить услугу")
+                    .font(.system(size: 16, weight: .semibold))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                LinearGradient(
+                    colors: [Color(hex: "#FF2D78"), Color(hex: "#FF006E")],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(16)
+            .shadow(color: Color(hex: "#FF2D78").opacity(0.4), radius: 20, x: 0, y: 8)
         }
-        .padding(.horizontal, DS.s32)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 120)
+    }
+    
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "scissors")
+                .font(.system(size: 40))
+                .foregroundColor(Color(hex: "#5A5A7A"))
+            
+            Text("Нет услуг")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(.white)
+            
+            Text("Добавьте свои услуги")
+                .font(.system(size: 14))
+                .foregroundColor(Color(hex: "#5A5A7A"))
+        }
+        .frame(maxWidth: .infinity, minHeight: 250)
     }
 }
 
-// MARK: - Service Row
-
-struct ServiceRow: View {
+struct ServiceCard: View {
     let service: Service
-    let theme: AppTheme
-
+    let onDelete: () -> Void
+    @State private var isPressed: Bool = false
+    @State private var showDeleteConfirm: Bool = false
+    
     var body: some View {
-        HStack(spacing: DS.s12) {
+        HStack(spacing: 12) {
             ZStack {
-                RoundedRectangle(cornerRadius: DS.r8)
-                    .fill(theme.accent.opacity(0.12))
-                    .frame(width: 44, height: 44)
-                Image(systemName: "sparkles")
+                Circle()
+                    .fill(Color(hex: "#FF2D78").opacity(0.15))
+                    .frame(width: 48, height: 48)
+                
+                Image(systemName: "scissors")
                     .font(.system(size: 18))
-                    .foregroundColor(theme.accent)
+                    .foregroundColor(Color(hex: "#FF2D78"))
             }
-
+            
             VStack(alignment: .leading, spacing: 4) {
                 Text(service.name)
-                    .font(DS.label)
-                    .foregroundColor(theme.textPrimary)
-                HStack(spacing: 8) {
-                    Label("\(service.durationMin) мин", systemImage: "clock")
-                        .font(DS.bodySmall)
-                        .foregroundColor(theme.textSecondary)
-                }
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+                
+                Text("от \(service.priceDefault)₽")
+                    .font(.system(size: 14))
+                    .foregroundColor(Color(hex: "#A0A0C0"))
             }
-
+            
             Spacer()
-
-            Text("\(service.priceDefault)₽")
-                .font(DS.headline)
-                .foregroundColor(theme.accent)
+            
+            Button {
+                showDeleteConfirm = true
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 16))
+                    .foregroundColor(Color(hex: "#FF4757").opacity(0.7))
+            }
         }
-        .padding(.vertical, DS.s8)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(hex: "#11111E"))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                )
+        )
+        .scaleEffect(isPressed ? 0.98 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isPressed = true }
+                .onEnded { _ in isPressed = false }
+        )
+        .confirmationDialog("Удалить услугу?", isPresented: $showDeleteConfirm) {
+            Button("Удалить", role: .destructive) {
+                onDelete()
+            }
+        }
     }
 }
 
-// MARK: - Add Service Sheet
-
 struct AddServiceSheet: View {
-    @ObservedObject var vm: ServicesViewModel
-    @Environment(\.theme) private var theme
+    @ObservedObject var viewModel: ServicesViewModel
     @Environment(\.dismiss) private var dismiss
-
-    @State private var name     = ""
-    @State private var priceStr = ""
-    @State private var durStr   = "60"
-
-    private var isValid: Bool { !name.isEmpty && !priceStr.isEmpty }
-
+    @State private var name: String = ""
+    @State private var price: String = ""
+    
     var body: some View {
         NavigationView {
-            ZStack {
-                theme.backgroundDeep.ignoresSafeArea()
-                VStack(spacing: DS.s16) {
-                    BBTextField(placeholder: "Название услуги", text: $name).environment(\.theme, theme)
-                    HStack(spacing: DS.s12) {
-                        BBTextField(placeholder: "Цена (₽)", text: $priceStr, keyboardType: .numberPad).environment(\.theme, theme)
-                        BBTextField(placeholder: "Мин.", text: $durStr, keyboardType: .numberPad).environment(\.theme, theme)
-                    }
-                    BBPrimaryButton(title: "Добавить", isDisabled: !isValid) {
-                        let price = Int(priceStr) ?? 0
-                        let dur   = Int(durStr)   ?? 60
-                        Task { await vm.add(name: name, price: price, duration: dur) }
-                        dismiss()
-                    }.environment(\.theme, theme)
-                    Spacer()
+            VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Название услуги")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(Color(hex: "#A0A0C0"))
+                    
+                    TextField("Например: Маникюр", text: $name)
+                        .font(.system(size: 16))
+                        .foregroundColor(.white)
+                        .padding(16)
+                        .background(Color(hex: "#1A1A2E"))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
                 }
-                .padding(DS.s20)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Цена по умолчанию")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(Color(hex: "#A0A0C0"))
+                    
+                    HStack {
+                        TextField("0", text: $price)
+                            .font(.system(size: 16))
+                            .foregroundColor(.white)
+                            .keyboardType(.numberPad)
+                        
+                        Text("₽")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(Color(hex: "#A0A0C0"))
+                    }
+                    .padding(16)
+                    .background(Color(hex: "#1A1A2E"))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
+                }
+                
+                Spacer()
+                
+                Button {
+                    Task {
+                        if let priceInt = Int(price) {
+                            await viewModel.addService(name: name, price: priceInt)
+                            dismiss()
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "plus")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("Добавить")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(
+                            colors: [Color(hex: "#FF2D78"), Color(hex: "#FF006E")],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(16)
+                }
+                .disabled(name.isEmpty || price.isEmpty)
+                .opacity(name.isEmpty || price.isEmpty ? 0.5 : 1)
             }
-            .navigationTitle("Новая услуга")
+            .padding(20)
+            .background(Color(hex: "#080810"))
+            .navigationTitle("Новая услуг��")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Отмена") { dismiss() }.foregroundColor(theme.accent)
+                    Button("Отмена") {
+                        dismiss()
+                    }
+                    .foregroundColor(Color(hex: "#FF2D78"))
                 }
             }
         }
-        .preferredColorScheme(.dark)
+    }
+}
+
+@MainActor
+final class ServicesViewModel: ObservableObject {
+    @Published var services: [Service] = []
+    @Published var searchQuery: String = ""
+    @Published var isLoading: Bool = false
+    @Published var errorMessage: String? = nil
+    @Published var total: Int = 0
+    
+    private let mockServices: [Service] = [
+        Service(id: 1, name: "Маникюр", priceDefault: 1500),
+        Service(id: 2, name: "Покрытие гель-лак", priceDefault: 1200),
+        Service(id: 3, name: "Снятие покрытия", priceDefault: 500),
+        Service(id: 4, name: "Ремонт ногтя", priceDefault: 300),
+        Service(id: 5, name: "Дизайн ногтей", priceDefault: 800),
+    ]
+    
+    private let api = APIClient.shared
+    
+    func loadServices() async {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            let response = try await api.request(.services, type: ServicesResponse.self)
+            services = response.services
+            total = response.services.count
+        } catch {
+            services = mockServices
+            total = services.count
+            errorMessage = error.localizedDescription
+        }
+        
+        isLoading = false
+    }
+    
+    func addService(name: String, price: Int) async {
+        let request = ServiceCreateRequest(name: name, priceDefault: price)
+        do {
+            let newService = try await api.request(.createService(request), type: Service.self)
+            services.insert(newService, at: 0)
+            total += 1
+        } catch {
+            let tempService = Service(id: Int.random(in: 1000...9999), name: name, priceDefault: price)
+            services.insert(tempService, at: 0)
+            total += 1
+        }
+    }
+    
+    func deleteService(_ service: Service) async {
+        do {
+            let _ = try await api.request(.deleteService(id: service.id), type: SuccessResponse.self)
+            services.removeAll { $0.id == service.id }
+            total -= 1
+        } catch {
+            services.removeAll { $0.id == service.id }
+            total -= 1
+        }
     }
 }
 
 #Preview {
-    ServicesView().environment(\.theme, .pink)
+    NavigationView {
+        ServicesView()
+    }
+    .preferredColorScheme(.dark)
 }
