@@ -32,7 +32,8 @@ final class ScheduleViewModel: ObservableObject {
     func appointmentsForHour(_ hour: Int) -> [Appointment] {
         appointments.filter { appt in
             let timeParts = appt.time.split(separator: ":")
-            guard let apptHour = Int(timeParts.first ?? "0") else { return false }
+            guard let hourStr = timeParts.first,
+                  let apptHour = Int(hourStr) else { return false }
             return apptHour == hour
         }
     }
@@ -40,7 +41,8 @@ final class ScheduleViewModel: ObservableObject {
     func appointmentsBeforeHour(_ hour: Int) -> [Appointment] {
         appointments.filter { appt in
             let timeParts = appt.time.split(separator: ":")
-            guard let apptHour = Int(timeParts.first ?? "0") else { return false }
+            guard let hourStr = timeParts.first,
+                  let apptHour = Int(hourStr) else { return false }
             return apptHour < hour
         }
     }
@@ -49,8 +51,12 @@ final class ScheduleViewModel: ObservableObject {
         let timeParts = appt.time.split(separator: ":")
         guard let hourStr = timeParts.first,
               let hour = Int(hourStr) else { return 0 }
-        let minuteStr = timeParts.count > 1 ? timeParts[1] : "0"
-        let minute = Int(minuteStr) ?? 0
+        let minute: Int
+        if timeParts.count > 1, let m = Int(timeParts[1]) {
+            minute = m
+        } else {
+            minute = 0
+        }
         let startHour = 8.0
         let hourHeight: CGFloat = 60
         return CGFloat(hour - Int(startHour)) * hourHeight + CGFloat(minute) / 60.0 * hourHeight
@@ -471,13 +477,6 @@ struct DateCapsule: View {
         .scaleEffect(isSelected ? 1.05 : 1.0)
         .shadow(color: isSelected ? theme.accentGlow : .clear, radius: isSelected ? 8 : 0)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
-    }
-}
-
-extension String {
-    subscript(safe index: Int) -> String? {
-        guard index >= 0 && index < count else { return nil }
-        return String(self[index(self.startIndex, offsetBy: index)])
     }
 }
 
