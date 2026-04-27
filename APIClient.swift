@@ -60,6 +60,9 @@ enum Endpoint {
     case services
     case createService(ServiceCreateRequest)
     case deleteService(id: Int)
+
+    case getBookingLink
+    case updateBookingLink(String)
 }
 
 extension Endpoint {
@@ -87,6 +90,8 @@ extension Endpoint {
         case .services:                 return "/services"
         case .createService:            return "/services"
         case .deleteService(let id):    return "/services/\(id)"
+        case .getBookingLink:           return "/masters/me/booking-link"
+        case .updateBookingLink:        return "/masters/booking-link"
         }
     }
 
@@ -95,7 +100,7 @@ extension Endpoint {
         case .login, .register, .forgotPassword,
              .createClient, .createAppointment, .createService, .markDone:
             return "POST"
-        case .updateSettings, .updatePayment, .updateClient:
+        case .updateSettings, .updatePayment, .updateClient, .updateBookingLink:
             return "PUT"
         case .deleteClient, .cancelAppointment, .deleteService:
             return "DELETE"
@@ -140,6 +145,7 @@ extension Endpoint {
         case .updateClient(_, let r):     return try? encoder.encode(r)
         case .createAppointment(let r):   return try? encoder.encode(r)
         case .createService(let r):       return try? encoder.encode(r)
+        case .updateBookingLink(let link): return try? encoder.encode(["link": link])
         default: return nil
         }
     }

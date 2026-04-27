@@ -16,6 +16,12 @@ final class SettingsViewModel: ObservableObject {
     @Published var saveSuccess = false
     @Published var errorMessage: String? = nil
 
+    @Published var bookingLinkSlug = ""
+    @Published var bookingLinkInput = ""
+    @Published var bookingLinkSaving = false
+    @Published var bookingLinkSuccess = false
+    @Published var bookingLinkError: String? = nil
+
     @Published var loyaltyThreshold: Int {
         didSet { UserDefaults.standard.set(loyaltyThreshold, forKey: "loyalty_threshold") }
     }
@@ -81,7 +87,8 @@ final class SettingsViewModel: ObservableObject {
     }
 
     var bookingLink: String {
-        return "https://beauty-bot-44ou.onrender.com/book/1"
+        let slug = bookingLinkSlug.isEmpty ? "" : bookingLinkSlug
+        return slug.isEmpty ? "" : "https://beauty-bot-44ou.onrender.com/api/v1/book/\(slug)"
     }
 
     func load() async {
@@ -107,6 +114,29 @@ final class SettingsViewModel: ObservableObject {
             paymentPhone = m.paymentPhone ?? ""
             paymentBanks = m.paymentBanks ?? ""
         }
+        if let r = try? await api.request(.getBookingLink, as: BookingLinkResponse.self) {
+            bookingLinkSlug = r.bookingLink
+            bookingLinkInput = r.bookingLink
+        }
+    }
+
+    func saveBookingLink() async {
+        let slug = bookingLinkInput.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !slug.isEmpty else { return }
+        bookingLinkSaving = true
+        bookingLinkError = nil
+        do {
+            let r = try await api.request(.updateBookingLink(slug), as: BookingLinkResponse.self)
+            bookingLinkSlug = r.bookingLink
+            bookingLinkInput = r.bookingLink
+            bookingLinkSuccess = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.bookingLinkSuccess = false }
+        } catch let e as NetworkError {
+            bookingLinkError = e.errorDescription
+        } catch {
+            bookingLinkError = "Ошибка сохранения"
+        }
+        bookingLinkSaving = false
     }
 
     func save() async {
@@ -144,6 +174,7 @@ struct SettingsView: View {
                         profileHeader
                         themeSelector
                         profileSection
+                        bookingLinkSection
                         loyaltySection
                         notificationsSection
                         scheduleSection
@@ -269,6 +300,87 @@ struct SettingsView: View {
                     SettingsRow(icon: "person.fill", label: "Имя", value: vm.masterName, theme: theme)
                     Divider().background(theme.borderSubtle)
                     SettingsRow(icon: "envelope.fill", label: "Email", value: vm.email.isEmpty ? "Не указан" : vm.email, theme: theme)
+                }
+            }
+        }
+    }
+
+    // MARK: - Booking Link Section
+
+    private var bookingLinkSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BBSectionHeader(title: "Онлайн-запись")
+
+            BBGlassCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Ссылка для клиентов")
+                        .font(DS.label)
+                        .foregroundColor(theme.textPrimary)
+                    Text("Клиент откроет страницу и запишется сам. Поделись в Stories, Telegram или ВКонтакте.")
+                        .font(DS.bodySmall)
+                        .foregroundColor(theme.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 8) {
+                        Text("beautybook.app/")
+                            .font(DS.body)
+                            .foregroundColor(theme.textMuted)
+                        TextField("твой-slug", text: $vm.bookingLinkInput)
+                            .font(DS.body)
+                            .foregroundColor(theme.textPrimary)
+                            .autocapitalization(.none)
+                            .autocorrectionDisabled()
+                    }
+                    .padding(12)
+                    .background(theme.backgroundInput)
+                    .cornerRadius(DS.r12)
+                    .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
+
+                    if let err = vm.bookingLinkError {
+                        Text(err)
+                            .font(DS.bodySmall)
+                            .foregroundColor(theme.statusRed)
+                    }
+
+                    HStack(spacing: 12) {
+                        Button(action: { Task { await vm.saveBookingLink() } }) {
+                            HStack(spacing: 6) {
+                                if vm.bookingLinkSaving {
+                                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white)).scaleEffect(0.8)
+                                } else if vm.bookingLinkSuccess {
+                                    Image(systemName: "checkmark")
+                                } else {
+                                    Image(systemName: "square.and.arrow.down")
+                                }
+                                Text(vm.bookingLinkSuccess ? "Сохранено!" : "Сохранить")
+                            }
+                            .font(DS.label)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 40)
+                            .background(vm.bookingLinkSuccess ? theme.statusGreen : theme.accent)
+                            .cornerRadius(DS.r12)
+                        }
+                        .disabled(vm.bookingLinkSaving || vm.bookingLinkInput.isEmpty)
+
+                        if !vm.bookingLink.isEmpty {
+                            Button(action: {
+                                HapticManager.medium()
+                                let av = UIActivityViewController(activityItems: [vm.bookingLink], applicationActivities: nil)
+                                if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                                   let root = scene.windows.first?.rootViewController {
+                                    root.present(av, animated: true)
+                                }
+                            }) {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(theme.accent)
+                                    .frame(width: 40, height: 40)
+                                    .background(theme.backgroundInput)
+                                    .cornerRadius(DS.r12)
+                            }
+                        }
+                    }
                 }
             }
         }

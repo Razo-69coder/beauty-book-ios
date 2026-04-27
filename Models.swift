@@ -24,6 +24,10 @@ struct MessageResponse: Decodable {
     let message: String?
 }
 
+struct BookingLinkResponse: Decodable {
+    let bookingLink: String
+}
+
 // MARK: - Master
 
 struct MasterProfile: Decodable, Identifiable {
