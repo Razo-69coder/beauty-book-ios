@@ -26,12 +26,12 @@ enum MockData {
     // MARK: - Services
 
     static let services: [Service] = [
-        Service(id: 1, name: "Маникюр классический", priceDefault: 1200, durationMin: 60),
-        Service(id: 2, name: "Маникюр с покрытием",  priceDefault: 1800, durationMin: 90),
-        Service(id: 3, name: "Педикюр классический", priceDefault: 1500, durationMin: 90),
-        Service(id: 4, name: "Педикюр с покрытием",  priceDefault: 2200, durationMin: 120),
-        Service(id: 5, name: "Наращивание ногтей",   priceDefault: 3500, durationMin: 180),
-        Service(id: 6, name: "Коррекция",             priceDefault: 2000, durationMin: 120),
+        Service(id: 1, name: "Маникюр классический", priceDefault: 1200, durationMin: 60, category: "Маникюр"),
+        Service(id: 2, name: "Маникюр с покрытием",  priceDefault: 1800, durationMin: 90, category: "Маникюр"),
+        Service(id: 3, name: "Педикюр классический", priceDefault: 1500, durationMin: 90, category: "Педикюр"),
+        Service(id: 4, name: "Педикюр с покрытием",  priceDefault: 2200, durationMin: 120, category: "Педикюр"),
+        Service(id: 5, name: "Наращивание ногтей",   priceDefault: 3500, durationMin: 180, category: "Маникюр"),
+        Service(id: 6, name: "Коррекция",             priceDefault: 2000, durationMin: 120, category: "Маникюр"),
     ]
 
     // MARK: - Clients

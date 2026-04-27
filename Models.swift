@@ -225,6 +225,7 @@ struct Service: Decodable, Identifiable, Hashable {
     let name: String
     let priceDefault: Int
     let durationMin: Int
+    var category: String = "Основные"
 }
 
 struct ServicesResponse: Decodable {
@@ -235,6 +236,7 @@ struct ServiceCreateRequest: Encodable {
     let name: String
     let priceDefault: Int
     let durationMin: Int
+    let category: String
 }
 
 // MARK: - Expenses
