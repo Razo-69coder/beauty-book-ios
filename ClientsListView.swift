@@ -435,7 +435,14 @@ struct ClientCard: View {
 
     private var initials: String {
         let parts = client.name.split(separator: " ")
-        return ((parts.first.map { String($0.prefix(1)) } ?? "") + (parts.dropFirst().first.map { String($0.prefix(1)) } ?? "")).uppercased()
+        var result = ""
+        if let first = parts.first {
+            result = String(first.prefix(1))
+        }
+        if parts.count > 1, let second = parts.dropFirst().first {
+            result += String(second.prefix(1))
+        }
+        return result.isEmpty ? "?" : result.uppercased()
     }
 
     private var loyaltyThreshold: Int {
