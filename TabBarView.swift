@@ -97,56 +97,21 @@ struct TabButton: View {
 
 struct TabContent: View {
     let selectedTab: TabBarView.Tab
-    @State private var showNewAppointment: Bool = false
     
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            Group {
-                switch selectedTab {
-                case .schedule:
-                    ScheduleView()
-                case .clients:
-                    ClientsListView()
-                case .services:
-                    ServicesView()
-                case .stats:
-                    StatsView()
-                case .settings:
-                    SettingsView()
-                }
+        Group {
+            switch selectedTab {
+            case .schedule:
+                ScheduleView()
+            case .clients:
+                ClientsListView()
+            case .services:
+                ServicesView()
+            case .stats:
+                StatsView()
+            case .settings:
+                SettingsView()
             }
-            
-            if selectedTab == .schedule || selectedTab == .clients {
-                fabButton
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 100)
-            }
-        }
-    }
-    
-    private var fabButton: some View {
-        Button {
-            showNewAppointment = true
-        } label: {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: "#FF2D78"), Color(hex: "#FF006E")],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 52, height: 52)
-                    .shadow(color: Color(hex: "#FF2D78").opacity(0.5), radius: 12, x: 0, y: 6)
-                
-                Image(systemName: "plus")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(.white)
-            }
-        }
-        .sheet(isPresented: $showNewAppointment) {
-            NewAppointmentView()
         }
     }
 }

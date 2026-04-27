@@ -407,10 +407,10 @@ struct ClientsListView: View {
     // MARK: - FAB
 
     private var fabButton: some View {
-        Button(action: {
+        Button {
             HapticManager.medium()
             vm.showAddSheet = true
-        }) {
+        } label: {
             ZStack {
                 Circle()
                     .fill(theme.gradientPrimary)

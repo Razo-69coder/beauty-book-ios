@@ -42,6 +42,18 @@ final class SettingsViewModel: ObservableObject {
         didSet { UserDefaults.standard.set(returnReminderDays, forKey: "return_reminder_days") }
     }
 
+    func slotDurationLabel(_ mins: Int) -> String {
+        if mins < 60 {
+            return "\(mins) мин"
+        } else if mins == 60 {
+            return "1 час"
+        } else if mins == 90 {
+            return "1.5 часа"
+        } else {
+            return "2 часа"
+        }
+    }
+
     private let api = APIClient.shared
 
     init() {
@@ -453,28 +465,31 @@ struct SettingsView: View {
                 }
             }
 
-            BBSectionHeader(title: "Длительность слота")
+            BBSectionHeader(title: "Интервал записи")
 
             BBGlassCard {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Мин. шаг записи")
+                        Text("Мин. шаг онлайн-записи")
                             .font(DS.body).foregroundColor(theme.textPrimary)
-                        Text("Интервал онлайн-записи")
+                        Text("Время на одну процедуру")
                             .font(DS.bodySmall).foregroundColor(theme.textMuted)
                     }
                     Spacer()
-                    HStack(spacing: 4) {
+                    Menu {
                         ForEach([30, 45, 60, 90, 120], id: \.self) { mins in
-                            Text(mins < 60 ? "\(mins)" : (mins == 60 ? "1ч" : (mins == 90 ? "1.5ч" : "2ч")))
-                                .font(DS.labelSmall)
-                                .foregroundColor(vm.slotDuration == mins ? .white : theme.textSecondary)
-                                .lineLimit(1)
-                                .frame(minWidth: 36)
-                                .padding(.horizontal, 6).padding(.vertical, 6)
-                                .background(vm.slotDuration == mins ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
-                                .cornerRadius(DS.r8)
-                                .onTapGesture { vm.slotDuration = mins }
+                            Button(vm.slotDurationLabel(mins)) {
+                                vm.slotDuration = mins
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(vm.slotDurationLabel(vm.slotDuration))
+                                .font(DS.body)
+                                .foregroundColor(theme.accent)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 10))
+                                .foregroundColor(theme.textMuted)
                         }
                     }
                 }
