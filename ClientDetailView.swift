@@ -84,15 +84,15 @@ struct ClientDetailView: View {
     }
 
     private var initials: String {
-        let parts = client.name.split(separator: " ")
-        var result = ""
-        if let first = parts.first {
-            result = String(first.prefix(1))
+        let name = client.name.trimmingCharacters(in: .whitespaces)
+        guard let first = name.first else { return "?" }
+        if name.count > 1 {
+            let words = name.split(separator: " ")
+            if words.count > 1, let second = words[1].first {
+                return "\(first)\(second)".uppercased()
+            }
         }
-        if parts.count > 1, let second = parts.dropFirst().first {
-            result += String(second.prefix(1))
-        }
-        return result.isEmpty ? "?" : result.uppercased()
+        return String(first).uppercased()
     }
 
     // MARK: - Stats Section
