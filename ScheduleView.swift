@@ -47,8 +47,10 @@ final class ScheduleViewModel: ObservableObject {
 
     func positionForAppointment(_ appt: Appointment) -> CGFloat {
         let timeParts = appt.time.split(separator: ":")
-        guard let hour = Int(timeParts.first ?? "0"),
-              let minute = Int(timeParts[safe: 1] ?? "0") else { return 0 }
+        guard let hourStr = timeParts.first,
+              let hour = Int(hourStr) else { return 0 }
+        let minuteStr = timeParts.count > 1 ? timeParts[1] : "0"
+        let minute = Int(minuteStr) ?? 0
         let startHour = 8.0
         let hourHeight: CGFloat = 60
         return CGFloat(hour - Int(startHour)) * hourHeight + CGFloat(minute) / 60.0 * hourHeight
@@ -475,7 +477,7 @@ struct DateCapsule: View {
 extension String {
     subscript(safe index: Int) -> String? {
         guard index >= 0 && index < count else { return nil }
-        return String(self[startIndex].advanced(by: index))
+        return String(self[index(self.startIndex, offsetBy: index)])
     }
 }
 
