@@ -435,11 +435,15 @@ struct ClientCard: View {
 
     private var initials: String {
         let name = client.name.trimmingCharacters(in: .whitespaces)
-        guard let first = name.first else { return "?" }
+        guard !name.isEmpty else { return "?" }
+        let first = name[name.startIndex]
         if name.count > 1 {
-            let words = name.split(separator: " ")
-            if words.count > 1, let second = words[1].first {
-                return "\(first)\(second)".uppercased()
+            if let spaceIdx = name.firstIndex(of: " ") {
+                let afterSpace = name.index(after: spaceIdx)
+                if afterSpace < name.endIndex {
+                    let second = name[afterSpace]
+                    return "\(first)\(second)".uppercased()
+                }
             }
         }
         return String(first).uppercased()
@@ -471,8 +475,10 @@ struct ClientCard: View {
 
     private var isBirthdayToday: Bool {
         guard let bday = client.birthday else { return false }
-        let parts = bday.split(separator: "-")
-        guard parts.count == 2, let month = Int(parts[0]), let day = Int(parts[1]) else { return false }
+        let parts = bday.split(separator: "-").map { String($0) }
+        guard parts.count >= 2,
+              let month = Int(parts[0]),
+              let day = Int(parts[1]) else { return false }
         let cal = Calendar.current; let now = Date()
         return cal.component(.month, from: now) == month && cal.component(.day, from: now) == day
     }
@@ -549,8 +555,10 @@ struct AddClientSheet: View {
     private var isValid: Bool { !name.isEmpty && !phone.isEmpty }
 
     private func formattedBirthday(_ bday: String) -> String {
-        let parts = bday.split(separator: "-")
-        guard parts.count == 2, let month = Int(parts[0]), let day = Int(parts[1]) else { return bday }
+        let parts = bday.split(separator: "-").map { String($0) }
+        guard parts.count >= 2,
+              let month = Int(parts[0]),
+              let day = Int(parts[1]) else { return bday }
         let months = ["","Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"]
         guard month >= 1 && month <= 12 else { return bday }
         return "\(day) \(months[month])"
