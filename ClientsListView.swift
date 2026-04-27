@@ -227,7 +227,7 @@ final class ClientsViewModel: ObservableObject {
             let _ = try await api.request(.createClient(ClientCreateRequest(name: name, phone: phone, notes: notes)), as: MessageResponse.self)
             await load()
         } catch {
-            let temp = Client(id: Int.random(in: 10000...99999), name: name, phone: phone, notes: notes, lastVisit: nil, username: nil, telegramId: nil, birthday: birthday.isEmpty ? nil : birthday)
+            let temp = Client(id: Int.random(in: 10000...99999), name: name, phone: phone, notes: notes, lastVisit: nil, username: nil, telegramId: nil, appointmentsCount: nil, birthday: birthday.isEmpty ? nil : birthday)
             clients.insert(temp, at: 0)
         }
     }
@@ -566,7 +566,7 @@ struct AddClientSheet: View {
         return "\(day) \(months[month])"
     }
 
-    var body: some View {
+var body: some View {
         NavigationView {
             ZStack {
                 theme.backgroundDeep.ignoresSafeArea()
@@ -581,6 +581,12 @@ struct AddClientSheet: View {
                         .clipped()
                         .ignoresSafeArea()
                 }
+                theme.backgroundCard.opacity(0.5).ignoresSafeArea()
+            }
+            .onAppear {
+                name = vm.prefillName
+                phone = vm.prefillPhone
+            }
                 theme.backgroundCard.opacity(0.5).ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
@@ -617,7 +623,6 @@ struct AddClientSheet: View {
                             DatePicker("", selection: $birthdayDate, displayedComponents: [.date])
                                 .datePickerStyle(.graphical)
                                 .accentColor(theme.accent)
-                                .colorScheme(.dark)
                                 .environment(\.locale, Locale(identifier: "ru_RU"))
                                 .onChange(of: birthdayDate) { _, newDate in
                                     let f = DateFormatter(); f.dateFormat = "MM-dd"

@@ -305,7 +305,7 @@ struct AppointmentBlock: View {
     }
     
     private var textColor: Color {
-        let hex = palette[colorIndex % palette.count].lowercased()
+        let hex = palette[colorIndex % palette.count].lowercased().replacingOccurrences(of: "#", with: "")
         let darkColors = ["501260", "7e367a", "b05994", "c49994", "cea39e", "d8b2ae"]
         return darkColors.contains(where: { hex.hasPrefix($0) }) ? .white : Color(hex: "#3D2B2B")
     }
