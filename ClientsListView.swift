@@ -1,6 +1,180 @@
 import SwiftUI
+import Contacts
 
-// MARK: - Clients ViewModel
+// MARK: - Contacts Importer
+
+struct ContactImporter {
+    static func requestAccess() async -> Bool {
+        let store = CNContactStore()
+        do {
+            return try await store.requestAccess(for: .contacts)
+        } catch {
+            return false
+        }
+    }
+
+    static func fetchContacts() async -> [(name: String, phone: String)] {
+        let store = CNContactStore()
+        let keysToFetch: [CNKeyDescriptor] = [
+            CNContactGivenNameKey as CNKeyDescriptor,
+            CNContactFamilyNameKey as CNKeyDescriptor,
+            CNContactPhoneNumbersKey as CNKeyDescriptor
+        ]
+
+        var contacts: [(name: String, phone: String)] = []
+
+        let request = CNContactFetchRequest(keysToFetch: keysToFetch)
+        request.sortOrder = .givenName
+
+        do {
+            try store.enumerateContacts(with: request) { contact, _ in
+                let name = "\(contact.givenName) \(contact.familyName)".trimmingCharacters(in: .whitespaces)
+                for phoneNumber in contact.phoneNumbers {
+                    let phone = phoneNumber.value.stringValue
+                    if !name.isEmpty && !phone.isEmpty {
+                        contacts.append((name: name, phone: phone))
+                    }
+                }
+            }
+        } catch {
+            print("Error fetching contacts: \(error)")
+        }
+
+        return contacts
+    }
+}
+
+// MARK: - Contacts Picker Sheet
+
+struct ContactsPickerSheet: View {
+    @Environment(\.theme) private var theme
+    @Environment(\.dismiss) private var dismiss
+    @State private var contacts: [(name: String, phone: String)] = []
+    @State private var isLoading = true
+    @State private var hasAccess = false
+    @State private var searchText = ""
+
+    let onSelect: (String, String) -> Void
+
+    private var filteredContacts: [(name: String, phone: String)] {
+        if searchText.isEmpty {
+            return contacts
+        }
+        return contacts.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText) ||
+            $0.phone.contains(searchText)
+        }
+    }
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                theme.backgroundDeep.ignoresSafeArea()
+
+                if isLoading {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
+                        Text("Загрузка контактов...")
+                            .font(DS.body)
+                            .foregroundColor(theme.textSecondary)
+                    }
+                } else if !hasAccess {
+                    VStack(spacing: 20) {
+                        Image(systemName: "person.crop.circle.badge.exclamationmark")
+                            .font(.system(size: 48))
+                            .foregroundColor(theme.textMuted)
+                        Text("Доступ к контактам запрещён")
+                            .font(DS.headline)
+                            .foregroundColor(theme.textPrimary)
+                        Text("Разрешите доступ в Настройки → Конфиденциальность → Контакты")
+                            .font(DS.body)
+                            .foregroundColor(theme.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(40)
+                } else if contacts.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "person.2.slash")
+                            .font(.system(size: 48))
+                            .foregroundColor(theme.textMuted)
+                        Text("Контакты не найдены")
+                            .font(DS.headline)
+                            .foregroundColor(theme.textPrimary)
+                    }
+                } else {
+                    VStack(spacing: 0) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(theme.textMuted)
+                            TextField("Поиск", text: $searchText)
+                                .font(DS.body)
+                                .foregroundColor(theme.textPrimary)
+                        }
+                        .padding(12)
+                        .background(theme.backgroundInput)
+                        .cornerRadius(DS.r12)
+                        .padding(20)
+
+                        ScrollView {
+                            LazyVStack(spacing: 8) {
+                                ForEach(Array(filteredContacts.enumerated()), id: \.offset) { _, contact in
+                                    Button {
+                                        onSelect(contact.name, contact.phone)
+                                        dismiss()
+                                    } label: {
+                                        HStack(spacing: 12) {
+                                            ZStack {
+                                                Circle()
+                                                    .fill(theme.gradientPrimary)
+                                                    .frame(width: 40, height: 40)
+                                                Text(contact.name.prefix(1).uppercased())
+                                                    .font(.system(size: 16, weight: .bold))
+                                                    .foregroundColor(.white)
+                                            }
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(contact.name)
+                                                    .font(DS.body)
+                                                    .foregroundColor(theme.textPrimary)
+                                                Text(contact.phone)
+                                                    .font(DS.bodySmall)
+                                                    .foregroundColor(theme.textMuted)
+                                            }
+                                            Spacer()
+                                            Image(systemName: "plus.circle")
+                                                .foregroundColor(theme.accent)
+                                        }
+                                        .padding(12)
+                                        .background(theme.backgroundCard)
+                                        .cornerRadius(DS.r12)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Импорт из контактов")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Закрыть") { dismiss() }
+                        .foregroundColor(theme.accent)
+                }
+            }
+        }
+        .task {
+            hasAccess = await ContactImporter.requestAccess()
+            if hasAccess {
+                contacts = await ContactImporter.fetchContacts()
+            }
+            isLoading = false
+        }
+    }
+}
+
+// MARK: - Clients View Model
 
 @MainActor
 final class ClientsViewModel: ObservableObject {
@@ -9,6 +183,18 @@ final class ClientsViewModel: ObservableObject {
     @Published var searchText              = ""
     @Published var selectedClient: Client? = nil
     @Published var showAddSheet            = false
+    @Published var prefillName: String      = ""
+    @Published var prefillPhone: String    = ""
+
+    var name: String {
+        get { prefillName }
+        set { prefillName = newValue }
+    }
+
+    var phone: String {
+        get { prefillPhone }
+        set { prefillPhone = newValue }
+    }
 
     private let api = APIClient.shared
 
@@ -52,6 +238,7 @@ final class ClientsViewModel: ObservableObject {
 struct ClientsListView: View {
     @StateObject private var vm = ClientsViewModel()
     @Environment(\.theme) private var theme
+    @State private var showImportContacts = false
 
     var body: some View {
         Color.clear
@@ -80,6 +267,14 @@ struct ClientsListView: View {
             .sheet(isPresented: $vm.showAddSheet) {
                 AddClientSheet(vm: vm).environment(\.theme, theme)
             }
+            .sheet(isPresented: $showImportContacts) {
+                ContactsPickerSheet { name, phone in
+                    vm.name = name
+                    vm.phone = phone
+                    vm.showAddSheet = true
+                }
+                .environment(\.theme, theme)
+            }
             .sheet(item: $vm.selectedClient) { client in
                 ClientDetailView(client: client).environment(\.theme, theme)
             }
@@ -90,13 +285,23 @@ struct ClientsListView: View {
     private var headerSection: some View {
         ZStack(alignment: .topLeading) {
             ambientGlow
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Клиентская база")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(theme.textPrimary)
-                Text("\(vm.clients.count) клиентов")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(theme.textMuted)
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Клиентская база")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundColor(theme.textPrimary)
+                    Text("\(vm.clients.count) клиентов")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(theme.textMuted)
+                }
+                Spacer()
+                Button {
+                    showImportContacts = true
+                } label: {
+                    Image(systemName: "person.crop.circle.badge.plus")
+                        .font(.system(size: 22))
+                        .foregroundColor(theme.accent)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
