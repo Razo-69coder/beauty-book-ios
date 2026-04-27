@@ -59,4 +59,7 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSContactsUsageDescription: "Beauty Book использует контакты для быстрого добавления клиентов"
+        NSCameraUsageDescription: "Beauty Book использует камеру для фото работ клиента"
+        NSPhotoLibraryUsageDescription: "Beauty Book использует галерею для фото работ клиента"
+        NSPhotoLibraryAddUsageDescription: "Beauty Book сохраняет фото работ"
     dependencies: []

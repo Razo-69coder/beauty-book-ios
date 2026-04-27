@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import UIKit
 
 struct ClientDetailView: View {
     let client: Client
@@ -6,6 +8,10 @@ struct ClientDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var history: [AppointmentHistory] = []
     @State private var photos: [ClientPhoto] = []
+    @State private var uiPhotos: [UIImage] = []
+    @State private var showPhotoPicker = false
+    @State private var showCamera = false
+    @State private var selectedPhoto: UIImage? = nil
     @State private var isLoading = false
 
     var body: some View {
@@ -177,35 +183,90 @@ struct ClientDetailView: View {
 
     private var photoGallery: some View {
         VStack(alignment: .leading, spacing: 12) {
-            BBSectionHeader(title: "Галерея работ", action: nil, actionTitle: "Добавить")
-
-            if photos.isEmpty {
-                BBGlassCard {
-                    VStack(spacing: 8) {
-                        Image(systemName: "photo.on.rectangle.angled")
-                            .font(.system(size: 32))
-                            .foregroundColor(theme.accent.opacity(0.4))
-                        Text("Нет фото работ")
-                            .font(DS.body).foregroundColor(theme.textMuted)
-                        Text("Добавьте фото до и после")
-                            .font(DS.bodySmall).foregroundColor(theme.textMuted)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
+            HStack {
+                Text("ФОТО РАБОТ")
+                    .font(DS.headline)
+                    .foregroundColor(theme.textPrimary)
+                Spacer()
+                Button {
+                    showPhotoPicker = true
+                } label: {
+                    Text("+ Добавить")
+                        .font(DS.label)
+                        .foregroundColor(theme.accent)
                 }
-            } else {
-                let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
-                LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(photos) { photo in
-                        RoundedRectangle(cornerRadius: DS.r12)
-                            .fill(theme.backgroundInput)
-                            .aspectRatio(1, contentMode: .fit)
-                            .cornerRadius(DS.r12)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    Button {
+                        showPhotoPicker = true
+                    } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: DS.r12)
+                                .fill(theme.backgroundInput)
+                                .frame(width: 90, height: 120)
+                            Image(systemName: "camera")
+                                .font(.system(size: 24))
+                                .foregroundColor(theme.textMuted)
+                        }
+                    }
+                    .frame(width: 90, height: 120)
+
+                    ForEach(Array(uiPhotos.enumerated()), id: \.offset) { index, image in
+                        Button {
+                            selectedPhoto = image
+                        } label: {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 90, height: 120)
+                                .clipShape(RoundedRectangle(cornerRadius: DS.r12))
+                                .shadow(color: theme.accentGlow, radius: 8)
+                        }
                     }
                 }
             }
         }
         .padding(.horizontal, 20)
+        .confirmationDialog("Добавить фото", isPresented: $showPhotoPicker) {
+            Button("Камера") {
+                showCamera = true
+            }
+            Button("Галерея") {
+                // Will use PHPicker
+            }
+            Button("Отмена", role: .cancel) {}
+        }
+        .sheet(isPresented: $showCamera) {
+            ImagePicker(sourceType: .camera) { image in
+                uiPhotos.append(image)
+            }
+        }
+        .sheet(isPresented: .constant(selectedPhoto != nil)) {
+            if let photo = selectedPhoto {
+                ZStack {
+                    theme.backgroundDeep.ignoresSafeArea()
+                    Image(uiImage: photo)
+                        .resizable()
+                        .scaledToFit()
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Button {
+                                selectedPhoto = nil
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding()
+                }
+            }
+        }
     }
 
     private func formatShortDate(_ str: String) -> String {
@@ -322,4 +383,41 @@ struct AppointmentHistoryCard: View {
 #Preview {
     ClientDetailView(client: MockData.clients[0])
         .environment(\.theme, .pink)
+}
+
+struct ImagePicker: UIViewControllerRepresentable {
+    let sourceType: UIImagePickerController.SourceType
+    let onImagePicked: (UIImage) -> Void
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = sourceType
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: ImagePicker
+
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.onImagePicked(image)
+            }
+            picker.dismiss(animated: true)
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            picker.dismiss(animated: true)
+        }
+    }
 }
