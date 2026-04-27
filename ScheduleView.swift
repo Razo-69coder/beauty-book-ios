@@ -345,7 +345,7 @@ struct AppointmentBlock: View {
         .frame(width: hourWidth, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(blockColor.opacity(0.85))
+                .fill(blockColor)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8)

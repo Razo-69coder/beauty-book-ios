@@ -569,8 +569,8 @@ struct AddClientSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(hex: "#0D0B0E").ignoresSafeArea()
-                if let img = UIImage(named: "bg_pink") {
+                theme.backgroundDeep.ignoresSafeArea()
+                if let img = UIImage(named: theme.backgroundImageName) {
                     Image(uiImage: img)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -581,7 +581,7 @@ struct AddClientSheet: View {
                         .clipped()
                         .ignoresSafeArea()
                 }
-                Color.black.opacity(0.5).ignoresSafeArea()
+                theme.backgroundCard.opacity(0.5).ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: DS.s12) {

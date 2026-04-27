@@ -3,6 +3,8 @@ import SwiftUI
 struct TabBarView: View {
     @State private var selectedTab: Tab = .schedule
     @State private var tabOpacity: Double = 0
+    @ObservedObject private var themeManager = ThemeManager.shared
+    private var theme: AppTheme { themeManager.current }
     
     enum Tab: String, CaseIterable {
         case schedule = "Расписание"
@@ -24,7 +26,7 @@ struct TabBarView: View {
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            Color(hex: "#080810").ignoresSafeArea()
+            theme.backgroundDeep.ignoresSafeArea()
             
             TabContent(selectedTab: selectedTab)
                 .opacity(tabOpacity)
@@ -43,7 +45,8 @@ struct TabBarView: View {
             ForEach(Tab.allCases, id: \.self) { tab in
                 TabButton(
                     tab: tab,
-                    isSelected: selectedTab == tab
+                    isSelected: selectedTab == tab,
+                    theme: theme
                 ) {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         selectedTab = tab
@@ -55,10 +58,10 @@ struct TabBarView: View {
         .padding(.bottom, 8)
         .background(
             RoundedRectangle(cornerRadius: 24)
-                .fill(Color(hex: "#11111E"))
+                .fill(theme.backgroundCard)
                 .overlay(
                     RoundedRectangle(cornerRadius: 24)
-                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                        .stroke(theme.borderSubtle, lineWidth: 1)
                 )
         )
         .padding(.horizontal, 16)
@@ -68,6 +71,7 @@ struct TabBarView: View {
 struct TabButton: View {
     let tab: TabBarView.Tab
     let isSelected: Bool
+    let theme: AppTheme
     let action: () -> Void
     
     @State private var isPressed = false
@@ -77,12 +81,12 @@ struct TabButton: View {
             VStack(spacing: 4) {
                 Image(systemName: tab.icon)
                     .font(.system(size: 22, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? Color(hex: "#FF2D78") : Color(hex: "#5A5A7A"))
+                    .foregroundColor(isSelected ? theme.accent : theme.textMuted)
                     .scaleEffect(isPressed ? 0.9 : 1.0)
                 
                 Text(tab.rawValue)
                     .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? Color(hex: "#FF2D78") : Color(hex: "#5A5A7A"))
+                    .foregroundColor(isSelected ? theme.accent : theme.textMuted)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
