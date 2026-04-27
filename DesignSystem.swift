@@ -145,28 +145,22 @@ enum AppTheme: String, CaseIterable {
         case .platinum: return Color(hex: "#4A8B6E")
         }
     }
-    
+
     var statusYellow: Color {
         switch self {
         case .pink: return Color(hex: "#FFD166")
         case .platinum: return Color(hex: "#C9A84C")
         }
     }
-    
+
     var statusRed: Color {
         switch self {
         case .pink: return Color(hex: "#FF4757")
         case .platinum: return Color(hex: "#A84C4C")
         }
     }
-    }
 
-    // MARK: - Status Colors (common)
-
-    var statusGreen:  Color { Color(hex: "#00E5A0") }
-    var statusYellow: Color { Color(hex: "#FFD166") }
-    var statusRed:    Color { Color(hex: "#FF4757") }
-    var statusBlue:   Color { Color(hex: "#4ECDC4") }
+    var statusBlue: Color { Color(hex: "#4ECDC4") }
 }
 
 // MARK: - Environment Key
