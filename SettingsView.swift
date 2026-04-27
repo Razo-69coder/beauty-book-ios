@@ -88,7 +88,7 @@ final class SettingsViewModel: ObservableObject {
 
     var bookingLink: String {
         let slug = bookingLinkSlug.isEmpty ? "" : bookingLinkSlug
-        return slug.isEmpty ? "" : "https://beauty-bot-44ou.onrender.com/api/v1/book/\(slug)"
+        return slug.isEmpty ? "" : "https://beauty-bot-44ou.onrender.com/book/\(slug)"
     }
 
     func load() async {
