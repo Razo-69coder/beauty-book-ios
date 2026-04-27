@@ -632,7 +632,7 @@ struct AddClientSheet: View {
                         .environment(\.theme, theme)
                     }
                     .padding(DS.s20)
-                    .padding(.top, 8)
+                    .padding(.top, DS.s16)
                 }
                 .ignoresSafeArea(.keyboard)
             }

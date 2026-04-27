@@ -58,4 +58,5 @@ targets:
         UIRequiresFullScreen: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        NSContactsUsageDescription: "Beauty Book использует контакты для быстрого добавления клиентов"
     dependencies: []
