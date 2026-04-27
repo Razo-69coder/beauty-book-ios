@@ -7,19 +7,11 @@ struct BeautyBookApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if appState.isAuthenticated {
-                TabBarView()
-                    .environmentObject(appState)
-                    .environmentObject(themeManager)
-                    .environment(\.theme, themeManager.current)
-                    .preferredColorScheme(.dark)
-            } else {
-                AuthView()
-                    .environmentObject(appState)
-                    .environmentObject(themeManager)
-                    .environment(\.theme, themeManager.current)
-                    .preferredColorScheme(.dark)
-            }
+            TabBarView()
+                .environmentObject(appState)
+                .environmentObject(themeManager)
+                .environment(\.theme, themeManager.current)
+                .preferredColorScheme(.dark)
         }
     }
 }
