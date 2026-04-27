@@ -511,7 +511,7 @@ struct ClientCard: View {
                         Text("🎂")
                             .font(.system(size: 14))
                     }
-                    Text("\(visitCount) \(visitWord(visitCount)))")
+                    Text("\(visitCount) \(visitWord(visitCount))")
                         .font(DS.labelSmall)
                         .foregroundColor(theme.textMuted)
                 }

@@ -57,7 +57,21 @@ struct ClientDetailView: View {
         return cal.component(.month, from: now) == month && cal.component(.day, from: now) == day
     }
 
-    // MARK: - Hero Section
+    private var initials: String {
+        let name = client.name.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return "?" }
+        let first = name[name.startIndex]
+        if name.count > 1 {
+            if let spaceIdx = name.firstIndex(of: " ") {
+                let afterSpace = name.index(after: spaceIdx)
+                if afterSpace < name.endIndex {
+                    let second = name[afterSpace]
+                    return "\(first)\(second)".uppercased()
+                }
+            }
+        }
+        return String(first).uppercased()
+    }
 
     private var heroSection: some View {
         ZStack(alignment: .bottom) {
@@ -87,27 +101,6 @@ struct ClientDetailView: View {
         }
     }
 
-private var initials: String {
-        let name = client.name.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return "?" }
-        let first = name[name.startIndex]
-        if name.count > 1 {
-            if let spaceIdx = name.firstIndex(of: " ") {
-                let afterSpace = name.index(after: spaceIdx)
-                if afterSpace < name.endIndex {
-                    let second = name[afterSpace]
-                    return "\(first)\(second)".uppercased()
-                }
-            }
-        }
-        return String(first).uppercased()
-    }
-        }
-        return String(first).uppercased()
-    }
-
-    // MARK: - Stats Section
-
     private var statsSection: some View {
         HStack(spacing: 12) {
             StatTile(value: "\(visitsCount)", label: "Визитов")
@@ -130,8 +123,6 @@ private var initials: String {
         guard let last = history.first?.appointmentDate else { return "—" }
         return formatShortDate(last)
     }
-
-    // MARK: - Contacts Section
 
     private var contactsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -171,8 +162,6 @@ private var initials: String {
         .padding(.horizontal, 20)
     }
 
-    // MARK: - History Section
-
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             BBSectionHeader(title: "История визитов")
@@ -183,8 +172,6 @@ private var initials: String {
         }
         .padding(.horizontal, 20)
     }
-
-    // MARK: - Photo Gallery
 
     private var photoGallery: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -227,8 +214,6 @@ private var initials: String {
     }
 }
 
-// MARK: - Stat Tile
-
 struct StatTile: View {
     let value: String
     let label: String
@@ -248,8 +233,6 @@ struct StatTile: View {
         }
     }
 }
-
-// MARK: - Contact Row
 
 struct ContactRow: View {
     let icon: String
@@ -275,8 +258,6 @@ struct ContactRow: View {
         }
     }
 }
-
-// MARK: - Appointment History Card
 
 struct AppointmentHistoryCard: View {
     let item: AppointmentHistory
