@@ -28,8 +28,28 @@ final class StatsViewModel: ObservableObject {
             stats = MockData.stats
         }
         earningsByDay = MockData.earningsByDay
-        expenses = MockData.expenses
+        expenses = (try? await api.fetchExpenses()) ?? []
         isLoading = false
+    }
+    
+    func addExpense(category: String, amount: Int, description: String, date: String = "") async {
+        let req = ExpenseCreateRequest(
+            category: category,
+            amount: amount,
+            description: description,
+            date: date.isEmpty ? {
+                let f = DateFormatter()
+                f.dateFormat = "yyyy-MM-dd"
+                return f.string(from: Date())
+            }() : date
+        )
+        _ = try? await api.addExpense(req)
+        await load()
+    }
+    
+    func deleteExpense(id: Int) async {
+        try? await api.deleteExpense(id: id)
+        expenses.removeAll { $0.id == id }
     }
 }
 
@@ -232,19 +252,9 @@ struct StatsView: View {
                     }
                 }
                 .frame(height: 6)
-
-                HStack {
-                    Text("Расходы \(Int((stats.monthEarnings > 0 ? Double(vm.totalExpenses) / Double(stats.monthEarnings) * 100 : 0).rounded()))% от выручки")
-                        .font(DS.caption)
-                        .foregroundColor(theme.textMuted)
-                    Spacer()
-                }
             }
-            .padding(4)
         }
     }
-
-    // MARK: - Expenses Section
 
     private var expensesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -278,11 +288,16 @@ struct StatsView: View {
                     .background(theme.backgroundCard)
                     .cornerRadius(DS.r12)
                     .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button("Удалить") {
+                            Task { await vm.deleteExpense(id: expense.id) }
+                        }
+                        .tint(theme.statusRed)
+                    }
                 }
             }
         }
     }
-}
 
 // MARK: - KPI Card
 
@@ -453,18 +468,14 @@ struct AddExpenseSheet: View {
                     .environment(\.theme, theme)
 
                 BBPrimaryButton(title: "Добавить расход", isDisabled: !isValid) {
-                    let expense = Expense(
-                        id: Int.random(in: 10000...99999),
-                        category: selectedCategory.rawValue,
-                        amount: Int(amount) ?? 0,
-                        description: description,
-                        date: {
-                            let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
-                            return f.string(from: Date())
-                        }()
-                    )
-                    vm.expenses.insert(expense, at: 0)
-                    dismiss()
+                    Task {
+                        await vm.addExpense(
+                            category: selectedCategory.rawValue,
+                            amount: Int(amount) ?? 0,
+                            description: description
+                        )
+                        dismiss()
+                    }
                 }
                 .environment(\.theme, theme)
                 Spacer()

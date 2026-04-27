@@ -158,6 +158,7 @@ final class APIClient: ObservableObject {
     static let shared = APIClient()
     private let session: URLSession
     private let decoder: JSONDecoder
+    private let encoder: JSONEncoder
 
     private init() {
         let cfg = URLSessionConfiguration.default
@@ -166,6 +167,8 @@ final class APIClient: ObservableObject {
         decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         decoder.dateDecodingStrategy = .iso8601
+        encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
     }
 
     func request<T: Decodable>(_ endpoint: Endpoint, as type: T.Type = T.self) async throws -> T {
@@ -206,3 +209,66 @@ final class APIClient: ObservableObject {
 }
 
 struct APIErrorResponse: Decodable { let detail: String }
+
+// MARK: - Expenses Extension
+extension APIClient {
+    func fetchExpenses() async throws -> [Expense] {
+        let data = try await get("/expenses")
+        return try decoder.decode(ExpensesResponse.self, from: data).expenses
+    }
+
+    func addExpense(_ expense: ExpenseCreateRequest) async throws -> Int {
+        let body = try encoder.encode(expense)
+        let data = try await post("/expenses", body: body)
+        struct R: Decodable { let id: Int }
+        return try decoder.decode(R.self, from: data).id
+    }
+
+    func deleteExpense(id: Int) async throws {
+        _ = try await delete("/expenses/\(id)")
+    }
+    
+    private func get(_ path: String) async throws -> Data {
+        let url = URL(string: APIConfig.baseURL + path)!
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token = KeychainManager.shared.getToken() {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        let (data, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse else { throw NetworkError.noData }
+        guard 200...299 ~= http.statusCode else { throw NetworkError.serverError(http.statusCode, "GET failed") }
+        return data
+    }
+    
+    private func post(_ path: String, body: Data) async throws -> Data {
+        let url = URL(string: APIConfig.baseURL + path)!
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.httpBody = body
+        if let token = KeychainManager.shared.getToken() {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        let (data, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse else { throw NetworkError.noData }
+        guard 200...299 ~= http.statusCode else { throw NetworkError.serverError(http.statusCode, "POST failed") }
+        return data
+    }
+    
+    private func delete(_ path: String) async throws -> Data {
+        let url = URL(string: APIConfig.baseURL + path)!
+        var req = URLRequest(url: url)
+        req.httpMethod = "DELETE"
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token = KeychainManager.shared.getToken() {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        let (data, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse else { throw NetworkError.noData }
+        guard 200...299 ~= http.statusCode else { throw NetworkError.serverError(http.statusCode, "DELETE failed") }
+        return data
+    }
+}

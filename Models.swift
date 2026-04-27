@@ -257,6 +257,13 @@ struct ExpensesResponse: Codable {
     let expenses: [Expense]
 }
 
+struct ExpenseCreateRequest: Encodable {
+    let category: String
+    let amount: Int
+    let description: String
+    let date: String
+}
+
 enum ExpenseCategory: String, CaseIterable {
     case materials = "Материалы"
     case rent = "Аренда"
