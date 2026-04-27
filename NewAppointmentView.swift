@@ -9,6 +9,7 @@ final class NewAppointmentViewModel: ObservableObject {
     @Published var selectedService: Service? = nil
     @Published var selectedDate: Date = Date()
     @Published var selectedTime: String = ""
+    @Published var duration: Int = 60
     @Published var price: String = ""
     @Published var notes: String = ""
     @Published var availableSlots: [String] = []
@@ -22,6 +23,17 @@ final class NewAppointmentViewModel: ObservableObject {
 
     var isValid: Bool {
         selectedClient != nil && selectedService != nil && !selectedTime.isEmpty
+    }
+
+    var durationOptions: [Int] { [30, 45, 60, 90, 120, 180] }
+
+    func durationLabel(_ minutes: Int) -> String {
+        if minutes >= 60 {
+            let h = minutes / 60
+            let m = minutes % 60
+            return m > 0 ? "\(h)ч \(m)м" : "\(h)ч"
+        }
+        return "\(minutes)м"
     }
 
     private let api = APIClient.shared
@@ -48,6 +60,11 @@ final class NewAppointmentViewModel: ObservableObject {
             services = resp.services
         } else {
             services = MockData.services
+        }
+        if let firstService = services.first {
+            selectedService = firstService
+            duration = firstService.durationMin
+            price = "\(firstService.priceDefault)"
         }
     }
 
@@ -162,6 +179,30 @@ struct NewAppointmentView: View {
                     sectionView(index: 3, title: "Детали") {
                         VStack(spacing: 12) {
                             BBTextField(placeholder: "Цена (₽)", text: $vm.price, keyboardType: .numberPad)
+                            
+                            HStack {
+                                Text("Длительность")
+                                    .font(DS.body)
+                                    .foregroundColor(theme.textPrimary)
+                                Spacer()
+                                Menu {
+                                    ForEach(vm.durationOptions, id: \.self) { mins in
+                                        Button(vm.durationLabel(mins)) {
+                                            vm.duration = mins
+                                        }
+                                    }
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Text(vm.durationLabel(vm.duration))
+                                            .font(DS.body)
+                                            .foregroundColor(theme.accent)
+                                        Image(systemName: "chevron.down")
+                                            .font(.system(size: 10))
+                                            .foregroundColor(theme.textMuted)
+                                    }
+                                }
+                            }
+                            
                             BBTextField(placeholder: "Заметка", text: $vm.notes)
                         }
                     }
@@ -361,6 +402,7 @@ struct ServicePickerRow: View {
             PickerSheet(title: "Услуга", items: vm.services, itemTitle: { $0.name }, itemSubtitle: { "\($0.priceDefault)₽ · \($0.durationMin) мин" }) { service in
                 vm.selectedService = service
                 vm.price = "\(service.priceDefault)"
+                vm.duration = service.durationMin
                 showPicker = false
             }
             .environment(\.theme, theme)
