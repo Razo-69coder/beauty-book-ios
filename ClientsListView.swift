@@ -476,9 +476,10 @@ struct ClientCard: View {
     private var isBirthdayToday: Bool {
         guard let bday = client.birthday else { return false }
         let parts = bday.split(separator: "-").map { String($0) }
-        guard parts.count >= 2,
-              let month = Int(parts[0]),
-              let day = Int(parts[1]) else { return false }
+        guard let monthStr = parts.first,
+              let dayStr = parts.dropFirst().first,
+              let month = Int(monthStr),
+              let day = Int(dayStr) else { return false }
         let cal = Calendar.current; let now = Date()
         return cal.component(.month, from: now) == month && cal.component(.day, from: now) == day
     }
@@ -556,9 +557,10 @@ struct AddClientSheet: View {
 
     private func formattedBirthday(_ bday: String) -> String {
         let parts = bday.split(separator: "-").map { String($0) }
-        guard parts.count >= 2,
-              let month = Int(parts[0]),
-              let day = Int(parts[1]) else { return bday }
+        guard let monthStr = parts.first,
+              let dayStr = parts.dropFirst().first,
+              let month = Int(monthStr),
+              let day = Int(dayStr) else { return bday }
         let months = ["","Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"]
         guard month >= 1 && month <= 12 else { return bday }
         return "\(day) \(months[month])"
