@@ -94,6 +94,9 @@ struct NewAppointmentView: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
 
+    var preselectedTime: String? = nil
+    var selectedDate: Date? = nil
+
     @State private var appeared = false
 
     var body: some View {
@@ -111,6 +114,12 @@ struct NewAppointmentView: View {
             await vm.loadData()
         }
         .onAppear {
+            if let time = preselectedTime {
+                vm.selectedTime = time
+            }
+            if let date = selectedDate {
+                vm.selectedDate = date
+            }
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                 appeared = true
             }

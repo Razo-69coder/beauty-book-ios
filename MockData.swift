@@ -49,10 +49,10 @@ enum MockData {
 
     static func appointments(for date: String = todayString) -> [Appointment] {
         [
-            Appointment(id: 1, clientId: 1, masterId: 1, procedure: "Маникюр с покрытием",  appointmentDate: date, time: "09:00", price: 1800, notes: "",         status: .confirmed,  depositStatus: .paid,        depositAmount: 540, clientName: "Мария Иванова",     clientPhone: "+7 (916) 234-56-78", serviceDoneAt: nil),
-            Appointment(id: 2, clientId: 2, masterId: 1, procedure: "Педикюр классический", appointmentDate: date, time: "11:00", price: 1500, notes: "Первый раз",status: .confirmed,  depositStatus: .notRequired, depositAmount: 0,   clientName: "Елена Смирнова",    clientPhone: "+7 (903) 345-67-89", serviceDoneAt: nil),
-            Appointment(id: 3, clientId: 3, masterId: 1, procedure: "Наращивание ногтей",   appointmentDate: date, time: "13:00", price: 3500, notes: "",         status: .pending,    depositStatus: .pendingPayment,depositAmount: 1050,clientName: "Ольга Петрова",     clientPhone: "+7 (925) 456-78-90", serviceDoneAt: nil),
-            Appointment(id: 4, clientId: 4, masterId: 1, procedure: "Коррекция",            appointmentDate: date, time: "16:00", price: 2000, notes: "",         status: .completed,  depositStatus: .notRequired, depositAmount: 0,   clientName: "Дарья Козлова",     clientPhone: "+7 (977) 567-89-01", serviceDoneAt: date),
+            Appointment(id: 1, clientId: 1, masterId: 1, procedure: "Маникюр с покрытием",  appointmentDate: date, time: "09:00", price: 1800, notes: "",         status: .confirmed,  depositStatus: .paid,        depositAmount: 540, clientName: "Мария Иванова",     clientPhone: "+7 (916) 234-56-78", serviceDoneAt: nil, duration: 90),
+            Appointment(id: 2, clientId: 2, masterId: 1, procedure: "Педикюр классический", appointmentDate: date, time: "11:00", price: 1500, notes: "Первый раз",status: .confirmed,  depositStatus: .notRequired, depositAmount: 0,   clientName: "Елена Смирнова",    clientPhone: "+7 (903) 345-67-89", serviceDoneAt: nil, duration: 90),
+            Appointment(id: 3, clientId: 3, masterId: 1, procedure: "Наращивание ногтей",   appointmentDate: date, time: "13:00", price: 3500, notes: "",         status: .pending,    depositStatus: .pendingPayment,depositAmount: 1050,clientName: "Ольга Петрова",     clientPhone: "+7 (925) 456-78-90", serviceDoneAt: nil, duration: 180),
+            Appointment(id: 4, clientId: 4, masterId: 1, procedure: "Коррекция",            appointmentDate: date, time: "16:00", price: 2000, notes: "",         status: .completed,  depositStatus: .notRequired, depositAmount: 0,   clientName: "Дарья Козлова",     clientPhone: "+7 (977) 567-89-01", serviceDoneAt: date, duration: 120),
         ]
     }
 
