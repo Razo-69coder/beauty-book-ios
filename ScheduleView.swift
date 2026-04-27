@@ -63,7 +63,7 @@ final class ScheduleViewModel: ObservableObject {
     }
 
     func heightForAppointment(_ appt: Appointment) -> CGFloat {
-        let duration = appt.duration
+        let duration = appt.duration ?? 60
         let hourHeight: CGFloat = 60
         return CGFloat(duration) / 60.0 * hourHeight
     }
@@ -310,8 +310,8 @@ struct AppointmentBlock: View {
                     .foregroundColor(.white.opacity(0.85))
                     .lineLimit(1)
 
-                if appointment.duration > 30 {
-                    Text("\(appointment.time) · \(appointment.duration) мин")
+                if (appointment.duration ?? 60) > 30 {
+                    Text("\(appointment.time) · \(appointment.duration ?? 60) мин")
                         .font(.system(size: 10))
                         .foregroundColor(.white.opacity(0.7))
                 }
@@ -376,7 +376,7 @@ struct AppointmentDetailSheet: View {
                         Divider().background(theme.borderSubtle)
                         detailRow(icon: "clock", title: "Время", value: appointment.time)
                         Divider().background(theme.borderSubtle)
-                        detailRow(icon: "timer", title: "Длительность", value: "\(appointment.duration) мин")
+                        detailRow(icon: "timer", title: "Длительность", value: "\(appointment.duration ?? 60) мин")
                         Divider().background(theme.borderSubtle)
                         detailRow(icon: "rublesign.circle", title: "Цена", value: "\(appointment.price)₽")
                         if appointment.status != .completed && appointment.status != .cancelled {

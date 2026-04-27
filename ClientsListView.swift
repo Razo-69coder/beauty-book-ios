@@ -627,7 +627,7 @@ struct AddClientSheet: View {
                         }
 
                         BBPrimaryButton(title: "Добавить клиента", isDisabled: !isValid) {
-                            Task { await vm.add(name: name, phone: phone, notes: notes, birthday: birthday.isEmpty ? nil : birthday) }
+                            Task { await vm.add(name: name, phone: phone, notes: notes, birthday: birthday) }
                             dismiss()
                         }
                         .environment(\.theme, theme)

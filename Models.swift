@@ -155,7 +155,7 @@ struct Appointment: Decodable, Identifiable {
     let clientName: String?
     let clientPhone: String?
     let serviceDoneAt: String?
-    var duration: Int = 60
+    var duration: Int?
 }
 
 enum AppointmentStatus: String, Decodable, CaseIterable {
