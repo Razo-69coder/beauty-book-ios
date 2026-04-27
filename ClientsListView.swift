@@ -566,7 +566,7 @@ struct AddClientSheet: View {
         return "\(day) \(months[month])"
     }
 
-var body: some View {
+    var body: some View {
         NavigationView {
             ZStack {
                 theme.backgroundDeep.ignoresSafeArea()
@@ -581,12 +581,6 @@ var body: some View {
                         .clipped()
                         .ignoresSafeArea()
                 }
-                theme.backgroundCard.opacity(0.5).ignoresSafeArea()
-            }
-            .onAppear {
-                name = vm.prefillName
-                phone = vm.prefillPhone
-            }
                 theme.backgroundCard.opacity(0.5).ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
@@ -641,6 +635,10 @@ var body: some View {
                     .padding(.top, 8)
                 }
                 .ignoresSafeArea(.keyboard)
+            }
+            .onAppear {
+                name = vm.prefillName
+                phone = vm.prefillPhone
             }
             .navigationTitle("Новый клиент")
             .navigationBarTitleDisplayMode(.inline)
