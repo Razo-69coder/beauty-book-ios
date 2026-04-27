@@ -116,7 +116,7 @@ struct TabContent: View {
                 }
             }
             
-            if selectedTab == .schedule || selectedTab == .clients || selectedTab == .services {
+            if selectedTab == .schedule || selectedTab == .clients {
                 fabButton
                     .padding(.trailing, 20)
                     .padding(.bottom, 100)

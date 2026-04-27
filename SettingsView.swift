@@ -458,18 +458,20 @@ struct SettingsView: View {
             BBGlassCard {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Длительность слота")
+                        Text("Мин. шаг записи")
                             .font(DS.body).foregroundColor(theme.textPrimary)
-                        Text("Минимальное время на запись")
+                        Text("Интервал онлайн-записи")
                             .font(DS.bodySmall).foregroundColor(theme.textMuted)
                     }
                     Spacer()
-                    HStack(spacing: 6) {
+                    HStack(spacing: 4) {
                         ForEach([30, 45, 60, 90, 120], id: \.self) { mins in
-                            Text(mins < 60 ? "\(mins)м" : (mins == 60 ? "1ч" : (mins == 90 ? "1.5ч" : "2ч")))
+                            Text(mins < 60 ? "\(mins)" : (mins == 60 ? "1ч" : (mins == 90 ? "1.5ч" : "2ч")))
                                 .font(DS.labelSmall)
                                 .foregroundColor(vm.slotDuration == mins ? .white : theme.textSecondary)
-                                .padding(.horizontal, 8).padding(.vertical, 6)
+                                .lineLimit(1)
+                                .frame(minWidth: 36)
+                                .padding(.horizontal, 6).padding(.vertical, 6)
                                 .background(vm.slotDuration == mins ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
                                 .cornerRadius(DS.r8)
                                 .onTapGesture { vm.slotDuration = mins }
