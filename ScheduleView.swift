@@ -247,11 +247,12 @@ struct ScheduleView: View {
         GeometryReader { geometry in
             let hourWidth: CGFloat = geometry.size.width - 52
 
-            ForEach(vm.appointments) { appt in
+            ForEach(Array(vm.appointments.enumerated()), id: \.element.id) { index, appt in
                 AppointmentBlock(
                     appointment: appt,
                     theme: theme,
-                    hourWidth: hourWidth
+                    hourWidth: hourWidth,
+                    colorIndex: index
                 )
                 .offset(y: vm.positionForAppointment(appt))
                 .frame(height: vm.heightForAppointment(appt))
@@ -290,30 +291,46 @@ struct AppointmentBlock: View {
     let appointment: Appointment
     let theme: AppTheme
     let hourWidth: CGFloat
-
-    private var statusColor: Color { Color(hex: appointment.status.hexColor) }
+    let colorIndex: Int
+    
+    private let pinkPalette = ["#501260", "#7E367A", "#B05994", "#E37DAC", "#FFB1C4"]
+    private let platinumPalette = ["#C49994", "#CEA39E", "#D8B2AE", "#EBD0C2", "#CFB0A2"]
+    
+    private var palette: [String] {
+        theme == .platinum ? platinumPalette : pinkPalette
+    }
+    
+    private var blockColor: Color {
+        Color(hex: palette[colorIndex % palette.count])
+    }
+    
+    private var textColor: Color {
+        let hex = palette[colorIndex % palette.count].lowercased()
+        let darkColors = ["501260", "7e367a", "b05994", "c49994", "cea39e", "d8b2ae"]
+        return darkColors.contains(where: { hex.hasPrefix($0) }) ? .white : Color(hex: "#3D2B2B")
+    }
 
     var body: some View {
         HStack(spacing: 0) {
             Rectangle()
-                .fill(statusColor)
+                .fill(blockColor)
                 .frame(width: 3)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(appointment.clientName ?? "Клиент")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(textColor)
                     .lineLimit(1)
 
                 Text(appointment.procedure)
                     .font(.system(size: 11))
-                    .foregroundColor(.white.opacity(0.85))
+                    .foregroundColor(textColor.opacity(0.85))
                     .lineLimit(1)
 
                 if (appointment.duration ?? 60) > 30 {
                     Text("\(appointment.time) · \(appointment.duration ?? 60) мин")
                         .font(.system(size: 10))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(textColor.opacity(0.7))
                 }
             }
             .padding(.horizontal, 8)
@@ -322,17 +339,17 @@ struct AppointmentBlock: View {
 
             Text("\(appointment.price)₽")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.white.opacity(0.9))
+                .foregroundColor(textColor.opacity(0.9))
                 .padding(.trailing, 8)
         }
         .frame(width: hourWidth, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(statusColor.opacity(0.85))
+                .fill(blockColor.opacity(0.85))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(statusColor, lineWidth: 1)
+                .stroke(blockColor, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }

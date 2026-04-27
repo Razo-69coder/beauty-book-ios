@@ -41,60 +41,70 @@ enum AppTheme: String, CaseIterable {
     var accent: Color {
         switch self {
         case .pink:     return Color(hex: "#FF2D78")
-        case .platinum: return Color(hex: "#C4B8C8")
+        case .platinum: return Color(hex: "#C49994")
         }
     }
 
     var accentSecondary: Color {
         switch self {
         case .pink:     return Color(hex: "#BF00FF")
-        case .platinum: return Color(hex: "#E8B4C8")
+        case .platinum: return Color(hex: "#CEA39E")
         }
     }
 
     var accentGlow: Color {
         switch self {
         case .pink:     return Color(hex: "#FF2D78").opacity(0.4)
-        case .platinum: return Color(hex: "#C4B8C8").opacity(0.2)
+        case .platinum: return Color(hex: "#C49994").opacity(0.3)
         }
     }
 
     var backgroundDeep: Color {
         switch self {
         case .pink:     return Color(hex: "#06060E")
-        case .platinum: return Color(hex: "#0D0B0E")
+        case .platinum: return Color(hex: "#F5ECDF")
         }
     }
 
     var backgroundCard: Color {
         switch self {
         case .pink:     return Color(hex: "#0F0F1A")
-        case .platinum: return Color(hex: "#16121A")
+        case .platinum: return Color(hex: "#F0E2CF")
         }
     }
 
     var backgroundInput: Color {
         switch self {
         case .pink:     return Color(hex: "#16162A")
-        case .platinum: return Color(hex: "#1E1824")
+        case .platinum: return Color(hex: "#EBD0C2")
         }
     }
 
-    var textPrimary: Color { .white }
+    var textPrimary: Color {
+        switch self {
+        case .pink:     return .white
+        case .platinum: return Color(hex: "#3D2B2B")
+        }
+    }
 
     var textSecondary: Color {
         switch self {
         case .pink:     return Color(hex: "#A0A0C0")
-        case .platinum: return Color(hex: "#B8A8C0")
+        case .platinum: return Color(hex: "#6B4F4F")
         }
     }
 
-    var textMuted: Color { Color(hex: "#5A5A7A") }
+    var textMuted: Color {
+        switch self {
+        case .pink:     return Color(hex: "#5A5A7A")
+        case .platinum: return Color(hex: "#9E7E7E")
+        }
+    }
 
     var borderSubtle: Color {
         switch self {
         case .pink:     return Color.white.opacity(0.08)
-        case .platinum: return Color.white.opacity(0.07)
+        case .platinum: return Color(hex: "#D8B2AE").opacity(0.5)
         }
     }
 
@@ -116,7 +126,7 @@ enum AppTheme: String, CaseIterable {
             )
         case .platinum:
             return LinearGradient(
-                colors: [Color(hex: "#C4B8C8"), Color(hex: "#E8B4C8"), Color(hex: "#9B8FA8")],
+                colors: [Color(hex: "#C49994"), Color(hex: "#CEA39E"), Color(hex: "#D8B2AE")],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
         }
@@ -127,6 +137,28 @@ enum AppTheme: String, CaseIterable {
             colors: [backgroundCard, backgroundDeep],
             startPoint: .topLeading, endPoint: .bottomTrailing
         )
+    }
+    
+    var statusGreen: Color {
+        switch self {
+        case .pink: return Color(hex: "#00E5A0")
+        case .platinum: return Color(hex: "#4A8B6E")
+        }
+    }
+    
+    var statusYellow: Color {
+        switch self {
+        case .pink: return Color(hex: "#FFD166")
+        case .platinum: return Color(hex: "#C9A84C")
+        }
+    }
+    
+    var statusRed: Color {
+        switch self {
+        case .pink: return Color(hex: "#FF4757")
+        case .platinum: return Color(hex: "#A84C4C")
+        }
+    }
     }
 
     // MARK: - Status Colors (common)
