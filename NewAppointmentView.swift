@@ -324,8 +324,9 @@ struct ClientPickerRow: View {
     let theme: AppTheme
     @State private var showPicker = false
 
-private var initials: String {
-        let parts = client.name.split(separator: " ")
+    private var initials: String {
+        guard let name = vm.selectedClient?.name else { return "?" }
+        let parts = name.split(separator: " ")
         var result = ""
         if let first = parts.first {
             result = String(first.prefix(1))
