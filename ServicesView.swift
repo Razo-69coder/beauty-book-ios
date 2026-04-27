@@ -320,11 +320,11 @@ final class ServicesViewModel: ObservableObject {
     @Published var total: Int = 0
     
     private let mockServices: [Service] = [
-        Service(id: 1, name: "Маникюр", priceDefault: 1500),
-        Service(id: 2, name: "Покрытие гель-лак", priceDefault: 1200),
-        Service(id: 3, name: "Снятие покрытия", priceDefault: 500),
-        Service(id: 4, name: "Ремонт ногтя", priceDefault: 300),
-        Service(id: 5, name: "Дизайн ногтей", priceDefault: 800),
+        Service(id: 1, name: "Маникюр", priceDefault: 1500, durationMin: 60),
+        Service(id: 2, name: "Покрытие гель-лак", priceDefault: 1200, durationMin: 45),
+        Service(id: 3, name: "Снятие покрытия", priceDefault: 500, durationMin: 30),
+        Service(id: 4, name: "Ремонт ногтя", priceDefault: 300, durationMin: 15),
+        Service(id: 5, name: "Дизайн ногтей", priceDefault: 800, durationMin: 60),
     ]
     
     private let api = APIClient.shared
@@ -334,7 +334,7 @@ final class ServicesViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            let response = try await api.request(.services, type: ServicesResponse.self)
+            let response = try await api.request(.services, as: ServicesResponse.self)
             services = response.services
             total = response.services.count
         } catch {
@@ -346,14 +346,14 @@ final class ServicesViewModel: ObservableObject {
         isLoading = false
     }
     
-    func addService(name: String, price: Int) async {
-        let request = ServiceCreateRequest(name: name, priceDefault: price)
+    func addService(name: String, price: Int, duration: Int = 60) async {
+        let request = ServiceCreateRequest(name: name, priceDefault: price, durationMin: duration)
         do {
-            let newService = try await api.request(.createService(request), type: Service.self)
+            let newService = try await api.request(.createService(request), as: Service.self)
             services.insert(newService, at: 0)
             total += 1
         } catch {
-            let tempService = Service(id: Int.random(in: 1000...9999), name: name, priceDefault: price)
+            let tempService = Service(id: Int.random(in: 1000...9999), name: name, priceDefault: price, durationMin: duration)
             services.insert(tempService, at: 0)
             total += 1
         }
@@ -361,7 +361,7 @@ final class ServicesViewModel: ObservableObject {
     
     func deleteService(_ service: Service) async {
         do {
-            let _ = try await api.request(.deleteService(id: service.id), type: SuccessResponse.self)
+            let _ = try await api.request(.deleteService(id: service.id), as: MessageResponse.self)
             services.removeAll { $0.id == service.id }
             total -= 1
         } catch {
