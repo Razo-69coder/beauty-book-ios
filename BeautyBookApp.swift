@@ -2,23 +2,81 @@ import SwiftUI
 
 @main
 struct BeautyBookApp: App {
-    @StateObject private var appState    = AppState()
+    @StateObject private var appState     = AppState()
     @StateObject private var themeManager = ThemeManager.shared
+    @State private var showSplash         = true
 
     var body: some Scene {
         WindowGroup {
-            if appState.isAuthenticated {
-                TabBarView()
-                    .environmentObject(appState)
-                    .environmentObject(themeManager)
-                    .environment(\.theme, themeManager.current)
-                    .preferredColorScheme(.dark)
-            } else {
-                AuthView()
-                    .environmentObject(appState)
-                    .environmentObject(themeManager)
-                    .environment(\.theme, themeManager.current)
-                    .preferredColorScheme(.dark)
+            ZStack {
+                if showSplash {
+                    SplashView(theme: themeManager.current)
+                        .transition(.opacity)
+                } else if appState.isAuthenticated {
+                    TabBarView()
+                        .environmentObject(appState)
+                        .environmentObject(themeManager)
+                        .environment(\.theme, themeManager.current)
+                        .preferredColorScheme(.dark)
+                        .transition(.opacity)
+                } else {
+                    AuthView()
+                        .environmentObject(appState)
+                        .environmentObject(themeManager)
+                        .environment(\.theme, themeManager.current)
+                        .preferredColorScheme(.dark)
+                        .transition(.opacity)
+                }
+            }
+            .animation(DS.springSmooth, value: showSplash)
+            .task {
+                try? await Task.sleep(nanoseconds: 2_200_000_000)
+                showSplash = false
+            }
+        }
+    }
+}
+
+struct SplashView: View {
+    let theme: AppTheme
+    @State private var scale: CGFloat  = 0.7
+    @State private var opacity: Double = 0
+
+    var body: some View {
+        ZStack {
+            AppBackground(theme: theme).ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(Color.white)
+                        .frame(width: 100, height: 100)
+                        .shadow(color: theme.accentGlow, radius: 30, x: 0, y: 10)
+                    Image("solva_logo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                }
+                .scaleEffect(scale)
+
+                VStack(spacing: 6) {
+                    Text("Solva Beauty")
+                        .font(DS.titleLarge)
+                        .foregroundColor(theme.textPrimary)
+                    Text("CRM для бьюти-мастера")
+                        .font(DS.body)
+                        .foregroundColor(theme.textSecondary)
+                }
+                .opacity(opacity)
+            }
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                scale = 1.0
+            }
+            withAnimation(.easeIn(duration: 0.5).delay(0.3)) {
+                opacity = 1.0
             }
         }
     }
