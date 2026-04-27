@@ -12,16 +12,24 @@ workflows:
         script: |
           xcodegen generate
 
-      - name: Build for simulator
+      - name: Build for device
         script: |
           xcodebuild \
             -project BeautyBook.xcodeproj \
             -scheme BeautyBook \
             -configuration Debug \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
             -derivedDataPath ./build \
             build
 
+      - name: Package IPA
+        script: |
+          mkdir -p ./build/Payload
+          cp -r "./build/Build/Products/Debug-iphoneos/BeautyBook.app" ./build/Payload/
+          cd ./build && zip -r BeautyBook.ipa Payload
+
     artifacts:
-      - ./build/Build/Products/Debug-iphonesimulator/BeautyBook.app
+      - ./build/BeautyBook.ipa
