@@ -40,9 +40,31 @@ struct ClientDetailView: View {
                     history = MockData.history(for: client.id)
                 }
                 photos = MockData.mockPhotos
+                uiPhotos = ClientPhotoStorage.load(clientId: client.id)
                 isLoading = false
-            }
     }
+}
+
+struct ClientPhotoStorage {
+    static func directory(for clientId: Int) -> URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let dir = docs.appendingPathComponent("ClientPhotos/\(clientId)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    static func save(_ image: UIImage, clientId: Int) {
+        guard let data = image.jpegData(compressionQuality: 0.8) else { return }
+        let file = directory(for: clientId).appendingPathComponent("\(UUID().uuidString).jpg")
+        try? data.write(to: file)
+    }
+
+    static func load(clientId: Int) -> [UIImage] {
+        let dir = directory(for: clientId)
+        guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return [] }
+        return files.compactMap { UIImage(contentsOfFile: $0.path) }
+    }
+}
 
     private func formattedBirthday(_ bday: String) -> String {
         let parts = bday.split(separator: "-").map { String($0) }
@@ -242,11 +264,13 @@ struct ClientDetailView: View {
         .sheet(isPresented: $showCamera) {
             ImagePicker(sourceType: .camera) { image in
                 uiPhotos.append(image)
+                ClientPhotoStorage.save(image, clientId: client.id)
             }
         }
         .sheet(isPresented: $showGalleryPicker) {
             PHPickerViewWrapper { image in
                 uiPhotos.append(image)
+                ClientPhotoStorage.save(image, clientId: client.id)
             }
         }
         .sheet(isPresented: .constant(selectedPhoto != nil)) {
