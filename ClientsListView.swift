@@ -468,6 +468,7 @@ struct ClientCard: View {
 
     private var progressToNextReward: String {
         let threshold = loyaltyThreshold
+        if visitCount == 0 { return "\(threshold) до скидки" }
         let remainder = threshold - (visitCount % threshold)
         if remainder == threshold { return "🏆 Скидка!" }
         return "\(remainder) до скидки"
