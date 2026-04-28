@@ -50,7 +50,11 @@ final class StatsViewModel: ObservableObject {
             isAddingExpense = false
             return true
         } catch {
-            expenseError = error.localizedDescription
+            if (error as? URLError) != nil {
+                expenseError = "Сервер недоступен. Попробуйте ещё раз через несколько секунд."
+            } else {
+                expenseError = error.localizedDescription
+            }
             isAddingExpense = false
             return false
         }
@@ -503,5 +507,6 @@ struct AddExpenseSheet: View {
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+        .onAppear { vm.expenseError = nil }
     }
 }
