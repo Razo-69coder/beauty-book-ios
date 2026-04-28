@@ -28,8 +28,7 @@ targets:
           - "Package.swift"
           - "commit.ps1"
           - "push*.ps1"
-          - "*.png"
-          - "*.jpg"
+          - ".git"
     resources:
       - path: .
         includes:
