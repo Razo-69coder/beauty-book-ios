@@ -357,7 +357,7 @@ struct ClientsListView: View {
                 .stroke(theme.borderSubtle, lineWidth: 1)
         )
         .padding(.horizontal, 20)
-        .padding(.top, 8)
+        .padding(.top, 2)
     }
 
     // MARK: - Clients List
