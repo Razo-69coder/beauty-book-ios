@@ -59,7 +59,7 @@ struct SplashView: View {
                                 .renderingMode(.original)
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 80, height: 80)
+                                .frame(width: 90, height: 90)
                                 .clipShape(RoundedRectangle(cornerRadius: 18))
                         }
                     }
