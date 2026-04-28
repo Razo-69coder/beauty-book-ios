@@ -52,11 +52,17 @@ struct SplashView: View {
                         .fill(Color.white)
                         .frame(width: 100, height: 100)
                         .shadow(color: theme.accentGlow, radius: 30, x: 0, y: 10)
-                    Image("solva_logo").renderingMode(.original)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 80, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                    Group {
+                        if let path = Bundle.main.path(forResource: "solva_logo", ofType: "png"),
+                           let uiImg = UIImage(contentsOfFile: path) {
+                            Image(uiImage: uiImg)
+                                .renderingMode(.original)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 80, height: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                        }
+                    }
                 }
                 .scaleEffect(scale)
 
