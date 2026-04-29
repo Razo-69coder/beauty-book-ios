@@ -10,6 +10,7 @@ enum MockData {
         id: 1,
         email: "master@beautybook.ru",
         name: "Анна Козлова",
+        phone: "+7 (900) 123-45-67",
         workStart: 9,
         workEnd: 20,
         slotDuration: 60,
