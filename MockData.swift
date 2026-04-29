@@ -9,8 +9,8 @@ enum MockData {
     static let master = MasterProfile(
         id: 1,
         email: "master@beautybook.ru",
-        name: "Анна Козлова",
         phone: "+7 (900) 123-45-67",
+        name: "Анна Козлова",
         workStart: 9,
         workEnd: 20,
         slotDuration: 60,
