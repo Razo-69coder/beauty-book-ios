@@ -33,6 +33,7 @@ struct BookingLinkResponse: Decodable {
 struct MasterProfile: Decodable, Identifiable {
     let id: Int
     let email: String?
+    let phone: String?
     let name: String?
     let workStart: Int
     let workEnd: Int
@@ -54,6 +55,12 @@ struct MasterSettingsRequest: Encodable {
     var slotDuration: Int
     var reminderDays: Int
     var timezone: String
+}
+
+struct ProfileUpdateRequest: Encodable {
+    var name: String
+    var email: String
+    var phone: String
 }
 
 struct PaymentRequest: Encodable {

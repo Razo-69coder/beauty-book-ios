@@ -5,6 +5,7 @@ import UIKit
 final class SettingsViewModel: ObservableObject {
     @Published var masterName = ""
     @Published var email = ""
+    @Published var phone = ""
     @Published var workStart = 9
     @Published var workEnd = 20
     @Published var slotDuration = 60
@@ -95,6 +96,7 @@ final class SettingsViewModel: ObservableObject {
         if let m = try? await api.request(.me, as: MasterProfile.self) {
             masterName = m.name ?? ""
             email = m.email ?? ""
+            phone = m.phone ?? ""
             workStart = m.workStart
             workEnd = m.workEnd
             slotDuration = m.slotDuration
@@ -143,7 +145,7 @@ final class SettingsViewModel: ObservableObject {
         isSaving = true
         errorMessage = nil
         let req = MasterSettingsRequest(name: masterName, workStart: workStart, workEnd: workEnd,
-                                 slotDuration: slotDuration, reminderDays: reminderDays, timezone: "Europe/Moscow")
+                                     slotDuration: slotDuration, reminderDays: reminderDays, timezone: "Europe/Moscow")
         do {
             let _ = try await api.request(.updateSettings(req), as: MessageResponse.self)
             let payReq = PaymentRequest(paymentCard: paymentCard, paymentPhone: paymentPhone, paymentBanks: paymentBanks)
@@ -156,6 +158,51 @@ final class SettingsViewModel: ObservableObject {
             errorMessage = "Ошибка сохранения"
         }
         isSaving = false
+    }
+
+    func saveProfile() async {
+        isSaving = true
+        errorMessage = nil
+        do {
+            let req = ProfileUpdateRequest(name: masterName, email: email, phone: phone)
+            let _ = try await api.request(.updateProfile(req), as: MessageResponse.self)
+            saveSuccess = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.saveSuccess = false }
+        } catch let e as NetworkError {
+            errorMessage = e.errorDescription
+        } catch {
+            errorMessage = "Ошибка сохранения"
+        }
+        isSaving = false
+    }
+}
+
+struct ProfileFieldRow: View {
+    let icon: String
+    let label: String
+    @Binding var text: String
+    let theme: AppTheme
+    var keyboardType: UIKeyboardType = .default
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundColor(theme.accent)
+                .frame(width: 32)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(DS.bodySmall)
+                    .foregroundColor(theme.textMuted)
+                TextField(label, text: $text)
+                    .font(DS.body)
+                    .foregroundColor(theme.textPrimary)
+                    .keyboardType(keyboardType)
+                    .autocapitalization(.none)
+                    .autocorrectionDisabled()
+            }
+        }
+        .padding(.vertical, 8)
     }
 }
 
@@ -217,6 +264,12 @@ struct SettingsView: View {
             Text("+7 (999) 123-45-67")
                 .font(DS.body)
                 .foregroundColor(theme.textMuted)
+
+            if !vm.phone.isEmpty {
+                Text(vm.phone)
+                    .font(DS.body)
+                    .foregroundColor(theme.textMuted)
+            }
 
             Button(action: {
                 HapticManager.medium()
@@ -297,11 +350,22 @@ struct SettingsView: View {
 
             BBGlassCard {
                 VStack(spacing: 12) {
-                    SettingsRow(icon: "person.fill", label: "Имя", value: vm.masterName, theme: theme)
+                    ProfileFieldRow(icon: "person.fill", label: "Имя", text: $vm.masterName, theme: theme)
                     Divider().background(theme.borderSubtle)
-                    SettingsRow(icon: "envelope.fill", label: "Email", value: vm.email.isEmpty ? "Не указан" : vm.email, theme: theme)
+                    ProfileFieldRow(icon: "envelope.fill", label: "Email", text: $vm.email, theme: theme, keyboardType: .emailAddress)
+                    Divider().background(theme.borderSubtle)
+                    ProfileFieldRow(icon: "phone.fill", label: "Телефон", text: $vm.phone, theme: theme, keyboardType: .phonePad)
                 }
             }
+
+            if let err = vm.errorMessage {
+                Text(err).font(DS.bodySmall).foregroundColor(theme.statusRed)
+            }
+
+            BBPrimaryButton(title: vm.isSaving ? "Сохранение..." : "Сохранить профиль", isLoading: vm.isSaving) {
+                Task { await vm.saveProfile() }
+            }
+            .environment(\.theme, theme)
         }
     }
 

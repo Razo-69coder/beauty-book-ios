@@ -40,6 +40,7 @@ enum Endpoint {
     case me
     case updateSettings(MasterSettingsRequest)
     case updatePayment(PaymentRequest)
+    case updateProfile(ProfileUpdateRequest)
     case stats
     // Clients
     case clients(page: Int, search: String)
@@ -74,6 +75,7 @@ extension Endpoint {
         case .me:                       return "/masters/me"
         case .updateSettings:           return "/masters/me"
         case .updatePayment:            return "/masters/me/payment"
+        case .updateProfile:            return "/profile"
         case .stats:                    return "/masters/me/stats"
         case .clients:                  return "/clients"
         case .clientDetail(let id):     return "/clients/\(id)"
@@ -100,7 +102,7 @@ extension Endpoint {
         case .login, .register, .forgotPassword,
              .createClient, .createAppointment, .createService, .markDone:
             return "POST"
-        case .updateSettings, .updatePayment, .updateClient, .updateBookingLink:
+        case .updateSettings, .updatePayment, .updateProfile, .updateClient, .updateBookingLink:
             return "PUT"
         case .deleteClient, .cancelAppointment, .deleteService:
             return "DELETE"
@@ -141,6 +143,7 @@ extension Endpoint {
         case .forgotPassword(let email):  return try? encoder.encode(["email": email])
         case .updateSettings(let r):      return try? encoder.encode(r)
         case .updatePayment(let r):       return try? encoder.encode(r)
+        case .updateProfile(let r):     return try? encoder.encode(r)
         case .createClient(let r):        return try? encoder.encode(r)
         case .updateClient(_, let r):     return try? encoder.encode(r)
         case .createAppointment(let r):   return try? encoder.encode(r)
