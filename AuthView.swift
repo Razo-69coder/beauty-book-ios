@@ -38,11 +38,21 @@ struct AuthView: View {
                     .fill(Color.white)
                     .frame(width: 80, height: 80)
                     .shadow(color: theme.accentGlow, radius: 24, x: 0, y: 8)
-                Image("solva_logo").renderingMode(.original)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 64, height: 64)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                Group {
+                    if let path = Bundle.main.path(forResource: "solva_logo", ofType: "png"),
+                       let uiImg = UIImage(contentsOfFile: path) {
+                        Image(uiImage: uiImg)
+                            .renderingMode(.original)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 64, height: 64)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    } else {
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(Color.pink.opacity(0.3))
+                            .frame(width: 64, height: 64)
+                    }
+                }
             }
             VStack(spacing: 6) {
                 Text("Solva Beauty")

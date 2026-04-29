@@ -261,9 +261,6 @@ struct SettingsView: View {
                 .font(DS.titleSmall)
                 .foregroundColor(theme.textPrimary)
 
-            Text("+7 (999) 123-45-67")
-                .font(DS.body)
-                .foregroundColor(theme.textMuted)
 
             if !vm.phone.isEmpty {
                 Text(vm.phone)
