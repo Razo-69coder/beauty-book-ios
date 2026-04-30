@@ -163,7 +163,7 @@ struct NewAppointmentView: View {
                             DatePicker("", selection: $vm.selectedDate, in: Date()..., displayedComponents: .date)
                                 .datePickerStyle(.graphical)
                                 .accentColor(theme.accent)
-                                .colorScheme(.dark)
+                                .colorScheme(theme == .platinum ? .light : .dark)
                                 .environment(\.locale, Locale(identifier: "ru_RU"))
                                 .background(theme.backgroundInput)
                                 .cornerRadius(12)
