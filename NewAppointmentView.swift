@@ -165,7 +165,7 @@ struct NewAppointmentView: View {
                                 .accentColor(theme.accent)
                                 .colorScheme(.dark)
                                 .environment(\.locale, Locale(identifier: "ru_RU"))
-                                .background(theme.backgroundCard.opacity(0.8))
+                                .background(theme.backgroundInput)
                                 .cornerRadius(12)
                                 .onChange(of: vm.selectedDate) { _, _ in
                                     HapticManager.selection()
