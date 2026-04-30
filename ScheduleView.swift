@@ -73,7 +73,7 @@ final class ScheduleViewModel: ObservableObject {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
         let dateStr = f.string(from: selectedDate)
         if let resp = try? await api.request(.schedule(date: dateStr), as: ScheduleResponse.self) {
-            appointments = resp.appointments.sorted { $0.time < $1.time }
+            appointments = resp.appointments.filter { $0.status != "cancelled" }.sorted { $0.time < $1.time }
         } else {
             appointments = MockData.appointments(for: dateStr)
         }
