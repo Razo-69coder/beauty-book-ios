@@ -16,7 +16,8 @@ struct ClientDetailView: View {
     @State private var isLoading = false
 
     var body: some View {
-        Color.clear
+        theme.backgroundDeep
+            .ignoresSafeArea()
             .overlay {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
