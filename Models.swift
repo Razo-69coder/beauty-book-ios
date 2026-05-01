@@ -229,6 +229,10 @@ struct SlotsResponse: Decodable {
     let slots: [String]
 }
 
+struct BlockedDaysResponse: Decodable {
+    let blockedDays: [String]
+}
+
 // MARK: - Services
 
 struct Service: Decodable, Identifiable, Hashable {

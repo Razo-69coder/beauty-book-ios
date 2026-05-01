@@ -64,6 +64,10 @@ enum Endpoint {
 
     case getBookingLink
     case updateBookingLink(String)
+    // Blocked days
+    case getBlockedDays
+    case addBlockedDay(String)
+    case removeBlockedDay(String)
 }
 
 extension Endpoint {
@@ -94,6 +98,9 @@ extension Endpoint {
         case .deleteService(let id):    return "/services/\(id)"
         case .getBookingLink:           return "/masters/me/booking-link"
         case .updateBookingLink:        return "/masters/booking-link"
+        case .getBlockedDays:            return "/schedule/blocked-days"
+        case .addBlockedDay:             return "/schedule/blocked-days"
+        case .removeBlockedDay(let date): return "/schedule/blocked-days/\(date)"
         }
     }
 
@@ -106,6 +113,8 @@ extension Endpoint {
             return "PUT"
         case .deleteClient, .cancelAppointment, .deleteService:
             return "DELETE"
+        case .addBlockedDay:   return "POST"
+        case .removeBlockedDay: return "DELETE"
         default:
             return "GET"
         }
@@ -149,6 +158,7 @@ extension Endpoint {
         case .createAppointment(let r):   return try? encoder.encode(r)
         case .createService(let r):       return try? encoder.encode(r)
         case .updateBookingLink(let link): return try? encoder.encode(["link": link])
+        case .addBlockedDay(let date): return try? encoder.encode(["date": date])
         default: return nil
         }
     }

@@ -211,9 +211,10 @@ struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.theme) private var theme
-    @State private var showLogoutAlert = false
+        @State private var showLogoutAlert = false
+        @State private var showBlockedDays = false
 
-    var body: some View {
+        var body: some View {
         Color.clear
             .overlay {
                 ScrollView(showsIndicators: false) {
@@ -240,6 +241,11 @@ struct SettingsView: View {
                 }
             } message: {
                 Text("Вы уверены?")
+            }
+            .sheet(isPresented: $showBlockedDays) {
+                BlockedDaysView()
+                    .environmentObject(ThemeManager.shared)
+                    .environment(\.theme, theme)
             }
     }
 
@@ -675,7 +681,26 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .padding(16)
+
+                Divider().background(theme.borderSubtle)
+
+                Button(action: { showBlockedDays = true }) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Нерабочие дни")
+                                .font(DS.body)
+                                .foregroundColor(theme.textPrimary)
+                            Text("Даты, когда клиенты не могут записаться")
+                                .font(DS.bodySmall)
+                                .foregroundColor(theme.textMuted)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12))
+                            .foregroundColor(theme.textMuted)
+                    }
+                    .padding(16)
+                }
             }
             .environment(\.theme, theme)
 
