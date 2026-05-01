@@ -133,8 +133,8 @@ final class SettingsViewModel: ObservableObject {
             bookingLinkInput = r.bookingLink
             bookingLinkSuccess = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.bookingLinkSuccess = false }
-        } catch let e as NetworkError {
-            bookingLinkError = e.errorDescription
+        } catch NetworkError.serverError(_, let msg) {
+            bookingLinkError = msg
         } catch {
             bookingLinkError = "Ошибка сохранения"
         }
