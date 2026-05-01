@@ -231,10 +231,8 @@ struct OnboardingView: View {
                     isLoading: vm.isSaving
                 ) {
                     Task {
-                        let ok = await vm.finish()
-                        if ok {
-                            onFinish()
-                        }
+                        await vm.finish()
+                        onFinish()
                     }
                 }
                 .environment(\.theme, theme)
@@ -319,42 +317,36 @@ final class OnboardingViewModel: ObservableObject {
 
     private let api = APIClient.shared
 
-    func finish() async -> Bool {
+    func finish() async {
         isSaving = true
-        do {
-            // 1. Save name + schedule
-            let settings = MasterSettingsRequest(
-                name: masterName,
-                workStart: workStart,
-                workEnd: workEnd,
-                slotDuration: slotDuration,
-                reminderDays: 1,
-                timezone: "Europe/Moscow"
+        // 1. Save name + schedule
+        let settings = MasterSettingsRequest(
+            name: masterName,
+            workStart: workStart,
+            workEnd: workEnd,
+            slotDuration: slotDuration,
+            reminderDays: 1,
+            timezone: "Europe/Moscow"
+        )
+        _ = try? await api.request(.updateSettings(settings), as: MasterProfile.self)
+
+        // 2. Save first service if filled
+        if !serviceName.isEmpty {
+            let price = Int(servicePrice) ?? 0
+            let req = ServiceCreateRequest(
+                name: serviceName,
+                priceDefault: price,
+                durationMin: slotDuration,
+                category: "Основные"
             )
-            _ = try await api.request(.updateSettings(settings), as: MasterProfile.self)
-
-            // 2. Save first service if filled
-            if !serviceName.isEmpty {
-                let price = Int(servicePrice) ?? 0
-                let req = ServiceCreateRequest(
-                    name: serviceName,
-                    priceDefault: price,
-                    durationMin: slotDuration,
-                    category: "Основные"
-                )
-                _ = try await api.request(.createService(req), as: Service.self)
-            }
-
-            // 3. Save booking link if filled
-            if !bookingSlug.isEmpty {
-                _ = try await api.request(.updateBookingLink(bookingSlug), as: BookingLinkResponse.self)
-            }
-
-            isSaving = false
-            return true
-        } catch {
-            isSaving = false
-            return false
+            _ = try? await api.request(.createService(req), as: Service.self)
         }
+
+        // 3. Save booking link if filled
+        if !bookingSlug.isEmpty {
+            _ = try? await api.request(.updateBookingLink(bookingSlug), as: BookingLinkResponse.self)
+        }
+
+        isSaving = false
     }
 }
