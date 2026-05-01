@@ -2,9 +2,10 @@ import SwiftUI
 
 @main
 struct BeautyBookApp: App {
-    @StateObject private var appState     = AppState()
-    @StateObject private var themeManager = ThemeManager.shared
-    @State private var showSplash         = true
+    @StateObject private var appState         = AppState()
+    @StateObject private var themeManager    = ThemeManager.shared
+    @State private var showSplash           = true
+    @AppStorage("onboarding_completed") private var onboardingCompleted = false
 
     var body: some Scene {
         WindowGroup {
@@ -19,6 +20,19 @@ struct BeautyBookApp: App {
                         .environment(\.theme, themeManager.current)
                         .preferredColorScheme(.dark)
                         .transition(.opacity)
+                        .fullScreenCover(
+                            isPresented: Binding<Bool>(
+                                get: { appState.isAuthenticated && !onboardingCompleted },
+                                set: { _ in }
+                            )
+                        ) {
+                            OnboardingView(onFinish: {
+                                onboardingCompleted = true
+                            })
+                            .environmentObject(themeManager)
+                            .environment(\.theme, themeManager.current)
+                            .interactiveDismissDisabled()
+                        }
                 } else {
                     AuthView()
                         .environmentObject(appState)
