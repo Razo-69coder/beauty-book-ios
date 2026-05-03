@@ -33,6 +33,12 @@ struct BeautyBookApp: App {
                             .environment(\.theme, themeManager.current)
                             .interactiveDismissDisabled()
                         }
+                        .fullScreenCover(isPresented: $appState.subscriptionRequired) {
+                            SubscriptionView()
+                                .environmentObject(themeManager)
+                                .environment(\.theme, themeManager.current)
+                                .interactiveDismissDisabled()
+                        }
                 } else {
                     AuthView()
                         .environmentObject(appState)
@@ -102,23 +108,26 @@ struct SplashView: View {
     }
 }
 
-// MARK: - App State
-
 @MainActor
 final class AppState: ObservableObject {
     @Published var isAuthenticated: Bool = KeychainManager.shared.isAuthenticated
     @Published var currentMaster: MasterProfile? = nil
+    @Published var subscriptionRequired: Bool = false
 
     init() {
         NotificationCenter.default.addObserver(
             forName: .tokenExpired, object: nil, queue: .main
         ) { [weak self] _ in self?.logout() }
+        NotificationCenter.default.addObserver(
+            forName: .subscriptionRequired, object: nil, queue: .main
+        ) { [weak self] _ in self?.requireSubscription() }
     }
 
     func login(master: MasterProfile, token: String) {
         KeychainManager.shared.saveToken(token)
         KeychainManager.shared.saveMasterId(master.id)
         currentMaster = master
+        subscriptionRequired = false
         withAnimation(DS.springSmooth) { isAuthenticated = true }
     }
 
@@ -127,8 +136,13 @@ final class AppState: ObservableObject {
         currentMaster = nil
         withAnimation(DS.springSmooth) { isAuthenticated = false }
     }
+
+    func requireSubscription() {
+        withAnimation(DS.springSmooth) { subscriptionRequired = true }
+    }
 }
 
 extension Notification.Name {
     static let tokenExpired = Notification.Name("tokenExpired")
+    static let subscriptionRequired = Notification.Name("subscriptionRequired")
 }

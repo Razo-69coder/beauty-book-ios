@@ -68,6 +68,8 @@ enum Endpoint {
     case getBlockedDays
     case addBlockedDay(String)
     case removeBlockedDay(String)
+    // Subscription
+    case subscriptionNotify
 }
 
 extension Endpoint {
@@ -101,6 +103,7 @@ extension Endpoint {
         case .getBlockedDays:            return "/schedule/blocked-days"
         case .addBlockedDay:             return "/schedule/blocked-days"
         case .removeBlockedDay(let date): return "/schedule/blocked-days/\(date)"
+        case .subscriptionNotify:        return "/subscription/notify"
         }
     }
 
@@ -196,6 +199,15 @@ final class APIClient: ObservableObject {
         case 401:
             NotificationCenter.default.post(name: .tokenExpired, object: nil)
             throw NetworkError.unauthorized
+        case 403:
+            let body = try? JSONDecoder().decode([String: String].self, from: data)
+            if body?["detail"] == "subscription_required" {
+                await MainActor.run {
+                    NotificationCenter.default.post(name: .subscriptionRequired, object: nil)
+                }
+            }
+            let msg = body?["detail"] ?? "Доступ запрещён"
+            throw NetworkError.serverError(http.statusCode, msg)
         default:
             let msg = (try? decoder.decode(APIErrorResponse.self, from: data))?.detail ?? "Ошибка сервера"
             throw NetworkError.serverError(http.statusCode, msg)
