@@ -56,8 +56,8 @@ struct SubscriptionView: View {
                             .font(DS.body)
                             .foregroundColor(theme.textSecondary)
                         VStack(spacing: 0) {
-                            rekvRow(label: "СБП номер", value: "+7 (999) 000-00-00") // [ЗАМЕНИТЬ на реальный номер]
-                            rekvRow(label: "Банк", value: "Сбербанк / Тинькофф")
+                            rekvRow(label: "СБП номер", value: "+7 (903) 328-95-83")
+                            rekvRow(label: "Банк", value: "Сбербанк")
                             rekvRow(label: "Получатель", value: "Арсений К.")
                             rekvRow(label: "Сумма", value: "990 ₽ / месяц")
                         }
