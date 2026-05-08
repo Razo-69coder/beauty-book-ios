@@ -27,9 +27,9 @@ final class StatsViewModel: ObservableObject {
         if let s = try? await api.request(.stats, as: StatsResponse.self) {
             stats = s
         } else {
-            stats = MockData.stats
+            stats = StatsResponse(totalClients: 0, totalAppointments: 0, totalEarnings: 0, monthEarnings: 0, topProcedures: [])
         }
-        earningsByDay = MockData.earningsByDay
+        earningsByDay = []
         expenses = (try? await api.fetchExpenses()) ?? []
         isLoading = false
     }

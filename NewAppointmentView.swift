@@ -51,7 +51,7 @@ final class NewAppointmentViewModel: ObservableObject {
         if let resp = try? await api.request(.clients(page: 0, search: ""), as: ClientsResponse.self) {
             clients = resp.clients
         } else {
-            clients = MockData.clients
+            clients = []
         }
     }
 
@@ -59,7 +59,7 @@ final class NewAppointmentViewModel: ObservableObject {
         if let resp = try? await api.request(.services, as: ServicesResponse.self) {
             services = resp.services
         } else {
-            services = MockData.services
+            services = []
         }
         if let firstService = services.first {
             selectedService = firstService

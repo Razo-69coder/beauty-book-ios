@@ -75,7 +75,7 @@ final class ScheduleViewModel: ObservableObject {
         if let resp = try? await api.request(.schedule(date: dateStr), as: ScheduleResponse.self) {
             appointments = resp.appointments.filter { $0.status != .cancelled }.sorted { $0.time < $1.time }
         } else {
-            appointments = MockData.appointments(for: dateStr)
+            appointments = []
         }
         isLoading = false
     }

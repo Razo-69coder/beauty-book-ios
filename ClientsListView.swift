@@ -212,7 +212,7 @@ final class ClientsViewModel: ObservableObject {
         do {
             let resp = try await api.request(.clients(page: 0, search: ""), as: ClientsResponse.self)
             clients = resp.clients
-        } catch { clients = MockData.clients }
+        } catch { clients = [] }
         isLoading = false
     }
 

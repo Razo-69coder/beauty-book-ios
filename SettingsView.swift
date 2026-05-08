@@ -105,8 +105,12 @@ final class SettingsViewModel: ObservableObject {
             paymentPhone = m.paymentPhone ?? ""
             paymentBanks = m.paymentBanks ?? ""
         } else {
-            let m = MockData.master
-            masterName = m.name ?? "Мастер"
+            masterName = ""
+            email = ""
+            workStart = 10
+            workEnd = 20
+            slotDuration = 60
+            reminderDays = 40
             email = m.email ?? ""
             workStart = m.workStart
             workEnd = m.workEnd

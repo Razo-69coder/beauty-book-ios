@@ -38,9 +38,9 @@ struct ClientDetailView: View {
                 if let resp = try? await APIClient.shared.request(.clientDetail(id: client.id), as: ClientDetail.self) {
                     history = resp.history
                 } else {
-                    history = MockData.history(for: client.id)
+                    history = []
                 }
-                photos = MockData.mockPhotos
+                photos = []
                 uiPhotos = ClientPhotoStorage.load(clientId: client.id)
                 isLoading = false
     }
