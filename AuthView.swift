@@ -143,7 +143,11 @@ struct RegisterForm: View {
             }.padding(.bottom, 4)
 
             BBTextField(placeholder: "Имя мастера", text: $vm.regName).environment(\.theme, theme)
-            BBTextField(placeholder: "Номер телефона", text: $vm.regPhone, keyboardType: .phonePad).environment(\.theme, theme)
+            BBTextField(placeholder: "Номер телефона", text: $vm.regPhone, keyboardType: .phonePad)
+                .onChange(of: vm.regPhone) { newValue in
+                    vm.regPhone = formatRussianPhone(newValue)
+                }
+                .environment(\.theme, theme)
             BBTextField(placeholder: "Email", text: $vm.regEmail, keyboardType: .emailAddress).environment(\.theme, theme)
             BBTextField(placeholder: "Пароль (мин. 6 символов)", text: $vm.regPassword, isSecure: true).environment(\.theme, theme)
             BBTextField(
@@ -220,6 +224,25 @@ struct ForgotForm: View {
             }
         }
     }
+}
+
+func formatRussianPhone(_ input: String) -> String {
+    let digits = input.filter { $0.isNumber }
+    if digits.isEmpty { return "" }
+    var normalized = digits
+    if normalized.hasPrefix("8") { normalized = "7" + normalized.dropFirst() }
+    if normalized.hasPrefix("9") { normalized = "7" + normalized }
+    if !normalized.hasPrefix("7") { normalized = "7" + normalized }
+    let limited = String(normalized.prefix(11))
+    var result = "+"
+    for (i, c) in limited.enumerated() {
+        result.append(c)
+        if i == 0 { result.append(" ") }
+        else if i == 3 { result.append(" ") }
+        else if i == 6 { result.append("-") }
+        else if i == 8 { result.append("-") }
+    }
+    return result
 }
 
 #Preview {
