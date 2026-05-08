@@ -9,7 +9,7 @@ struct OnboardingView: View {
     @State private var currentStep = 0
     let onFinish: () -> Void
 
-    private let totalSteps = 11
+    private let totalSteps = 10
 
     var body: some View {
         ZStack {
@@ -96,9 +96,6 @@ struct OnboardingView: View {
     @ViewBuilder
     private func inputView(for step: Int) -> some View {
         switch step {
-        case 1:
-            BBTextField(placeholder: "Твоё имя", text: $vm.masterName)
-                .environment(\.theme, theme)
         case 7:
             VStack(spacing: 12) {
                 HStack(spacing: 12) {
@@ -242,7 +239,7 @@ struct OnboardingView: View {
 
     private var canProceed: Bool {
         switch currentStep {
-        case 1: return !vm.masterName.isEmpty
+
         case 8: return !vm.serviceName.isEmpty
         case 9: return !vm.bookingSlug.isEmpty
         default: return true
@@ -253,7 +250,7 @@ struct OnboardingView: View {
     private func iconName(for step: Int) -> String {
         switch step {
         case 0: return "sparkles"
-        case 1: return "person.fill"
+
         case 2: return "person.2.slash"
         case 3: return "message.badge.fill"
         case 4: return "bell.badge.fill"
@@ -270,7 +267,7 @@ struct OnboardingView: View {
     private func title(for step: Int) -> String {
         switch step {
         case 0: return "Добро пожаловать в Solva Beauty"
-        case 1: return "Как тебя зовут?"
+
         case 2: return "Клиенты уходят и не возвращаются"
         case 3: return "Хватит принимать записи в мессенджерах"
         case 4: return "Клиент забыл — ты потеряла час"
@@ -287,7 +284,7 @@ struct OnboardingView: View {
     private func subtitle(for step: Int) -> String {
         switch step {
         case 0: return "Твой личный администратор, который никогда не спит и ничего не забывает"
-        case 1: return "Будем обращаться к тебе по имени"
+
         case 2: return "Не потому что ушли навсегда — просто никто не напомнил. Solva Beauty автоматически пишет клиентам когда они давно не приходили"
         case 3: return "«А когда есть время?» — и так 20 раз в день. Отправь клиенту ссылку — он сам выберет удобное время"
         case 4: return "Solva Beauty отправляет напоминание за 2 часа до записи. Клиенты приходят вовремя"

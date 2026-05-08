@@ -229,18 +229,15 @@ struct ForgotForm: View {
 func formatRussianPhone(_ input: String) -> String {
     let digits = input.filter { $0.isNumber }
     if digits.isEmpty { return "" }
-    var normalized = digits
-    if normalized.hasPrefix("8") { normalized = "7" + normalized.dropFirst() }
-    if normalized.hasPrefix("9") { normalized = "7" + normalized }
-    if !normalized.hasPrefix("7") { normalized = "7" + normalized }
-    let limited = String(normalized.prefix(11))
+    var d = digits
+    if d.hasPrefix("8") && d.count > 1 { d = "7" + d.dropFirst() }
+    if d.hasPrefix("9") { d = "7" + d }
+    if !d.hasPrefix("7") { d = "7" + d }
+    let limited = String(d.prefix(11))
     var result = "+"
     for (i, c) in limited.enumerated() {
+        if i == 1 || i == 4 || i == 7 || i == 9 { result.append(" ") }
         result.append(c)
-        if i == 0 { result.append(" ") }
-        else if i == 3 { result.append(" ") }
-        else if i == 6 { result.append("-") }
-        else if i == 8 { result.append("-") }
     }
     return result
 }

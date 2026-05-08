@@ -33,12 +33,12 @@ struct BeautyBookApp: App {
                             .environment(\.theme, themeManager.current)
                             .interactiveDismissDisabled()
                         }
-                        .fullScreenCover(isPresented: $appState.subscriptionRequired) {
-                            SubscriptionView()
-                                .environmentObject(themeManager)
-                                .environment(\.theme, themeManager.current)
-                                .interactiveDismissDisabled()
-                        }
+//                        .fullScreenCover(isPresented: $appState.subscriptionRequired) {
+//                            SubscriptionView()
+//                                .environmentObject(themeManager)
+//                                .environment(\.theme, themeManager.current)
+//                                .interactiveDismissDisabled()
+//                        }
                 } else {
                     AuthView()
                         .environmentObject(appState)
@@ -141,7 +141,8 @@ final class AppState: ObservableObject {
     }
 
     func requireSubscription() {
-        withAnimation(DS.springSmooth) { subscriptionRequired = true }
+        // BETA: disabled
+        // withAnimation(DS.springSmooth) { subscriptionRequired = true }
     }
 
     func activateSubscription() {
