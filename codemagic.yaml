@@ -47,7 +47,7 @@ workflows:
             --type ios \
             --file "$IPA" \
             --apiKey "VK5U33NHSR" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+            --apiIssuer "28f09b58-6de2-42ee-9c2c-116ba4d3f74b"
 
     artifacts:
       - ./build/ipa/*.ipa
