@@ -1,8 +1,11 @@
 workflows:
-  ios-workflow:
-    name: Beauty Book iOS
+  ios-testflight:
+    name: Solva Beauty - TestFlight
     environment:
       xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.beautybook.app
     scripts:
       - name: Install XcodeGen
         script: |
@@ -12,24 +15,36 @@ workflows:
         script: |
           xcodegen generate
 
-      - name: Build for device
+      - name: Set version
+        script: |
+          agvtool new-marketing-version 1.0.0
+          agvtool new-version -all 1
+
+      - name: Build for App Store
         script: |
           xcodebuild \
             -project BeautyBook.xcodeproj \
             -scheme BeautyBook \
-            -configuration Debug \
+            -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            -derivedDataPath ./build \
-            build
+            -archivePath ./build/BeautyBook.xcarchive \
+            archive
 
-      - name: Package IPA
+      - name: Export IPA
         script: |
-          mkdir -p ./build/Payload
-          cp -r "./build/Build/Products/Debug-iphoneos/BeautyBook.app" ./build/Payload/
-          cd ./build && zip -r BeautyBook.ipa Payload
+          xcodebuild \
+            -exportArchive \
+            -archivePath ./build/BeautyBook.xcarchive \
+            -exportOptionsPlist /Users/builder/export_options.plist \
+            -exportPath ./build/ipa
 
     artifacts:
-      - ./build/BeautyBook.ipa
+      - ./build/ipa/*.ipa
+
+    publishing:
+      app_store_connect:
+        api_key: Razo69 Key
+        submit_to_testflight: true
+        beta_groups:
+          - Beta Testers
