@@ -40,12 +40,21 @@ workflows:
 
       - name: Upload to TestFlight
         script: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          cat > ~/.appstoreconnect/private_keys/AuthKey_VK5U33NHSR.p8 << 'EOF'
+          -----BEGIN PRIVATE KEY-----
+          MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgW8zYlXrfCZ/1ye0q
+          W86GQ1BHauBHlPHqJpjL4rp5MyygCgYIKoZIzj0DAQehRANCAARZOo77/MgHClUV
+          Znm0Mmgbxiu/G6oIg0Kcj+oz4EF52kiFmtjYgmecETadx3kAJ6UdDIGGLcrv3akv
+          jSDNqYZd
+          -----END PRIVATE KEY-----
+          EOF
           IPA=$(find ./build/ipa -name "*.ipa" | head -1)
           xcrun altool --upload-app \
             --type ios \
             --file "$IPA" \
-            --username "$APPLE_ID" \
-            --password "$APP_SPECIFIC_PASSWORD"
+            --apiKey "VK5U33NHSR" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
 
     artifacts:
       - ./build/ipa/*.ipa
