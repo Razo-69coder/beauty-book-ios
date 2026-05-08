@@ -107,18 +107,14 @@ final class SettingsViewModel: ObservableObject {
         } else {
             masterName = ""
             email = ""
+            phone = ""
             workStart = 10
             workEnd = 20
             slotDuration = 60
             reminderDays = 40
-            email = m.email ?? ""
-            workStart = m.workStart
-            workEnd = m.workEnd
-            slotDuration = m.slotDuration
-            reminderDays = m.reminderDays
-            paymentCard = m.paymentCard ?? ""
-            paymentPhone = m.paymentPhone ?? ""
-            paymentBanks = m.paymentBanks ?? ""
+            paymentCard = ""
+            paymentPhone = ""
+            paymentBanks = ""
         }
         if let r = try? await api.request(.getBookingLink, as: BookingLinkResponse.self) {
             bookingLinkSlug = r.bookingLink
