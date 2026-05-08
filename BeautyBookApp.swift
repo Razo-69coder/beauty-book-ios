@@ -121,6 +121,9 @@ final class AppState: ObservableObject {
         NotificationCenter.default.addObserver(
             forName: .subscriptionRequired, object: nil, queue: .main
         ) { [weak self] _ in self?.requireSubscription() }
+        NotificationCenter.default.addObserver(
+            forName: .subscriptionActivated, object: nil, queue: .main
+        ) { [weak self] _ in self?.activateSubscription() }
     }
 
     func login(master: MasterProfile, token: String) {
@@ -140,9 +143,14 @@ final class AppState: ObservableObject {
     func requireSubscription() {
         withAnimation(DS.springSmooth) { subscriptionRequired = true }
     }
+
+    func activateSubscription() {
+        withAnimation(DS.springSmooth) { subscriptionRequired = false }
+    }
 }
 
 extension Notification.Name {
     static let tokenExpired = Notification.Name("tokenExpired")
     static let subscriptionRequired = Notification.Name("subscriptionRequired")
+    static let subscriptionActivated = Notification.Name("subscriptionActivated")
 }

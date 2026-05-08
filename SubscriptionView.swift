@@ -31,7 +31,7 @@ final class SubscriptionViewModel: ObservableObject {
             struct StatusResp: Decodable { let isActive: Bool }
             let resp = try await APIClient.shared.request(.subscriptionStatus, as: StatusResp.self)
             if resp.isActive {
-                NotificationCenter.default.post(name: .subscriptionRequired, object: nil)
+                NotificationCenter.default.post(name: .subscriptionActivated, object: nil)
             } else {
                 notYetMessage = true
             }
