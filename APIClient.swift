@@ -116,7 +116,7 @@ extension Endpoint {
             return "PUT"
         case .deleteClient, .cancelAppointment, .deleteService:
             return "DELETE"
-        case .addBlockedDay:   return "POST"
+        case .addBlockedDay, .subscriptionNotify:   return "POST"
         case .removeBlockedDay: return "DELETE"
         default:
             return "GET"
