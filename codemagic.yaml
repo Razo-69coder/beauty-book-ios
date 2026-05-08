@@ -35,7 +35,7 @@ workflows:
           xcodebuild \
             -exportArchive \
             -archivePath ./build/BeautyBook.xcarchive \
-            -exportOptionsPlist /Users/builder/export_options.plist \
+            -exportOptionsPlist ./export_options.plist \
             -exportPath ./build/ipa
 
     artifacts:
