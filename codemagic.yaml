@@ -24,7 +24,9 @@ workflows:
           sips -z 120 120 "$LOGO" --out "$OUT/icon_40@3x.png"
           sips -z 120 120 "$LOGO" --out "$OUT/icon_60@2x.png"
           sips -z 180 180 "$LOGO" --out "$OUT/icon_60@3x.png"
-          sips -z 1024 1024 "$LOGO" --out "$OUT/icon_1024.png"
+          # 1024x1024 must NOT have alpha channel — flatten via JPEG
+          sips -z 1024 1024 "$LOGO" --out /tmp/icon_1024.jpg --setProperty format jpeg
+          sips /tmp/icon_1024.jpg --out "$OUT/icon_1024.png" --setProperty format png
 
       - name: Generate project
         script: |
