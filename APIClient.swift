@@ -70,6 +70,7 @@ enum Endpoint {
     case removeBlockedDay(String)
     // Subscription
     case subscriptionNotify
+    case subscriptionStatus
 }
 
 extension Endpoint {
@@ -104,6 +105,7 @@ extension Endpoint {
         case .addBlockedDay:             return "/schedule/blocked-days"
         case .removeBlockedDay(let date): return "/schedule/blocked-days/\(date)"
         case .subscriptionNotify:        return "/subscription/notify"
+        case .subscriptionStatus:       return "/subscription/status"
         }
     }
 

@@ -9,6 +9,8 @@ final class SubscriptionViewModel: ObservableObject {
     @Published var isSending = false
     @Published var sent = false
     @Published var errorMessage: String? = nil
+    @Published var checking = false
+    @Published var notYetMessage = false
 
     func notifyPaid() async {
         isSending = true
@@ -20,6 +22,21 @@ final class SubscriptionViewModel: ObservableObject {
             errorMessage = error.localizedDescription
         }
         isSending = false
+    }
+
+    func checkStatus() async {
+        checking = true
+        notYetMessage = false
+        do {
+            struct StatusResp: Decodable { let isActive: Bool }
+            let resp = try await APIClient.shared.request(.subscriptionStatus, as: StatusResp.self)
+            if resp.isActive {
+                NotificationCenter.default.post(name: .subscriptionRequired, object: nil)
+            } else {
+                notYetMessage = true
+            }
+        } catch { }
+        checking = false
     }
 }
 
@@ -70,10 +87,26 @@ struct SubscriptionView: View {
                     VStack(spacing: 12) {
                         if vm.sent {
                             Text("✅ Уведомление отправлено!\nМы активируем доступ в течение нескольких часов.")
-                                .font(DS.body)
-                                .foregroundColor(theme.accent)
-                                .multilineTextAlignment(.center)
-                                .padding()
+                                    .font(DS.body)
+                                    .foregroundColor(theme.accent)
+                                    .multilineTextAlignment(.center)
+                                    .padding()
+
+                            Button(action: { Task { await vm.checkStatus() } }) {
+                                Text("Проверить статус")
+                                    .font(DS.body)
+                                    .foregroundColor(theme.textSecondary)
+                                    .padding(.top, 8)
+                            }
+                            .disabled(vm.checking)
+
+                            if vm.notYetMessage {
+                                Text("Вы ещё не активированы. Ожидайте.")
+                                    .font(DS.body)
+                                    .foregroundColor(.red)
+                                    .multilineTextAlignment(.center)
+                                    .padding()
+                            }
                         } else {
                             Button(action: { Task { await vm.notifyPaid() } }) {
                                 HStack {
