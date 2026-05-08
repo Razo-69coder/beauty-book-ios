@@ -38,13 +38,18 @@ workflows:
             -exportOptionsPlist ./export_options.plist \
             -exportPath ./build/ipa
 
+      - name: Upload to TestFlight
+        script: |
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/auth_key.p8
+          xcrun altool --upload-app \
+            --type ios \
+            --file $(find ./build/ipa -name "*.ipa" | head -1) \
+            --apiKey "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+            --private-key /tmp/auth_key.p8
+
     artifacts:
       - ./build/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
 
-    publishing:
-      app_store_connect:
-        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-        submit_to_testflight: true
+
