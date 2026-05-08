@@ -143,6 +143,7 @@ struct RegisterForm: View {
             }.padding(.bottom, 4)
 
             BBTextField(placeholder: "Имя мастера", text: $vm.regName).environment(\.theme, theme)
+            BBTextField(placeholder: "Номер телефона", text: $vm.regPhone, keyboardType: .phonePad).environment(\.theme, theme)
             BBTextField(placeholder: "Email", text: $vm.regEmail, keyboardType: .emailAddress).environment(\.theme, theme)
             BBTextField(placeholder: "Пароль (мин. 6 символов)", text: $vm.regPassword, isSecure: true).environment(\.theme, theme)
             BBTextField(

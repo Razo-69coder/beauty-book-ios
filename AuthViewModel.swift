@@ -12,6 +12,7 @@ final class AuthViewModel: ObservableObject {
     @Published var regEmail             = ""
     @Published var regPassword          = ""
     @Published var regConfirm           = ""
+    @Published var regPhone             = ""
     @Published var forgotEmail          = ""
     @Published var forgotSent           = false
     @Published var isLoading            = false
@@ -22,7 +23,7 @@ final class AuthViewModel: ObservableObject {
     private let api = APIClient.shared
 
     var loginValid: Bool    { loginEmail.contains("@") && loginPassword.count >= 6 && !isLoading }
-    var registerValid: Bool { !regName.isEmpty && regEmail.contains("@") && regPassword.count >= 6 && regPassword == regConfirm && !isLoading }
+    var registerValid: Bool { !regName.isEmpty && regEmail.contains("@") && regPassword.count >= 6 && regPassword == regConfirm && regPhone.count >= 10 && !isLoading }
     var passwordsMismatch: Bool { !regConfirm.isEmpty && regPassword != regConfirm }
 
     func login() async {
@@ -40,7 +41,8 @@ final class AuthViewModel: ObservableObject {
         guard registerValid else { return }
         isLoading = true; errorMessage = nil
         do {
-            let resp = try await api.request(.register(RegisterRequest(email: regEmail, password: regPassword, name: regName)), as: AuthTokenResponse.self)
+            let resp = try await api.request(.register(RegisterRequest(email: regEmail, password: regPassword, name: regName, phone: regPhone)), as: AuthTokenResponse.self)
+            UserDefaults.standard.set(false, forKey: "onboarding_completed")
             onSuccess?(resp.master, resp.token)
         } catch let e as NetworkError { errorMessage = e.errorDescription
         } catch { errorMessage = "Ошибка регистрации. Попробуй позже." }
