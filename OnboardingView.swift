@@ -96,7 +96,7 @@ struct OnboardingView: View {
     @ViewBuilder
     private func inputView(for step: Int) -> some View {
         switch step {
-        case 7:
+        case 6:
             VStack(spacing: 12) {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
@@ -145,7 +145,7 @@ struct OnboardingView: View {
             .padding(16)
             .background(theme.backgroundInput)
             .cornerRadius(DS.r12)
-        case 8:
+        case 7:
             VStack(spacing: 12) {
                 BBTextField(placeholder: "Название услуги", text: $vm.serviceName)
                     .environment(\.theme, theme)
@@ -153,7 +153,7 @@ struct OnboardingView: View {
                     .keyboardType(.numberPad)
                     .environment(\.theme, theme)
             }
-        case 9:
+        case 8:
             VStack(spacing: 8) {
                 HStack {
                     Text("beautybook.app/")
@@ -184,15 +184,15 @@ struct OnboardingView: View {
     @ViewBuilder
     private func badgeView(for step: Int) -> some View {
         switch step {
-        case 2:
+        case 1:
             badge(text: "✦ Автонапоминания клиентам")
-        case 3:
+        case 2:
             badge(text: "✦ Онлайн-запись 24/7")
-        case 4:
+        case 3:
             badge(text: "✦ Напоминания за 2 часа")
-        case 5:
+        case 4:
             badge(text: "✦ Нерабочие дни")
-        case 6:
+        case 5:
             badge(text: "✦ Аналитика и статистика")
         default:
             EmptyView()
@@ -240,8 +240,8 @@ struct OnboardingView: View {
     private var canProceed: Bool {
         switch currentStep {
 
-        case 8: return !vm.serviceName.isEmpty
-        case 9: return !vm.bookingSlug.isEmpty
+        case 7: return !vm.serviceName.isEmpty
+        case 8: return !vm.bookingSlug.isEmpty
         default: return true
         }
     }
@@ -250,16 +250,15 @@ struct OnboardingView: View {
     private func iconName(for step: Int) -> String {
         switch step {
         case 0: return "sparkles"
-
-        case 2: return "person.2.slash"
-        case 3: return "message.badge.fill"
-        case 4: return "bell.badge.fill"
-        case 5: return "calendar.badge.checkmark"
-        case 6: return "chart.bar.fill"
-        case 7: return "clock.fill"
-        case 8: return "scissors"
-        case 9: return "link"
-        case 10: return "checkmark.seal.fill"
+        case 1: return "person.2.slash"
+        case 2: return "message.badge.fill"
+        case 3: return "bell.badge.fill"
+        case 4: return "calendar.badge.checkmark"
+        case 5: return "chart.bar.fill"
+        case 6: return "clock.fill"
+        case 7: return "scissors"
+        case 8: return "link"
+        case 9: return "checkmark.seal.fill"
         default: return "sparkles"
         }
     }
@@ -267,16 +266,15 @@ struct OnboardingView: View {
     private func title(for step: Int) -> String {
         switch step {
         case 0: return "Добро пожаловать в Solva Beauty"
-
-        case 2: return "Клиенты уходят и не возвращаются"
-        case 3: return "Хватит принимать записи в мессенджерах"
-        case 4: return "Клиент забыл — ты потеряла час"
-        case 5: return "Ты сама решаешь когда работаешь"
-        case 6: return "Деньги есть, а сколько — непонятно"
-        case 7: return "Когда ты работаешь?"
-        case 8: return "Добавь первую услугу"
-        case 9: return "Ссылка для твоих клиентов"
-        case 10: return "Solva Beauty готов к работе!"
+        case 1: return "Клиенты уходят и не возвращаются"
+        case 2: return "Хватит принимать записи в мессенджерах"
+        case 3: return "Клиент забыл — ты потеряла час"
+        case 4: return "Ты сама решаешь когда работаешь"
+        case 5: return "Деньги есть, а сколько — непонятно"
+        case 6: return "Когда ты работаешь?"
+        case 7: return "Добавь первую услугу"
+        case 8: return "Ссылка для твоих клиентов"
+        case 9: return "Solva Beauty готов к работе!"
         default: return ""
         }
     }
@@ -284,16 +282,15 @@ struct OnboardingView: View {
     private func subtitle(for step: Int) -> String {
         switch step {
         case 0: return "Твой личный администратор, который никогда не спит и ничего не забывает"
-
-        case 2: return "Не потому что ушли навсегда — просто никто не напомнил. Solva Beauty автоматически пишет клиентам когда они давно не приходили"
-        case 3: return "«А когда есть время?» — и так 20 раз в день. Отправь клиенту ссылку — он сам выберет удобное время"
-        case 4: return "Solva Beauty отправляет напоминание за 2 часа до записи. Клиенты приходят вовремя"
-        case 5: return "Отпуск, выходной, праздник — поставь нерабочие дни и клиенты не смогут записаться на эти даты"
-        case 6: return "Вся статистика в одном месте: выручка за месяц, топ услуги, средний чек. Понимай свой бизнес"
-        case 7: return "Можно изменить в любой момент в Настройках"
-        case 8: return "Клиенты будут выбирать её при онлайн-записи"
-        case 9: return "Отправь эту ссылку — клиент сам запишется без звонков"
-        case 10: return "Твой профиль настроен. Добавляй клиентов, принимай записи и зарабатывай больше"
+        case 1: return "Не потому что ушли навсегда — просто никто не напомнил. Solva Beauty автоматически пишет клиентам когда они давно не приходили"
+        case 2: return "«А когда есть время?» — и так 20 раз в день. Отправь клиенту ссылку — он сам выберет удобное время"
+        case 3: return "Solva Beauty отправляет напоминание за 2 часа до записи. Клиенты приходят вовремя"
+        case 4: return "Отпуск, выходной, праздник — поставь нерабочие дни и клиенты не смогут записаться на эти даты"
+        case 5: return "Вся статистика в одном месте: выручка за месяц, топ услуги, средний чек. Понимай свой бизнес"
+        case 6: return "Можно изменить в любой момент в Настройках"
+        case 7: return "Клиенты будут выбирать её при онлайн-записи"
+        case 8: return "Отправь эту ссылку — клиент сам запишется без звонков"
+        case 9: return "Твой профиль настроен. Добавляй клиентов, принимай записи и зарабатывай больше"
         default: return ""
         }
     }
@@ -317,8 +314,9 @@ final class OnboardingViewModel: ObservableObject {
     func finish() async {
         isSaving = true
         // 1. Save name + schedule
+        let currentProfile = try? await api.request(.me, as: MasterProfile.self)
         let settings = MasterSettingsRequest(
-            name: masterName,
+            name: currentProfile?.name ?? masterName,
             workStart: workStart,
             workEnd: workEnd,
             slotDuration: slotDuration,
