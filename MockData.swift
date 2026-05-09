@@ -21,7 +21,8 @@ enum MockData {
         paymentBanks: "Сбер, Тинькофф",
         depositEnabled: true,
         depositPercent: 30,
-        theme: "pink"
+        theme: "pink",
+        specialization: nil
     )
 
     // MARK: - Services
