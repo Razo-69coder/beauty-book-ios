@@ -47,6 +47,7 @@ struct MasterProfile: Decodable, Identifiable {
     let depositEnabled: Bool
     let depositPercent: Int
     let theme: String
+    let specialization: String?
 }
 
 struct MasterSettingsRequest: Encodable {
@@ -56,6 +57,7 @@ struct MasterSettingsRequest: Encodable {
     var slotDuration: Int
     var reminderDays: Int
     var timezone: String
+    var specialization: String = ""
 }
 
 struct ProfileUpdateRequest: Encodable {

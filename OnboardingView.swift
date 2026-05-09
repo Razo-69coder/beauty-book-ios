@@ -9,7 +9,7 @@ struct OnboardingView: View {
     @State private var currentStep = 0
     let onFinish: () -> Void
 
-    private let totalSteps = 10
+    private let totalSteps = 11
 
     var body: some View {
         ZStack {
@@ -96,7 +96,43 @@ struct OnboardingView: View {
     @ViewBuilder
     private func inputView(for step: Int) -> some View {
         switch step {
-        case 6:
+        case 2:
+            let specs = [
+                ("Маникюр / педикюр", "paintbrush.fill"),
+                ("Брови / ресницы", "eye.fill"),
+                ("Волосы / стрижки", "scissors"),
+                ("Визаж / макияж", "sparkles"),
+                ("Массаж / уход за телом", "heart.fill"),
+                ("Косметология", "cross.fill"),
+                ("Татуаж", "pencil.tip"),
+                ("Депиляция / шугаринг", "flame.fill"),
+            ]
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                ForEach(specs, id: \.0) { name, icon in
+                    Button {
+                        vm.specialization = name
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: icon)
+                                .font(.system(size: 14))
+                            Text(name)
+                                .font(DS.bodySmall)
+                                .multilineTextAlignment(.leading)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(vm.specialization == name ? theme.accent.opacity(0.18) : theme.backgroundInput)
+                        .cornerRadius(DS.r12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DS.r12)
+                                .stroke(vm.specialization == name ? theme.accent : Color.clear, lineWidth: 1.5)
+                        )
+                        .foregroundColor(vm.specialization == name ? theme.accent : theme.textPrimary)
+                    }
+                }
+            }
+        case 7:
             VStack(spacing: 12) {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
@@ -145,7 +181,7 @@ struct OnboardingView: View {
             .padding(16)
             .background(theme.backgroundInput)
             .cornerRadius(DS.r12)
-        case 7:
+        case 8:
             VStack(spacing: 12) {
                 BBTextField(placeholder: "Название услуги", text: $vm.serviceName)
                     .environment(\.theme, theme)
@@ -153,7 +189,7 @@ struct OnboardingView: View {
                     .keyboardType(.numberPad)
                     .environment(\.theme, theme)
             }
-        case 8:
+        case 9:
             VStack(spacing: 8) {
                 HStack {
                     Text("beautybook.app/")
@@ -184,15 +220,15 @@ struct OnboardingView: View {
     @ViewBuilder
     private func badgeView(for step: Int) -> some View {
         switch step {
-        case 1:
-            badge(text: "✦ Автонапоминания клиентам")
         case 2:
-            badge(text: "✦ Онлайн-запись 24/7")
+            badge(text: "✦ Автонапоминания клиентам")
         case 3:
-            badge(text: "✦ Напоминания за 2 часа")
+            badge(text: "✦ Онлайн-запись 24/7")
         case 4:
-            badge(text: "✦ Нерабочие дни")
+            badge(text: "✦ Напоминания за 2 часа")
         case 5:
+            badge(text: "✦ Нерабочие дни")
+        case 6:
             badge(text: "✦ Аналитика и статистика")
         default:
             EmptyView()
@@ -240,8 +276,8 @@ struct OnboardingView: View {
     private var canProceed: Bool {
         switch currentStep {
 
-        case 7: return !vm.serviceName.isEmpty
-        case 8: return !vm.bookingSlug.isEmpty
+        case 8: return !vm.serviceName.isEmpty
+        case 9: return !vm.bookingSlug.isEmpty
         default: return true
         }
     }
@@ -250,15 +286,16 @@ struct OnboardingView: View {
     private func iconName(for step: Int) -> String {
         switch step {
         case 0: return "sparkles"
-        case 1: return "person.2.slash"
-        case 2: return "message.badge.fill"
-        case 3: return "bell.badge.fill"
-        case 4: return "calendar.badge.checkmark"
-        case 5: return "chart.bar.fill"
-        case 6: return "clock.fill"
-        case 7: return "scissors"
-        case 8: return "link"
-        case 9: return "checkmark.seal.fill"
+        case 1: return "wand.and.stars"
+        case 2: return "person.2.slash"
+        case 3: return "message.badge.fill"
+        case 4: return "bell.badge.fill"
+        case 5: return "calendar.badge.checkmark"
+        case 6: return "chart.bar.fill"
+        case 7: return "clock.fill"
+        case 8: return "scissors"
+        case 9: return "link"
+        case 10: return "checkmark.seal.fill"
         default: return "sparkles"
         }
     }
@@ -266,15 +303,16 @@ struct OnboardingView: View {
     private func title(for step: Int) -> String {
         switch step {
         case 0: return "Добро пожаловать в Solva Beauty"
-        case 1: return "Клиенты уходят и не возвращаются"
-        case 2: return "Хватит принимать записи в мессенджерах"
-        case 3: return "Клиент забыл — ты потеряла час"
-        case 4: return "Ты сама решаешь когда работаешь"
-        case 5: return "Деньги есть, а сколько — непонятно"
-        case 6: return "Когда ты работаешь?"
-        case 7: return "Добавь первую услугу"
-        case 8: return "Ссылка для твоих клиентов"
-        case 9: return "Solva Beauty готов к работе!"
+        case 1: return "Чем ты занимаешься?"
+        case 2: return "Клиенты уходят и не возвращаются"
+        case 3: return "Хватит принимать записи в мессенджерах"
+        case 4: return "Клиент забыл — ты потеряла час"
+        case 5: return "Ты сама решаешь когда работаешь"
+        case 6: return "Деньги есть, а сколько — непонятно"
+        case 7: return "Когда ты работаешь?"
+        case 8: return "Добавь первую услугу"
+        case 9: return "Ссылка для твоих клиентов"
+        case 10: return "Solva Beauty готов к работе!"
         default: return ""
         }
     }
@@ -282,15 +320,16 @@ struct OnboardingView: View {
     private func subtitle(for step: Int) -> String {
         switch step {
         case 0: return "Твой личный администратор, который никогда не спит и ничего не забывает"
-        case 1: return "Не потому что ушли навсегда — просто никто не напомнил. Solva Beauty автоматически пишет клиентам когда они давно не приходили"
-        case 2: return "«А когда есть время?» — и так 20 раз в день. Отправь клиенту ссылку — он сам выберет удобное время"
-        case 3: return "Solva Beauty отправляет напоминание за 2 часа до записи. Клиенты приходят вовремя"
-        case 4: return "Отпуск, выходной, праздник — поставь нерабочие дни и клиенты не смогут записаться на эти даты"
-        case 5: return "Вся статистика в одном месте: выручка за месяц, топ услуги, средний чек. Понимай свой бизнес"
-        case 6: return "Можно изменить в любой момент в Настройках"
-        case 7: return "Клиенты будут выбирать её при онлайн-записи"
-        case 8: return "Отправь эту ссылку — клиент сам запишется без звонков"
-        case 9: return "Твой профиль настроен. Добавляй клиентов, принимай записи и зарабатывай больше"
+        case 1: return "Выбери свою специализацию — мы настроим приложение под тебя"
+        case 2: return "Не потому что ушли навсегда — просто никто не напомнил. Solva Beauty автоматически пишет клиентам когда они давно не приходили"
+        case 3: return "«А когда есть время?» — и так 20 раз в день. Отправь клиенту ссылку — он сам выберет удобное время"
+        case 4: return "Solva Beauty отправляет напоминание за 2 часа до записи. Клиенты приходят вовремя"
+        case 5: return "Отпуск, выходной, праздник — поставь нерабочие дни и клиенты не смогут записаться на эти даты"
+        case 6: return "Вся статистика в одном месте: выручка за месяц, топ услуги, средний чек. Понимай свой бизнес"
+        case 7: return "Можно изменить в любой момент в Настройках"
+        case 8: return "Клиенты будут выбирать её при онлайн-записи"
+        case 9: return "Отправь эту ссылку — клиент сам запишется без звонков"
+        case 10: return "Твой профиль настроен. Добавляй клиентов, принимай записи и зарабатывай больше"
         default: return ""
         }
     }
@@ -307,6 +346,7 @@ final class OnboardingViewModel: ObservableObject {
     @Published var serviceName = ""
     @Published var servicePrice = ""
     @Published var bookingSlug = ""
+    @Published var specialization = ""
     @Published var isSaving = false
 
     private let api = APIClient.shared
@@ -321,7 +361,8 @@ final class OnboardingViewModel: ObservableObject {
             workEnd: workEnd,
             slotDuration: slotDuration,
             reminderDays: 1,
-            timezone: "Europe/Moscow"
+            timezone: "Europe/Moscow",
+            specialization: specialization
         )
         _ = try? await api.request(.updateSettings(settings), as: MasterProfile.self)
 
