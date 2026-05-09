@@ -34,7 +34,9 @@ workflows:
 
       - name: Set build number
         script: |
-          agvtool new-version -all $(($(app-store-connect get-latest-testflight-build-number "com.beautybook.app.53C33F97M2") + 1))
+          BUILD_NUM=$(grep 'CURRENT_PROJECT_VERSION' project.yml | grep -oE '[0-9]+' | head -1)
+          echo "Setting build number: $BUILD_NUM"
+          agvtool new-version -all $BUILD_NUM
 
       - name: Build for App Store
         script: |
