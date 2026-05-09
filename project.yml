@@ -52,7 +52,7 @@ targets:
         CFBundleName: BeautyBook
         CFBundleDisplayName: Beauty Book
         CFBundleIdentifier: com.beautybook.app.53C33F97M2
-        CFBundleVersion: "1"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         CFBundleShortVersionString: "1.0.0"
         CFBundlePackageType: APPL
         CFBundleExecutable: BeautyBook
