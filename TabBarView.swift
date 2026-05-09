@@ -15,11 +15,11 @@ struct TabBarView: View {
         
         var icon: String {
             switch self {
-            case .schedule: return "calendar"
-            case .clients: return "person.2"
-            case .services: return "scissors"
-            case .stats: return "chart.bar"
-            case .settings: return "gearshape"
+            case .schedule: return "tab_schedule"
+            case .clients:  return "tab_clients"
+            case .services: return "tab_services"
+            case .stats:    return "tab_stats"
+            case .settings: return "tab_settings"
             }
         }
     }
@@ -79,9 +79,19 @@ struct TabButton: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                Image(systemName: tab.icon)
-                    .font(.system(size: 22, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? theme.accent : theme.textMuted)
+                Image(tab.icon)
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
+                    .foregroundStyle(isSelected ?
+                        AnyShapeStyle(LinearGradient(
+                            colors: [Color(hex: "#FF2D78"), Color(hex: "#CC00FF")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )) :
+                        AnyShapeStyle(theme.textMuted)
+                    )
                     .scaleEffect(isPressed ? 0.9 : 1.0)
                 
                 Text(tab.rawValue)
