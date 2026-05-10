@@ -399,6 +399,7 @@ struct SettingsView: View {
                 .cornerRadius(12)
             }
             .padding(.horizontal)
+        }
     }
 
     // MARK: - Booking Link Section
