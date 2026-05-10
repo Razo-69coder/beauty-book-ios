@@ -392,30 +392,32 @@ struct SettingsView: View {
             }
             .environment(\.theme, theme)
 
-            if vm.isTelegramConnected {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(theme.statusGreen)
-                    Text("Telegram подключён")
-                        .foregroundColor(theme.statusGreen)
-                        .font(DS.label)
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(theme.statusGreen.opacity(0.1))
-                .cornerRadius(12)
-            } else {
-                Button(action: { Task { await vm.connectTelegram() } }) {
+            Group {
+                if vm.isTelegramConnected {
                     HStack {
-                        Image(systemName: "paperplane.fill")
-                            .foregroundColor(.white)
-                        Text("Подключить Telegram")
-                            .foregroundColor(.white)
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(theme.statusGreen)
+                        Text("Telegram подключён")
+                            .foregroundColor(theme.statusGreen)
+                            .font(DS.label)
                     }
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color(red: 0.17, green: 0.51, blue: 0.93))
+                    .background(theme.statusGreen.opacity(0.1))
                     .cornerRadius(12)
+                } else {
+                    Button(action: { Task { await vm.connectTelegram() } }) {
+                        HStack {
+                            Image(systemName: "paperplane.fill")
+                                .foregroundColor(.white)
+                            Text("Подключить Telegram")
+                                .foregroundColor(.white)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(red: 0.17, green: 0.51, blue: 0.93))
+                        .cornerRadius(12)
+                    }
                 }
             }
             .padding(.horizontal)

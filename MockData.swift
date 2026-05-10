@@ -22,7 +22,8 @@ enum MockData {
         depositEnabled: true,
         depositPercent: 30,
         theme: "pink",
-        specialization: nil
+        specialization: nil,
+        telegramId: nil
     )
 
     // MARK: - Services
