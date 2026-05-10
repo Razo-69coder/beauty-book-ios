@@ -188,8 +188,16 @@ struct StatsView: View {
             BBSectionHeader(title: "Выручка по дням")
 
             BBGlassCard {
-                BarChartView(data: vm.earningsByDay, theme: theme)
-                    .frame(height: 140)
+                if vm.earningsByDay.isEmpty || vm.earningsByDay.allSatisfy({ $0.1 == 0 }) {
+                    Text("Данные появятся после первых записей 💅")
+                        .font(DS.bodySmall)
+                        .foregroundColor(theme.textMuted)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 140)
+                } else {
+                    BarChartView(data: vm.earningsByDay, theme: theme)
+                        .frame(height: 140)
+                }
             }
         }
     }

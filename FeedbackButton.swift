@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct FeedbackButton: View {
-    @State private var position: CGPoint = CGPoint(x: UIScreen.main.bounds.width - 50, y: UIScreen.main.bounds.height * 0.75)
+    @State private var position: CGPoint = CGPoint(x: 44, y: UIScreen.main.bounds.height * 0.75)
     @State private var isDragging = false
     @State private var showSheet = false
     @Environment(\.theme) private var theme
