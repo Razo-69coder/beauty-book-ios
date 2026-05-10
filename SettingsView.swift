@@ -175,6 +175,22 @@ final class SettingsViewModel: ObservableObject {
         }
         isSaving = false
     }
+
+    func connectTelegram() async {
+        do {
+            let (token, botUsername) = try await APIClient.shared.telegramLinkToken()
+            let deepLink = "tg://resolve?domain=\(botUsername)&start=master_\(token)"
+            await MainActor.run {
+                if let url = URL(string: deepLink) {
+                    UIApplication.shared.open(url)
+                }
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = "Не удалось создать ссылку"
+            }
+        }
+    }
 }
 
 struct ProfileFieldRow: View {
@@ -369,7 +385,20 @@ struct SettingsView: View {
                 Task { await vm.saveProfile() }
             }
             .environment(\.theme, theme)
-        }
+
+            Button(action: { Task { await vm.connectTelegram() } }) {
+                HStack {
+                    Image(systemName: "paperplane.fill")
+                        .foregroundColor(.white)
+                    Text("Подключить Telegram")
+                        .foregroundColor(.white)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color(red: 0.17, green: 0.51, blue: 0.93))
+                .cornerRadius(12)
+            }
+            .padding(.horizontal)
     }
 
     // MARK: - Booking Link Section

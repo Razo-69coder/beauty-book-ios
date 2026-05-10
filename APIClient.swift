@@ -71,6 +71,7 @@ enum Endpoint {
     // Subscription
     case subscriptionNotify
     case subscriptionStatus
+    case telegramLinkToken
 }
 
 extension Endpoint {
@@ -106,6 +107,7 @@ extension Endpoint {
         case .removeBlockedDay(let date): return "/schedule/blocked-days/\(date)"
         case .subscriptionNotify:        return "/subscription/notify"
         case .subscriptionStatus:       return "/subscription/status"
+        case .telegramLinkToken:        return "/telegram-link-token"
         }
     }
 
@@ -120,6 +122,7 @@ extension Endpoint {
             return "DELETE"
         case .addBlockedDay, .subscriptionNotify:   return "POST"
         case .removeBlockedDay: return "DELETE"
+        case .telegramLinkToken: return "GET"
         default:
             return "GET"
         }
@@ -255,6 +258,12 @@ extension APIClient {
         _ = try await delete("/expenses/\(id)")
     }
     
+    func telegramLinkToken() async throws -> (token: String, botUsername: String) {
+        let data = try await get("/telegram-link-token")
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: String] ?? [:]
+        return (json["token"] ?? "", json["bot_username"] ?? "")
+    }
+
     private func get(_ path: String) async throws -> Data {
         let url = URL(string: APIConfig.baseURL + path)!
         var req = URLRequest(url: url)
