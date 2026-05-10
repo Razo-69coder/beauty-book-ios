@@ -24,11 +24,11 @@ enum MockData {
         theme: "pink",
         specialization: nil,
         telegramId: nil,
-        loyaltyDiscountEnabled: true,
         loyaltyThreshold: 10,
-        loyaltyDiscountPercent: 10,
         birthdayDiscountEnabled: true,
-        birthdayDiscountPercent: 10
+        birthdayDiscountPercent: 10,
+        loyaltyDiscountEnabled: true,
+        loyaltyDiscountPercent: 10
     )
 
     // MARK: - Services
