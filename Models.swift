@@ -48,6 +48,7 @@ struct MasterProfile: Decodable, Identifiable {
     let depositPercent: Int
     let theme: String
     let specialization: String?
+    let telegramId: Int?
 }
 
 struct MasterSettingsRequest: Encodable {

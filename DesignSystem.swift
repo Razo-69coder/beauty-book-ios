@@ -523,19 +523,30 @@ private struct PinkGlamBackground: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                Color(hex: "#0D0018")
-                RadialGradient(colors: [Color(hex: "#FF2D78").opacity(0.55), .clear],
-                    center: .topLeading, startRadius: 0, endRadius: geo.size.width * 0.85)
-                RadialGradient(colors: [Color(hex: "#BF00FF").opacity(0.45), .clear],
-                    center: .bottomTrailing, startRadius: 0, endRadius: geo.size.width * 0.9)
-                RadialGradient(colors: [Color(hex: "#FF006E").opacity(0.35), .clear],
-                    center: .bottomLeading, startRadius: 0, endRadius: geo.size.width * 0.7)
-                RadialGradient(colors: [Color.white.opacity(0.04), .clear],
-                    center: .center, startRadius: 0, endRadius: geo.size.width * 0.5)
+                Color(hex: "#08000F")
+
+                RadialGradient(
+                    colors: [Color(hex: "#FF0080").opacity(0.75), Color(hex: "#CC00FF").opacity(0.45), .clear],
+                    center: .topTrailing,
+                    startRadius: 0,
+                    endRadius: geo.size.width * 1.1
+                )
+                RadialGradient(
+                    colors: [Color(hex: "#8800FF").opacity(0.35), .clear],
+                    center: .bottomLeading,
+                    startRadius: 0,
+                    endRadius: geo.size.width * 0.9
+                )
+                RadialGradient(
+                    colors: [Color(hex: "#5500CC").opacity(0.15), .clear],
+                    center: UnitPoint(x: 0.3, y: 0.6),
+                    startRadius: 0,
+                    endRadius: geo.size.width * 0.7
+                )
                 ForEach(0..<stars.count, id: \.self) { i in
                     let s = stars[i]
                     Text("✦")
-                        .font(.system(size: s.size))
+                        .font(.system(size: s.size + 1))
                         .foregroundColor(.white.opacity(s.opacity))
                         .position(x: geo.size.width * s.x, y: geo.size.height * s.y)
                 }

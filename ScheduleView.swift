@@ -327,9 +327,18 @@ struct AppointmentBlock: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Rectangle()
-                .fill(blockColor)
-                .frame(width: 3)
+            RoundedRectangle(cornerRadius: 2)
+                .fill(
+                    theme == .platinum
+                    ? AnyShapeStyle(LinearGradient(
+                        colors: [Color(hex: "#C9A96E"), Color(hex: "#E8C99A")],
+                        startPoint: .top, endPoint: .bottom))
+                    : AnyShapeStyle(LinearGradient(
+                        colors: [Color(hex: "#FF2D78"), Color(hex: "#7B2FFF")],
+                        startPoint: .top, endPoint: .bottom))
+                )
+                .frame(width: 4)
+                .padding(.vertical, 4)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(appointment.clientName ?? "Клиент")

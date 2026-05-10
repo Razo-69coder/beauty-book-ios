@@ -45,6 +45,8 @@ final class SettingsViewModel: ObservableObject {
     @Published var returnReminderEnabled: Bool {
         didSet { UserDefaults.standard.set(returnReminderEnabled, forKey: "return_reminder_enabled") }
     }
+    @Published var isTelegramConnected = false
+
     @Published var returnReminderDays: Int {
         didSet { UserDefaults.standard.set(returnReminderDays, forKey: "return_reminder_days") }
     }
@@ -104,6 +106,7 @@ final class SettingsViewModel: ObservableObject {
             paymentCard = m.paymentCard ?? ""
             paymentPhone = m.paymentPhone ?? ""
             paymentBanks = m.paymentBanks ?? ""
+            isTelegramConnected = m.telegramId != nil && m.telegramId != 0
         } else {
             masterName = ""
             email = ""
@@ -250,6 +253,9 @@ struct SettingsView: View {
                 }
             }
             .task { await vm.load() }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                Task { await vm.load() }
+            }
             .alert("Выйти из аккаунта?", isPresented: $showLogoutAlert) {
                 Button("Отмена", role: .cancel) {}
                 Button("Выйти", role: .destructive) {
@@ -386,17 +392,31 @@ struct SettingsView: View {
             }
             .environment(\.theme, theme)
 
-            Button(action: { Task { await vm.connectTelegram() } }) {
+            if vm.isTelegramConnected {
                 HStack {
-                    Image(systemName: "paperplane.fill")
-                        .foregroundColor(.white)
-                    Text("Подключить Telegram")
-                        .foregroundColor(.white)
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(theme.statusGreen)
+                    Text("Telegram подключён")
+                        .foregroundColor(theme.statusGreen)
+                        .font(DS.label)
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(Color(red: 0.17, green: 0.51, blue: 0.93))
+                .background(theme.statusGreen.opacity(0.1))
                 .cornerRadius(12)
+            } else {
+                Button(action: { Task { await vm.connectTelegram() } }) {
+                    HStack {
+                        Image(systemName: "paperplane.fill")
+                            .foregroundColor(.white)
+                        Text("Подключить Telegram")
+                            .foregroundColor(.white)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(red: 0.17, green: 0.51, blue: 0.93))
+                    .cornerRadius(12)
+                }
             }
             .padding(.horizontal)
         }
