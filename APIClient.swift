@@ -68,6 +68,8 @@ enum Endpoint {
     case getBlockedDays
     case addBlockedDay(String)
     case removeBlockedDay(String)
+    // Loyalty
+    case updateLoyaltySettings(LoyaltySettingsRequest)
     // Subscription
     case subscriptionNotify
     case subscriptionStatus
@@ -105,6 +107,7 @@ extension Endpoint {
         case .getBlockedDays:            return "/schedule/blocked-days"
         case .addBlockedDay:             return "/schedule/blocked-days"
         case .removeBlockedDay(let date): return "/schedule/blocked-days/\(date)"
+        case .updateLoyaltySettings:     return "/loyalty-settings"
         case .subscriptionNotify:        return "/subscription/notify"
         case .subscriptionStatus:       return "/subscription/status"
         case .telegramLinkToken:        return "/telegram-link-token"
@@ -116,7 +119,7 @@ extension Endpoint {
         case .login, .register, .forgotPassword,
              .createClient, .createAppointment, .createService, .markDone:
             return "POST"
-        case .updateSettings, .updatePayment, .updateProfile, .updateClient, .updateBookingLink:
+        case .updateSettings, .updatePayment, .updateProfile, .updateClient, .updateBookingLink, .updateLoyaltySettings:
             return "PUT"
         case .deleteClient, .cancelAppointment, .deleteService:
             return "DELETE"
@@ -167,6 +170,7 @@ extension Endpoint {
         case .createService(let r):       return try? encoder.encode(r)
         case .updateBookingLink(let link): return try? encoder.encode(["link": link])
         case .addBlockedDay(let date): return try? encoder.encode(["date": date])
+        case .updateLoyaltySettings(let r): return try? encoder.encode(r)
         default: return nil
         }
     }

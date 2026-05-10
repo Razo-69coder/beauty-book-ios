@@ -107,6 +107,10 @@ final class SettingsViewModel: ObservableObject {
             paymentPhone = m.paymentPhone ?? ""
             paymentBanks = m.paymentBanks ?? ""
             isTelegramConnected = m.telegramId != nil && m.telegramId != 0
+            if let t = m.loyaltyThreshold, t > 0 { loyaltyThreshold = t }
+            if let d = m.loyaltyDiscountPercent, d > 0 { loyaltyDiscount = d }
+            if let e = m.birthdayDiscountEnabled { birthdayDiscountEnabled = e }
+            if let d = m.birthdayDiscountPercent, d > 0 { birthdayDiscount = d }
         } else {
             masterName = ""
             email = ""
@@ -161,6 +165,23 @@ final class SettingsViewModel: ObservableObject {
             errorMessage = "Ошибка сохранения"
         }
         isSaving = false
+    }
+
+    func saveLoyaltySettings() async {
+        let req = LoyaltySettingsRequest(
+            loyaltyEnabled: true,
+            loyaltyThreshold: loyaltyThreshold,
+            loyaltyDiscountPercent: loyaltyDiscount,
+            birthdayEnabled: birthdayDiscountEnabled,
+            birthdayDiscountPercent: birthdayDiscount
+        )
+        do {
+            let _ = try await api.request(.updateLoyaltySettings(req), as: MessageResponse.self)
+            await MainActor.run { self.saveSuccess = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.saveSuccess = false }
+        } catch {
+            await MainActor.run { self.errorMessage = "Ошибка сохранения лояльности" }
+        }
     }
 
     func saveProfile() async {
@@ -594,7 +615,12 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            BBPrimaryButton(title: "Сохранить настройки лояльности", isLoading: false) {
+                Task { await vm.saveLoyaltySettings() }
+            }
             .environment(\.theme, theme)
+            .padding(.top, 8)
         }
     }
 

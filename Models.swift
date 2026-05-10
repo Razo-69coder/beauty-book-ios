@@ -49,6 +49,11 @@ struct MasterProfile: Decodable, Identifiable {
     let theme: String
     let specialization: String?
     let telegramId: Int?
+    let loyaltyThreshold: Int?
+    let birthdayDiscountEnabled: Bool?
+    let birthdayDiscountPercent: Int?
+    let loyaltyDiscountEnabled: Bool?
+    let loyaltyDiscountPercent: Int?
 }
 
 struct MasterSettingsRequest: Encodable {
@@ -71,6 +76,14 @@ struct PaymentRequest: Encodable {
     var paymentCard: String
     var paymentPhone: String
     var paymentBanks: String
+}
+
+struct LoyaltySettingsRequest: Encodable {
+    var loyaltyEnabled: Bool
+    var loyaltyThreshold: Int
+    var loyaltyDiscountPercent: Int
+    var birthdayEnabled: Bool
+    var birthdayDiscountPercent: Int
 }
 
 // MARK: - Stats
