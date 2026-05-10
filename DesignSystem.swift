@@ -41,70 +41,70 @@ enum AppTheme: String, CaseIterable {
     var accent: Color {
         switch self {
         case .pink:     return Color(hex: "#FF2D78")
-        case .platinum: return Color(hex: "#C49994")
+        case .platinum: return Color(hex: "#C9A96E")  // champagne gold
         }
     }
 
     var accentSecondary: Color {
         switch self {
         case .pink:     return Color(hex: "#BF00FF")
-        case .platinum: return Color(hex: "#CEA39E")
+        case .platinum: return Color(hex: "#E8C99A")
         }
     }
 
     var accentGlow: Color {
         switch self {
         case .pink:     return Color(hex: "#FF2D78").opacity(0.4)
-        case .platinum: return Color(hex: "#C49994").opacity(0.3)
+        case .platinum: return Color(hex: "#C9A96E").opacity(0.25)
         }
     }
 
     var backgroundDeep: Color {
         switch self {
         case .pink:     return Color(hex: "#06060E")
-        case .platinum: return Color(hex: "#F5ECDF")
+        case .platinum: return Color(hex: "#FAF7F2")
         }
     }
 
     var backgroundCard: Color {
         switch self {
         case .pink:     return Color(hex: "#0F0F1A")
-        case .platinum: return Color(hex: "#F0E2CF")
+        case .platinum: return Color(hex: "#FFFFFF")
         }
     }
 
     var backgroundInput: Color {
         switch self {
         case .pink:     return Color(hex: "#16162A")
-        case .platinum: return Color(hex: "#EBD0C2")
+        case .platinum: return Color(hex: "#F5F0EB")
         }
     }
 
     var textPrimary: Color {
         switch self {
         case .pink:     return .white
-        case .platinum: return Color(hex: "#3D2B2B")
+        case .platinum: return Color(hex: "#2C1810")
         }
     }
 
     var textSecondary: Color {
         switch self {
         case .pink:     return Color(hex: "#A0A0C0")
-        case .platinum: return Color(hex: "#6B4F4F")
+        case .platinum: return Color(hex: "#7A6550")
         }
     }
 
     var textMuted: Color {
         switch self {
         case .pink:     return Color(hex: "#5A5A7A")
-        case .platinum: return Color(hex: "#9E7E7E")
+        case .platinum: return Color(hex: "#9B8B7E")
         }
     }
 
     var borderSubtle: Color {
         switch self {
         case .pink:     return Color.white.opacity(0.08)
-        case .platinum: return Color(hex: "#D8B2AE").opacity(0.5)
+        case .platinum: return Color(hex: "#E8D5B0").opacity(0.6)
         }
     }
 
@@ -126,7 +126,7 @@ enum AppTheme: String, CaseIterable {
             )
         case .platinum:
             return LinearGradient(
-                colors: [Color(hex: "#C49994"), Color(hex: "#CEA39E"), Color(hex: "#D8B2AE")],
+                colors: [Color(hex: "#C9A96E"), Color(hex: "#E8C99A"), Color(hex: "#C9A96E")],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
         }
@@ -142,7 +142,7 @@ enum AppTheme: String, CaseIterable {
     var statusGreen: Color {
         switch self {
         case .pink: return Color(hex: "#00E5A0")
-        case .platinum: return Color(hex: "#4A8B6E")
+        case .platinum: return Color(hex: "#5A8B6E")
         }
     }
 
@@ -369,22 +369,22 @@ struct BBGlassCard<Content: View>: View {
 
     private var borderColor: Color {
         switch theme {
-        case .pink: return theme.accent.opacity(0.25)
-        case .platinum: return theme.accent.opacity(0.15)
+        case .pink:     return theme.accent.opacity(0.25)
+        case .platinum: return Color(hex: "#C9A96E").opacity(0.18)
         }
     }
 
     private var shadowColor: Color {
         switch theme {
-        case .pink: return theme.accentGlow
-        case .platinum: return Color.black.opacity(0.4)
+        case .pink:     return theme.accentGlow
+        case .platinum: return Color.black.opacity(0.06)
         }
     }
 
     private var shadowRadius: CGFloat {
         switch theme {
-        case .pink: return 16
-        case .platinum: return 12
+        case .pink:     return 16
+        case .platinum: return 8
         }
     }
 
@@ -392,19 +392,14 @@ struct BBGlassCard<Content: View>: View {
         content
             .padding(DS.s16)
             .background(
-                ZStack {
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                    Rectangle()
-                        .fill(theme.backgroundCard.opacity(0.6))
-                }
+                RoundedRectangle(cornerRadius: DS.r20)
+                    .fill(theme == .platinum ? AnyShapeStyle(Color.white) : AnyShapeStyle(theme.backgroundCard.opacity(0.85)))
             )
-            .cornerRadius(DS.r20)
             .overlay(
                 RoundedRectangle(cornerRadius: DS.r20)
-                    .stroke(borderColor, lineWidth: 1)
+                    .stroke(borderColor, lineWidth: theme == .platinum ? 0.5 : 1)
             )
-            .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: 4)
+            .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: theme == .platinum ? 2 : 4)
     }
 }
 
@@ -454,7 +449,7 @@ struct BBSectionHeader: View {
         HStack {
             Text(title)
                 .font(DS.labelSmall)
-                .foregroundColor(theme.textMuted)
+                .foregroundColor(theme == .platinum ? Color(hex: "#C9A96E") : Color(hex: "#FF2D78"))
                 .textCase(.uppercase)
                 .tracking(0.8)
             Spacer()
@@ -515,45 +510,38 @@ struct AppBackground: View {
 }
 
 private struct PinkGlamBackground: View {
+    private let stars: [(x: CGFloat, y: CGFloat, size: CGFloat, opacity: Double)] = [
+        (0.08, 0.06, 3, 0.7), (0.92, 0.04, 2, 0.5), (0.15, 0.18, 2, 0.4),
+        (0.78, 0.12, 3, 0.6), (0.45, 0.08, 2, 0.5), (0.62, 0.22, 2, 0.4),
+        (0.88, 0.30, 3, 0.6), (0.05, 0.40, 2, 0.3), (0.35, 0.35, 2, 0.4),
+        (0.72, 0.45, 3, 0.5), (0.20, 0.55, 2, 0.4), (0.90, 0.58, 2, 0.5),
+        (0.50, 0.50, 2, 0.3), (0.10, 0.70, 3, 0.6), (0.65, 0.65, 2, 0.4),
+        (0.82, 0.75, 2, 0.5), (0.30, 0.80, 3, 0.6), (0.55, 0.85, 2, 0.4),
+        (0.95, 0.88, 2, 0.5), (0.42, 0.92, 3, 0.4)
+    ]
+
     var body: some View {
         GeometryReader { geo in
             ZStack {
                 Color(hex: "#0D0018")
-
-                // top-left hot pink glow
-                RadialGradient(
-                    colors: [Color(hex: "#FF2D78").opacity(0.55), .clear],
-                    center: .topLeading,
-                    startRadius: 0,
-                    endRadius: geo.size.width * 0.85
-                )
-
-                // bottom-right magenta glow
-                RadialGradient(
-                    colors: [Color(hex: "#BF00FF").opacity(0.45), .clear],
-                    center: .bottomTrailing,
-                    startRadius: 0,
-                    endRadius: geo.size.width * 0.9
-                )
-
-                // bottom-left deep pink
-                RadialGradient(
-                    colors: [Color(hex: "#FF006E").opacity(0.35), .clear],
-                    center: .bottomLeading,
-                    startRadius: 0,
-                    endRadius: geo.size.width * 0.7
-                )
-
-                // subtle center shimmer
-                RadialGradient(
-                    colors: [Color.white.opacity(0.04), .clear],
-                    center: .center,
-                    startRadius: 0,
-                    endRadius: geo.size.width * 0.5
-                )
-
+                RadialGradient(colors: [Color(hex: "#FF2D78").opacity(0.55), .clear],
+                    center: .topLeading, startRadius: 0, endRadius: geo.size.width * 0.85)
+                RadialGradient(colors: [Color(hex: "#BF00FF").opacity(0.45), .clear],
+                    center: .bottomTrailing, startRadius: 0, endRadius: geo.size.width * 0.9)
+                RadialGradient(colors: [Color(hex: "#FF006E").opacity(0.35), .clear],
+                    center: .bottomLeading, startRadius: 0, endRadius: geo.size.width * 0.7)
+                RadialGradient(colors: [Color.white.opacity(0.04), .clear],
+                    center: .center, startRadius: 0, endRadius: geo.size.width * 0.5)
+                ForEach(0..<stars.count, id: \.self) { i in
+                    let s = stars[i]
+                    Text("✦")
+                        .font(.system(size: s.size))
+                        .foregroundColor(.white.opacity(s.opacity))
+                        .position(x: geo.size.width * s.x, y: geo.size.height * s.y)
+                }
             }
         }
+        .ignoresSafeArea()
     }
 }
 
@@ -561,16 +549,39 @@ private struct PlatinumMarbleBackground: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                Color(hex: "#F5EDE0")
-                if let img = UIImage(named: "bg_platinum") {
-                    Image(uiImage: img)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: geo.size.width, height: geo.size.height)
-                        .clipped()
+                Color(hex: "#FAF7F2")
+                RadialGradient(
+                    colors: [Color(hex: "#C9A96E").opacity(0.10), .clear],
+                    center: .topTrailing,
+                    startRadius: 0,
+                    endRadius: geo.size.width * 0.8
+                )
+                RadialGradient(
+                    colors: [Color(hex: "#E8C99A").opacity(0.08), .clear],
+                    center: .bottomLeading,
+                    startRadius: 0,
+                    endRadius: geo.size.width * 0.7
+                )
+                Path { path in
+                    path.move(to: CGPoint(x: geo.size.width * 0.1, y: 0))
+                    path.addCurve(
+                        to: CGPoint(x: geo.size.width * 0.9, y: geo.size.height * 0.4),
+                        control1: CGPoint(x: geo.size.width * 0.3, y: geo.size.height * 0.15),
+                        control2: CGPoint(x: geo.size.width * 0.6, y: geo.size.height * 0.2)
+                    )
                 }
-                Color.white.opacity(0.15)
+                .stroke(Color(hex: "#C9A96E").opacity(0.06), lineWidth: 1.5)
+                Path { path in
+                    path.move(to: CGPoint(x: geo.size.width * 0.7, y: 0))
+                    path.addCurve(
+                        to: CGPoint(x: geo.size.width * 0.2, y: geo.size.height),
+                        control1: CGPoint(x: geo.size.width * 0.8, y: geo.size.height * 0.3),
+                        control2: CGPoint(x: geo.size.width * 0.4, y: geo.size.height * 0.7)
+                    )
+                }
+                .stroke(Color(hex: "#C9A96E").opacity(0.04), lineWidth: 1)
             }
         }
+        .ignoresSafeArea()
     }
 }

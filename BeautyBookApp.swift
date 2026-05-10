@@ -59,8 +59,10 @@ struct BeautyBookApp: App {
 
 struct SplashView: View {
     let theme: AppTheme
-    @State private var scale: CGFloat  = 0.7
-    @State private var opacity: Double = 0
+    @State private var scale: CGFloat    = 0.5
+    @State private var opacity: Double   = 0
+    @State private var glowRadius: CGFloat = 10
+    @State private var textOffset: CGFloat = 20
 
     var body: some View {
         ZStack {
@@ -68,10 +70,16 @@ struct SplashView: View {
 
             VStack(spacing: 20) {
                 ZStack {
+                    Circle()
+                        .fill(theme.accentGlow)
+                        .frame(width: 130, height: 130)
+                        .blur(radius: glowRadius)
+
                     RoundedRectangle(cornerRadius: 24)
                         .fill(Color.white)
                         .frame(width: 100, height: 100)
-                        .shadow(color: theme.accentGlow, radius: 30, x: 0, y: 10)
+                        .shadow(color: theme.accentGlow, radius: 24, x: 0, y: 8)
+
                     Group {
                         if let path = Bundle.main.path(forResource: "solva_logo", ofType: "png"),
                            let uiImg = UIImage(contentsOfFile: path) {
@@ -95,14 +103,19 @@ struct SplashView: View {
                         .foregroundColor(theme.textSecondary)
                 }
                 .opacity(opacity)
+                .offset(y: textOffset)
             }
         }
         .onAppear {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.6)) {
                 scale = 1.0
             }
-            withAnimation(.easeIn(duration: 0.5).delay(0.3)) {
+            withAnimation(.easeOut(duration: 0.5).delay(0.3)) {
                 opacity = 1.0
+                textOffset = 0
+            }
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true).delay(0.5)) {
+                glowRadius = 30
             }
         }
     }

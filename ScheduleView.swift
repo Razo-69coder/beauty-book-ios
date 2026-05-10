@@ -224,13 +224,28 @@ struct ScheduleView: View {
             ForEach(vm.hourSlots(), id: \.self) { hour in
                 HStack(alignment: .top, spacing: 12) {
                     Text(String(format: "%02d:00", hour))
-                        .font(DS.labelSmall)
-                        .foregroundColor(theme.textMuted)
-                        .frame(width: 40, alignment: .trailing)
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundColor(theme.textMuted.opacity(0.7))
+                        .frame(width: 42, alignment: .trailing)
 
-                    Rectangle()
-                        .fill(theme.borderSubtle)
-                        .frame(height: 1)
+                    VStack(spacing: 0) {
+                        Rectangle()
+                            .fill(
+                                theme == .platinum
+                                ? AnyShapeStyle(LinearGradient(
+                                    colors: [Color(hex: "#C9A96E").opacity(0.0),
+                                             Color(hex: "#C9A96E").opacity(0.25),
+                                             Color(hex: "#C9A96E").opacity(0.0)],
+                                    startPoint: .leading, endPoint: .trailing))
+                                : AnyShapeStyle(LinearGradient(
+                                    colors: [Color.clear,
+                                             Color(hex: "#FF2D78").opacity(0.15),
+                                             Color.clear],
+                                    startPoint: .leading, endPoint: .trailing))
+                            )
+                            .frame(height: 1)
+                        Spacer()
+                    }
                 }
                 .frame(height: 60, alignment: .topLeading)
                 .contentShape(Rectangle())

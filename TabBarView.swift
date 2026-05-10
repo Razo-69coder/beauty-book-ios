@@ -77,35 +77,59 @@ struct TabButton: View {
     @State private var isPressed = false
     
     var body: some View {
-        Button(action: action) {
+        Button(action: {
+            HapticManager.selection()
+            action()
+        }) {
             VStack(spacing: 4) {
-                Image(tab.icon)
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 24, height: 24)
-                    .foregroundStyle(isSelected ?
-                        AnyShapeStyle(LinearGradient(
-                            colors: [Color(hex: "#FF2D78"), Color(hex: "#CC00FF")],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )) :
-                        AnyShapeStyle(theme.textMuted)
-                    )
-                    .scaleEffect(isPressed ? 0.9 : 1.0)
-                
+                ZStack {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(
+                                theme == .platinum
+                                ? AnyShapeStyle(Color(hex: "#C9A96E").opacity(0.15))
+                                : AnyShapeStyle(LinearGradient(
+                                    colors: [Color(hex: "#FF2D78").opacity(0.25), Color(hex: "#CC00FF").opacity(0.15)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                  ))
+                            )
+                            .frame(width: 44, height: 32)
+                    }
+                    Image(tab.icon)
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 22, height: 22)
+                        .foregroundStyle(
+                            isSelected
+                            ? (theme == .platinum
+                                ? AnyShapeStyle(LinearGradient(
+                                    colors: [Color(hex: "#C9A96E"), Color(hex: "#E8C99A")],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing))
+                                : AnyShapeStyle(LinearGradient(
+                                    colors: [Color(hex: "#FF2D78"), Color(hex: "#CC00FF")],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing)))
+                            : AnyShapeStyle(theme.textMuted)
+                        )
+                        .scaleEffect(isPressed ? 0.85 : (isSelected ? 1.05 : 1.0))
+                        .shadow(
+                            color: isSelected ? theme.accentGlow : .clear,
+                            radius: 6, x: 0, y: 2
+                        )
+                }
                 Text(tab.rawValue)
-                    .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
+                    .font(.system(size: 10, weight: isSelected ? .bold : .regular))
                     .foregroundColor(isSelected ? theme.accent : theme.textMuted)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .padding(.vertical, 6)
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in withAnimation(.easeInOut(duration: 0.1)) { isPressed = true } }
-                .onEnded { _ in withAnimation(.spring(response: 0.3)) { isPressed = false } }
+                .onEnded   { _ in withAnimation(.spring(response: 0.3)) { isPressed = false } }
         )
+        .animation(DS.springSnappy, value: isSelected)
     }
 }
 

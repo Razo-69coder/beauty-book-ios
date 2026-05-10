@@ -107,19 +107,29 @@ struct ClientPhotoStorage {
 
     private var heroSection: some View {
         ZStack(alignment: .bottom) {
-            Rectangle()
-                .fill(theme.gradientPrimary.opacity(0.15))
-                .frame(height: 160)
+            theme.gradientPrimary
+                .opacity(0.18)
+                .frame(height: 180)
                 .ignoresSafeArea(edges: .top)
+                .overlay(
+                    LinearGradient(
+                        colors: [.clear, theme.backgroundDeep.opacity(0.6)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
 
             VStack(spacing: 8) {
                 ZStack {
                     Circle()
                         .fill(theme.gradientPrimary)
-                        .frame(width: 72, height: 72)
-                        .shadow(color: theme.accentGlow, radius: 16)
+                        .frame(width: 76, height: 76)
+                        .shadow(color: theme.accentGlow, radius: 20)
+                    Circle()
+                        .stroke(Color.white.opacity(0.3), lineWidth: 2)
+                        .frame(width: 76, height: 76)
                     Text(initials.isEmpty ? "?" : initials)
-                        .font(.system(size: 26, weight: .bold))
+                        .font(.system(size: 28, weight: .bold))
                         .foregroundColor(.white)
                 }
                 Text(client.name)
