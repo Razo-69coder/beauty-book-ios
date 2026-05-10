@@ -68,6 +68,8 @@ enum Endpoint {
     case getBlockedDays
     case addBlockedDay(String)
     case removeBlockedDay(String)
+    // Feedback
+    case sendFeedback(String)
     // Loyalty
     case updateLoyaltySettings(LoyaltySettingsRequest)
     // Subscription
@@ -107,6 +109,7 @@ extension Endpoint {
         case .getBlockedDays:            return "/schedule/blocked-days"
         case .addBlockedDay:             return "/schedule/blocked-days"
         case .removeBlockedDay(let date): return "/schedule/blocked-days/\(date)"
+        case .sendFeedback:              return "/feedback"
         case .updateLoyaltySettings:     return "/loyalty-settings"
         case .subscriptionNotify:        return "/subscription/notify"
         case .subscriptionStatus:       return "/subscription/status"
@@ -116,7 +119,7 @@ extension Endpoint {
 
     var method: String {
         switch self {
-        case .login, .register, .forgotPassword,
+        case .login, .register, .forgotPassword, .sendFeedback,
              .createClient, .createAppointment, .createService, .markDone:
             return "POST"
         case .updateSettings, .updatePayment, .updateProfile, .updateClient, .updateBookingLink, .updateLoyaltySettings:
@@ -161,6 +164,7 @@ extension Endpoint {
         case .login(let r):               return try? encoder.encode(r)
         case .register(let r):            return try? encoder.encode(r)
         case .forgotPassword(let email):  return try? encoder.encode(["email": email])
+        case .sendFeedback(let text):    return try? encoder.encode(["text": text])
         case .updateSettings(let r):      return try? encoder.encode(r)
         case .updatePayment(let r):       return try? encoder.encode(r)
         case .updateProfile(let r):     return try? encoder.encode(r)

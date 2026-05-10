@@ -38,6 +38,10 @@ struct TabBarView: View {
                 tabOpacity = 1.0
             }
         }
+        .overlay(alignment: .topLeading) {
+            FeedbackButton()
+                .environment(\.theme, theme)
+        }
     }
     
     private var customTabBar: some View {
