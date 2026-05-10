@@ -89,10 +89,9 @@ struct StatsView: View {
 
                 if let stats = vm.stats {
                     kpiGrid(stats: stats)
-                    profitCard(stats: stats)
+                    profitRow(stats: stats)
                     earningsChart
-                    expensesSection
-                    topProcedures
+                    twoColumnSection
                 }
             }
             .padding(.horizontal, 20)
@@ -106,42 +105,16 @@ struct StatsView: View {
     // MARK: - Header
 
     private var headerSection: some View {
-        ZStack(alignment: .topLeading) {
-            ambientGlow
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Аналитика")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(theme.textPrimary)
-                Text("За последние 30 дней")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(theme.textMuted)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Аналитика")
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundColor(theme.textPrimary)
+            Text("За последние 30 дней")
+                .font(DS.bodySmall)
+                .foregroundColor(theme.textMuted)
         }
-    }
-
-    private var ambientGlow: some View {
-        Ellipse()
-            .fill(
-                RadialGradient(
-                    colors: [glowColor, .clear],
-                    center: .center,
-                    startRadius: 0,
-                    endRadius: 80
-                )
-            )
-            .frame(width: 300, height: 200)
-            .offset(x: -60, y: -40)
-            .blur(radius: 80)
-    }
-
-    private var glowColor: Color {
-        switch theme {
-        case .pink: return theme.accent.opacity(0.15)
-        case .platinum: return Color(hex: "#C9A84C").opacity(0.08)
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 8)
     }
 
     // MARK: - KPI Grid
@@ -149,36 +122,61 @@ struct StatsView: View {
     private func kpiGrid(stats: StatsResponse) -> some View {
         let columns = [GridItem(.flexible()), GridItem(.flexible())]
         return LazyVGrid(columns: columns, spacing: 12) {
-            KPICard(
-                icon: "rublesign.circle",
-                value: stats.monthEarnings.formatted,
-                label: "Выручка",
-                theme: theme
-            )
-            KPICard(
-                icon: "calendar.circle",
-                value: "\(stats.totalAppointments)",
-                label: "Записей",
-                theme: theme
-            )
-            KPICard(
-                icon: "person.2.circle",
-                value: "\(stats.totalClients)",
-                label: "Клиентов",
-                theme: theme
-            )
-            KPICard(
-                icon: "chart.line.uptrend.xyaxis.circle",
-                value: avgCheck.formatted,
-                label: "Ср. чек",
-                theme: theme
-            )
+            KpiCell(value: stats.monthEarnings.formatted, label: "Выручка", accentBorder: true, theme: theme)
+            KpiCell(value: "\(stats.totalAppointments)", label: "Записей", accentBorder: false, theme: theme)
+            KpiCell(value: "\(stats.totalClients)", label: "Клиентов", accentBorder: false, theme: theme)
+            KpiCell(value: avgCheck.formatted, label: "Ср. чек", accentBorder: true, theme: theme)
         }
     }
 
     private var avgCheck: Int {
         guard let stats = vm.stats, stats.totalAppointments > 0 else { return 0 }
         return stats.monthEarnings / stats.totalAppointments
+    }
+
+    // MARK: - Profit Row
+
+    private func profitRow(stats: StatsResponse) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Выручка")
+                    .font(DS.caption)
+                    .foregroundColor(theme.textMuted)
+                Text(stats.monthEarnings.formatted + " ₽")
+                    .font(DS.body)
+                    .foregroundColor(theme.textPrimary)
+            }
+            Spacer()
+            Text("−")
+                .font(DS.titleSmall)
+                .foregroundColor(theme.textMuted)
+            Spacer()
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("Расходы")
+                    .font(DS.caption)
+                    .foregroundColor(theme.textMuted)
+                Text(vm.totalExpenses.formatted + " ₽")
+                    .font(DS.body)
+                    .foregroundColor(theme.statusRed)
+            }
+            Spacer()
+            Text("=")
+                .font(DS.titleSmall)
+                .foregroundColor(theme.textMuted)
+            Spacer()
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("Прибыль")
+                    .font(DS.caption)
+                    .foregroundColor(theme.textMuted)
+                Text(vm.netProfit.formatted + " ₽")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(vm.netProfit >= 0 ? theme.statusGreen : theme.statusRed)
+            }
+        }
+        .padding(16)
+        .background(theme.backgroundCard)
+        .cornerRadius(DS.r12)
+        .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
     }
 
     // MARK: - Earnings Chart
@@ -202,110 +200,58 @@ struct StatsView: View {
         }
     }
 
-    // MARK: - Top Procedures
+    // MARK: - Two Column Section
 
-    private var topProcedures: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            BBSectionHeader(title: "Популярные услуги")
-
-            if let stats = vm.stats {
-                ForEach(Array(stats.topProcedures.prefix(5).enumerated()), id: \.offset) { index, proc in
-                    TopProcedureRow(
-                        index: index,
-                        name: proc.procedure,
-                        count: proc.count,
-                        maxCount: stats.topProcedures.first?.count ?? 1,
-                        theme: theme
-                    )
-                }
-            }
+    private var twoColumnSection: some View {
+        HStack(alignment: .top, spacing: 12) {
+            expensesColumn
+            topProceduresColumn
         }
     }
 
-    // MARK: - Profit Card
-
-    private func profitCard(stats: StatsResponse) -> some View {
-        BBGlassCard {
-            VStack(spacing: 12) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Выручка")
-                            .font(DS.bodySmall)
-                            .foregroundColor(theme.textMuted)
-                        Text(stats.monthEarnings.formatted + " ₽")
-                            .font(DS.headline)
-                            .foregroundColor(theme.textPrimary)
-                    }
-                    Spacer()
-                    Image(systemName: "minus")
-                        .foregroundColor(theme.textMuted)
-                    Spacer()
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Расходы")
-                            .font(DS.bodySmall)
-                            .foregroundColor(theme.textMuted)
-                        Text(vm.totalExpenses.formatted + " ₽")
-                            .font(DS.headline)
-                            .foregroundColor(theme.statusRed)
-                    }
-                    Spacer()
-                    Image(systemName: "equal")
-                        .foregroundColor(theme.textMuted)
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text("Прибыль")
-                            .font(DS.bodySmall)
-                            .foregroundColor(theme.textMuted)
-                        Text(vm.netProfit.formatted + " ₽")
-                            .font(.system(size: 17, weight: .bold))
-                            .foregroundColor(vm.netProfit >= 0 ? theme.statusGreen : theme.statusRed)
-                    }
-                }
-                .padding(.horizontal, 4)
-
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(theme.backgroundInput).frame(height: 6)
-                        let ratio = stats.monthEarnings > 0 ? CGFloat(vm.totalExpenses) / CGFloat(stats.monthEarnings) : 0
-                        Capsule()
-                            .fill(LinearGradient(colors: [theme.statusRed, Color(hex: "#FF6B6B")], startPoint: .leading, endPoint: .trailing))
-                            .frame(width: geo.size.width * min(ratio, 1.0), height: 6)
-                    }
-                }
-                .frame(height: 6)
-            }
-        }
-    }
-
-    private var expensesSection: some View {
+    private var expensesColumn: some View {
         VStack(alignment: .leading, spacing: 12) {
             BBSectionHeader(title: "Расходы", action: { vm.showAddExpense = true }, actionTitle: "Добавить")
 
             if vm.expenses.isEmpty {
                 BBGlassCard {
                     VStack(spacing: 8) {
-                        Image(systemName: "tray").font(.system(size: 28)).foregroundColor(theme.accent.opacity(0.4))
-                        Text("Нет расходов").font(DS.body).foregroundColor(theme.textMuted)
+                        Image(systemName: "tray")
+                            .font(.system(size: 28))
+                            .foregroundColor(theme.accent.opacity(0.4))
+                        Text("Нет расходов")
+                            .font(DS.body)
+                            .foregroundColor(theme.textMuted)
                     }
-                    .frame(maxWidth: .infinity).padding(.vertical, 20)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 20)
                 }
             } else {
                 ForEach(vm.expenses) { expense in
-                    HStack(spacing: 12) {
+                    HStack(spacing: 10) {
                         ZStack {
-                            Circle().fill(theme.backgroundInput).frame(width: 40, height: 40)
+                            Circle()
+                                .fill(theme.backgroundInput)
+                                .frame(width: 36, height: 36)
                             Image(systemName: ExpenseCategory(rawValue: expense.category)?.icon ?? "ellipsis.circle")
-                                .font(.system(size: 16)).foregroundColor(theme.accent)
+                                .font(.system(size: 14))
+                                .foregroundColor(theme.accent)
                         }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(expense.description).font(DS.body).foregroundColor(theme.textPrimary)
-                            Text(expense.category).font(DS.bodySmall).foregroundColor(theme.textMuted)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(expense.description)
+                                .font(DS.caption)
+                                .foregroundColor(theme.textPrimary)
+                                .lineLimit(1)
+                            Text(expense.category)
+                                .font(DS.caption)
+                                .foregroundColor(theme.textMuted)
                         }
-                        Spacer()
-                        Text("−\(expense.amount.formatted) ₽")
-                            .font(DS.label).foregroundColor(theme.statusRed)
+                        Spacer(minLength: 4)
+                        Text("−\(expense.amount.formatted)")
+                            .font(DS.caption)
+                            .foregroundColor(theme.statusRed)
                     }
-                    .padding(14)
+                    .padding(10)
                     .background(theme.backgroundCard)
                     .cornerRadius(DS.r12)
                     .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
@@ -318,37 +264,63 @@ struct StatsView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var topProceduresColumn: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BBSectionHeader(title: "Топ услуг")
+
+            if let stats = vm.stats, !stats.topProcedures.isEmpty {
+                ForEach(Array(stats.topProcedures.prefix(5).enumerated()), id: \.offset) { index, proc in
+                    TopProcedureRow(
+                        index: index,
+                        name: proc.procedure,
+                        count: proc.count,
+                        maxCount: stats.topProcedures.first?.count ?? 1,
+                        theme: theme
+                    )
+                }
+            } else {
+                BBGlassCard {
+                    Text("Нет данных")
+                        .font(DS.bodySmall)
+                        .foregroundColor(theme.textMuted)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
-// MARK: - KPI Card
+// MARK: - KPI Cell
 
-struct KPICard: View {
-    let icon: String
+struct KpiCell: View {
     let value: String
     let label: String
+    let accentBorder: Bool
     let theme: AppTheme
 
     var body: some View {
-        BBGlassCard {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: icon)
-                        .font(.system(size: 20))
-                        .foregroundColor(theme.accent)
-                    Spacer()
-                }
-
-                Text(value)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(theme.textPrimary)
-
-                Text(label)
-                    .font(DS.bodySmall)
-                    .foregroundColor(theme.textMuted)
-            }
-            .padding(16)
+        VStack(spacing: 8) {
+            Text(label)
+                .font(DS.bodySmall)
+                .foregroundColor(theme.textMuted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(value)
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundColor(theme.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(16)
+        .background(theme.backgroundCard)
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(accentBorder ? theme.accent : theme.borderSubtle, lineWidth: accentBorder ? 1 : 0.5)
+        )
     }
 }
 
@@ -366,17 +338,18 @@ struct TopProcedureRow: View {
     }
 
     var body: some View {
-        HStack {
+        HStack(spacing: 6) {
             Text("#\(index + 1)")
-                .font(DS.labelSmall)
+                .font(DS.caption)
                 .foregroundColor(theme.textMuted)
-                .frame(width: 24)
+                .frame(width: 20)
 
             Text(name)
-                .font(DS.body)
+                .font(DS.caption)
                 .foregroundColor(theme.textPrimary)
+                .lineLimit(1)
 
-            Spacer()
+            Spacer(minLength: 4)
 
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -388,14 +361,14 @@ struct TopProcedureRow: View {
                         .frame(width: geo.size.width * ratio, height: 4)
                 }
             }
-            .frame(width: 80, height: 4)
+            .frame(width: 50, height: 4)
 
             Text("\(count)")
-                .font(DS.labelSmall)
+                .font(DS.caption)
                 .foregroundColor(theme.accent)
-                .frame(width: 30, alignment: .trailing)
+                .frame(width: 24, alignment: .trailing)
         }
-        .padding(14)
+        .padding(10)
         .background(theme.backgroundCard)
         .cornerRadius(DS.r12)
     }
@@ -447,10 +420,7 @@ extension Int {
     }
 }
 
-#Preview {
-    StatsView()
-        .environment(\.theme, .pink)
-}
+// MARK: - AddExpenseSheet
 
 struct AddExpenseSheet: View {
     @ObservedObject var vm: StatsViewModel
@@ -517,4 +487,9 @@ struct AddExpenseSheet: View {
         .presentationDragIndicator(.visible)
         .onAppear { vm.expenseError = nil }
     }
+}
+
+#Preview {
+    StatsView()
+        .environment(\.theme, .pink)
 }
