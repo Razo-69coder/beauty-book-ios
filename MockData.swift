@@ -23,7 +23,12 @@ enum MockData {
         depositPercent: 30,
         theme: "pink",
         specialization: nil,
-        telegramId: nil
+        telegramId: nil,
+        loyaltyDiscountEnabled: true,
+        loyaltyThreshold: 10,
+        loyaltyDiscountPercent: 10,
+        birthdayDiscountEnabled: true,
+        birthdayDiscountPercent: 10
     )
 
     // MARK: - Services
