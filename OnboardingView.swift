@@ -9,7 +9,7 @@ struct OnboardingView: View {
     @State private var currentStep = 0
     let onFinish: () -> Void
 
-    private let totalSteps = 11
+    private let totalSteps = 13
 
     var body: some View {
         ZStack {
@@ -55,40 +55,66 @@ struct OnboardingView: View {
     // MARK: - Step Views
     @ViewBuilder
     private func stepView(for step: Int) -> some View {
-        VStack(spacing: 32) {
-            Spacer()
+        if step >= 3 && step <= 8 {
+            imageSlide(for: step)
+        } else {
+            VStack(spacing: 32) {
+                Spacer()
 
-            // Icon
-            ZStack {
-                Circle()
-                    .fill(theme.gradientPrimary)
-                    .frame(width: 100, height: 100)
-                    .shadow(color: theme.accentGlow, radius: 30)
-                Image(systemName: iconName(for: step))
-                    .font(.system(size: 44, weight: .medium))
-                    .foregroundColor(.white)
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(theme.gradientPrimary)
+                        .frame(width: 100, height: 100)
+                        .shadow(color: theme.accentGlow, radius: 30)
+                    Image(systemName: iconName(for: step))
+                        .font(.system(size: 44, weight: .medium))
+                        .foregroundColor(.white)
+                }
+
+                // Text
+                VStack(spacing: 12) {
+                    Text(title(for: step))
+                        .font(DS.titleMedium)
+                        .foregroundColor(theme.textPrimary)
+                        .multilineTextAlignment(.center)
+                    Text(subtitle(for: step))
+                        .font(DS.body)
+                        .foregroundColor(theme.textMuted)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                // Input fields (if any)
+                inputView(for: step)
+
+                // Badge (if any)
+                badgeView(for: step)
+
+                Spacer()
             }
+        }
+    }
 
-            // Text
-            VStack(spacing: 12) {
-                Text(title(for: step))
-                    .font(DS.titleMedium)
-                    .foregroundColor(theme.textPrimary)
-                    .multilineTextAlignment(.center)
-                Text(subtitle(for: step))
-                    .font(DS.body)
-                    .foregroundColor(theme.textMuted)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+    // MARK: - Image Slide
+    @ViewBuilder
+    private func imageSlide(for step: Int) -> some View {
+        Image(imageName(for: step))
+            .resizable()
+            .scaledToFit()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, -20)
+    }
 
-            // Input fields (if any)
-            inputView(for: step)
-
-            // Badge (if any)
-            badgeView(for: step)
-
-            Spacer()
+    private func imageName(for step: Int) -> String {
+        switch step {
+        case 3: return "onboarding_1_schedule"
+        case 4: return "onboarding_2_clients"
+        case 5: return "onboarding_3_services"
+        case 6: return "onboarding_4_stats"
+        case 7: return "onboarding_5_settings"
+        case 8: return "onboarding_6_doll"
+        default: return ""
         }
     }
 
@@ -132,7 +158,7 @@ struct OnboardingView: View {
                     }
                 }
             }
-        case 7:
+        case 9:
             VStack(spacing: 12) {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
@@ -181,7 +207,7 @@ struct OnboardingView: View {
             .padding(16)
             .background(theme.backgroundInput)
             .cornerRadius(DS.r12)
-        case 8:
+        case 10:
             VStack(spacing: 12) {
                 BBTextField(placeholder: "Название услуги", text: $vm.serviceName)
                     .environment(\.theme, theme)
@@ -189,7 +215,7 @@ struct OnboardingView: View {
                     .keyboardType(.numberPad)
                     .environment(\.theme, theme)
             }
-        case 9:
+        case 11:
             VStack(spacing: 8) {
                 HStack {
                     Text("beautybook.app/")
@@ -222,14 +248,6 @@ struct OnboardingView: View {
         switch step {
         case 2:
             badge(text: "✦ Автонапоминания клиентам")
-        case 3:
-            badge(text: "✦ Онлайн-запись 24/7")
-        case 4:
-            badge(text: "✦ Напоминания за 2 часа")
-        case 5:
-            badge(text: "✦ Нерабочие дни")
-        case 6:
-            badge(text: "✦ Аналитика и статистика")
         default:
             EmptyView()
         }
@@ -276,8 +294,8 @@ struct OnboardingView: View {
     private var canProceed: Bool {
         switch currentStep {
 
-        case 8: return !vm.serviceName.isEmpty
-        case 9: return !vm.bookingSlug.isEmpty
+        case 10: return !vm.serviceName.isEmpty
+        case 11: return !vm.bookingSlug.isEmpty
         default: return true
         }
     }
@@ -288,14 +306,11 @@ struct OnboardingView: View {
         case 0: return "sparkles"
         case 1: return "wand.and.stars"
         case 2: return "person.2.slash"
-        case 3: return "message.badge.fill"
-        case 4: return "bell.badge.fill"
-        case 5: return "calendar.badge.checkmark"
-        case 6: return "chart.bar.fill"
-        case 7: return "clock.fill"
-        case 8: return "scissors"
-        case 9: return "link"
-        case 10: return "checkmark.seal.fill"
+        case 3...8: return ""
+        case 9: return "clock.fill"
+        case 10: return "scissors"
+        case 11: return "link"
+        case 12: return "checkmark.seal.fill"
         default: return "sparkles"
         }
     }
@@ -305,14 +320,11 @@ struct OnboardingView: View {
         case 0: return "Добро пожаловать в Solva Beauty"
         case 1: return "Чем ты занимаешься?"
         case 2: return "Клиенты уходят и не возвращаются"
-        case 3: return "Хватит принимать записи в мессенджерах"
-        case 4: return "Клиент забыл — ты потеряла час"
-        case 5: return "Ты сама решаешь когда работаешь"
-        case 6: return "Деньги есть, а сколько — непонятно"
-        case 7: return "Когда ты работаешь?"
-        case 8: return "Добавь первую услугу"
-        case 9: return "Ссылка для твоих клиентов"
-        case 10: return "Solva Beauty готов к работе!"
+        case 3...8: return ""
+        case 9: return "Когда ты работаешь?"
+        case 10: return "Добавь первую услугу"
+        case 11: return "Ссылка для твоих клиентов"
+        case 12: return "Solva Beauty готов к работе!"
         default: return ""
         }
     }
@@ -322,14 +334,11 @@ struct OnboardingView: View {
         case 0: return "Твой личный администратор, который никогда не спит и ничего не забывает"
         case 1: return "Выбери свою специализацию — мы настроим приложение под тебя"
         case 2: return "Не потому что ушли навсегда — просто никто не напомнил. Solva Beauty автоматически пишет клиентам когда они давно не приходили"
-        case 3: return "«А когда есть время?» — и так 20 раз в день. Отправь клиенту ссылку — он сам выберет удобное время"
-        case 4: return "Solva Beauty отправляет напоминание за 2 часа до записи. Клиенты приходят вовремя"
-        case 5: return "Отпуск, выходной, праздник — поставь нерабочие дни и клиенты не смогут записаться на эти даты"
-        case 6: return "Вся статистика в одном месте: выручка за месяц, топ услуги, средний чек. Понимай свой бизнес"
-        case 7: return "Можно изменить в любой момент в Настройках"
-        case 8: return "Клиенты будут выбирать её при онлайн-записи"
-        case 9: return "Отправь эту ссылку — клиент сам запишется без звонков"
-        case 10: return "Твой профиль настроен. Добавляй клиентов, принимай записи и зарабатывай больше.\n\nВидишь куколку в углу экрана? Тыкни на неё — напиши что улучшить, мы читаем каждое сообщение 💅"
+        case 3...8: return ""
+        case 9: return "Можно изменить в любой момент в Настройках"
+        case 10: return "Клиенты будут выбирать её при онлайн-записи"
+        case 11: return "Отправь эту ссылку — клиент сам запишется без звонков"
+        case 12: return "Твой профиль настроен. Добавляй клиентов, принимай записи и зарабатывай больше.\n\nВидишь куколку в углу экрана? Тыкни на неё — напиши что улучшить, мы читаем каждое сообщение 💅"
         default: return ""
         }
     }
