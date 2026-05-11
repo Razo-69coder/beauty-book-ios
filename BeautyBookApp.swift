@@ -26,9 +26,9 @@ struct BeautyBookApp: App {
                                 set: { _ in }
                             )
                         ) {
-                            OnboardingView(isPreview: false, onFinish: {
+                            OnboardingView(onFinish: {
                                 onboardingCompleted = true
-                            })
+                            }, isPreview: false)
                             .environmentObject(themeManager)
                             .environment(\.theme, themeManager.current)
                             .interactiveDismissDisabled()
