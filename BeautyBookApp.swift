@@ -26,7 +26,7 @@ struct BeautyBookApp: App {
                                 set: { _ in }
                             )
                         ) {
-                            OnboardingView(onFinish: {
+                            OnboardingView(isPreview: false, onFinish: {
                                 onboardingCompleted = true
                             })
                             .environmentObject(themeManager)

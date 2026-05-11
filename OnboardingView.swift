@@ -8,7 +8,7 @@ struct OnboardingView: View {
     @StateObject private var vm = OnboardingViewModel()
     @State private var currentStep = 0
     let onFinish: () -> Void
-    let isPreview: Bool = false
+    let isPreview: Bool
 
     private let totalSteps = 13
 
@@ -102,8 +102,9 @@ struct OnboardingView: View {
     private func imageSlide(for step: Int) -> some View {
         Image(imageName(for: step))
             .resizable()
-            .scaledToFit()
+            .scaledToFill()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
             .padding(.horizontal, -20)
     }
 
