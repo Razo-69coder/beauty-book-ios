@@ -253,6 +253,7 @@ struct SettingsView: View {
     @Environment(\.theme) private var theme
         @State private var showLogoutAlert = false
         @State private var showBlockedDays = false
+        @State private var showOnboarding = false
 
         var body: some View {
         Color.clear
@@ -266,8 +267,9 @@ struct SettingsView: View {
                         loyaltySection
                         notificationsSection
                         scheduleSection
-                        appSection
-                        logoutButton
+                    appSection
+                    aboutSection
+                    logoutButton
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 100)
@@ -287,6 +289,11 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showBlockedDays) {
                 BlockedDaysView()
+                    .environmentObject(ThemeManager.shared)
+                    .environment(\.theme, theme)
+            }
+            .fullScreenCover(isPresented: $showOnboarding) {
+                OnboardingView(onFinish: { showOnboarding = false })
                     .environmentObject(ThemeManager.shared)
                     .environment(\.theme, theme)
             }
@@ -798,6 +805,49 @@ struct SettingsView: View {
             BBGlassCard {
                 VStack(spacing: 0) {
                     SettingsRow(icon: "bell.fill", label: "Уведомления", value: "Включены", theme: theme)
+                }
+            }
+        }
+    }
+
+    // MARK: - About
+
+    private var aboutSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BBSectionHeader(title: "О приложении")
+
+            BBGlassCard {
+                VStack(spacing: 0) {
+                    Button(action: { showOnboarding = true }) {
+                        HStack {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 16))
+                                .foregroundColor(theme.accent)
+                                .frame(width: 32)
+                            Text("Как пользоваться приложением")
+                                .font(DS.body)
+                                .foregroundColor(theme.textPrimary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12))
+                                .foregroundColor(theme.textMuted)
+                        }
+                        .padding(.vertical, 12)
+                    }
+
+                    Divider().background(theme.borderSubtle)
+
+                    HStack {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 16))
+                            .foregroundColor(theme.accent)
+                            .frame(width: 32)
+                        Text("Версия 1.0")
+                            .font(DS.body)
+                            .foregroundColor(theme.textMuted)
+                        Spacer()
+                    }
+                    .padding(.vertical, 12)
                 }
             }
         }
