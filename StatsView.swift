@@ -12,9 +12,17 @@ final class StatsViewModel: ObservableObject {
     @Published var isAddingExpense = false
 
     enum Period: String, CaseIterable {
-        case week = "Неделя"
-        case month = "Месяц"
-        case year = "Год"
+        case week = "week"
+        case month = "month"
+        case year = "year"
+
+        var displayName: String {
+            switch self {
+            case .week:  return "Неделя"
+            case .month: return "Месяц"
+            case .year:  return "Год"
+            }
+        }
     }
 
     private let api = APIClient.shared
@@ -29,7 +37,7 @@ final class StatsViewModel: ObservableObject {
         } else {
             stats = StatsResponse(totalClients: 0, totalAppointments: 0, totalEarnings: 0, monthEarnings: 0, topProcedures: [])
         }
-        earningsByDay = []
+        earningsByDay = ((try? await api.earningsByDay(period: selectedPeriod.rawValue)) ?? []).map { ($0.date, $0.total) }
         expenses = (try? await api.fetchExpenses()) ?? []
         isLoading = false
     }
@@ -183,7 +191,20 @@ struct StatsView: View {
 
     private var earningsChart: some View {
         VStack(alignment: .leading, spacing: 12) {
-            BBSectionHeader(title: "Выручка по дням")
+            HStack {
+                BBSectionHeader(title: "Выручка по дням")
+                Spacer()
+                Picker("", selection: $vm.selectedPeriod) {
+                    ForEach(StatsViewModel.Period.allCases, id: \.self) { p in
+                        Text(p.displayName).tag(p)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 240)
+                .onChange(of: vm.selectedPeriod) { _ in
+                    Task { await vm.load() }
+                }
+            }
 
             BBGlassCard {
                 if vm.earningsByDay.isEmpty || vm.earningsByDay.allSatisfy({ $0.1 == 0 }) {

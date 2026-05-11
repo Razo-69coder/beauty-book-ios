@@ -266,6 +266,18 @@ extension APIClient {
         _ = try await delete("/expenses/\(id)")
     }
     
+    func earningsByDay(period: String) async throws -> [EarningsDay] {
+        let daysMap = ["week": 7, "month": 30, "year": 365]
+        let days = daysMap[period] ?? 30
+        let data = try await get("/stats/chart?days=\(days)")
+        let items = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] ?? []
+        return items.compactMap { dict in
+            guard let date = dict["date"] as? String,
+                  let total = dict["total"] as? Int else { return nil }
+            return EarningsDay(date: date, total: total)
+        }
+    }
+
     func telegramLinkToken() async throws -> (token: String, botUsername: String) {
         let data = try await get("/telegram-link-token")
         let json = try JSONSerialization.jsonObject(with: data) as? [String: String] ?? [:]

@@ -292,6 +292,22 @@ struct ExpenseCreateRequest: Encodable {
     let date: String
 }
 
+// MARK: - Earnings by Day
+
+struct EarningsDay: Identifiable, Decodable {
+    let id = UUID()
+    let date: String
+    let total: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case date, total
+    }
+}
+
+struct EarningsByDayResponse: Decodable {
+    let days: [EarningsDay]
+}
+
 enum ExpenseCategory: String, CaseIterable {
     case materials = "Материалы"
     case rent = "Аренда"
