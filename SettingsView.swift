@@ -293,7 +293,7 @@ struct SettingsView: View {
                     .environment(\.theme, theme)
             }
             .fullScreenCover(isPresented: $showOnboarding) {
-                OnboardingView(onFinish: { showOnboarding = false })
+                OnboardingView(isPreview: true, onFinish: { showOnboarding = false })
                     .environmentObject(ThemeManager.shared)
                     .environment(\.theme, theme)
             }

@@ -8,6 +8,7 @@ struct OnboardingView: View {
     @StateObject private var vm = OnboardingViewModel()
     @State private var currentStep = 0
     let onFinish: () -> Void
+    let isPreview: Bool = false
 
     private let totalSteps = 13
 
@@ -277,16 +278,25 @@ struct OnboardingView: View {
                 }
                 .environment(\.theme, theme)
             } else {
-                BBPrimaryButton(
-                    title: vm.isSaving ? "Сохранение..." : "Начать работу",
-                    isLoading: vm.isSaving
-                ) {
-                    Task {
-                        await vm.finish()
+                if isPreview {
+                    BBPrimaryButton(
+                        title: "Закрыть"
+                    ) {
                         onFinish()
                     }
+                    .environment(\.theme, theme)
+                } else {
+                    BBPrimaryButton(
+                        title: vm.isSaving ? "Сохранение..." : "Начать работу",
+                        isLoading: vm.isSaving
+                    ) {
+                        Task {
+                            await vm.finish()
+                            onFinish()
+                        }
+                    }
+                    .environment(\.theme, theme)
                 }
-                .environment(\.theme, theme)
             }
         }
     }
