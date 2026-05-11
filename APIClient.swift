@@ -269,7 +269,7 @@ extension APIClient {
     func earningsByDay(period: String) async throws -> [EarningsDay] {
         let daysMap = ["week": 7, "month": 30, "year": 365]
         let days = daysMap[period] ?? 30
-        let data = try await get("/stats/chart?days=\(days)")
+        let data = try await get("/masters/me/stats/earnings-by-day?period=\(period)")
         let items = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] ?? []
         return items.compactMap { dict in
             guard let date = dict["date"] as? String,
