@@ -10,7 +10,12 @@ struct OnboardingView: View {
     let onFinish: () -> Void
     let isPreview: Bool
 
-    private let totalSteps = 13
+    private var visibleSteps: [Int] {
+        isPreview
+            ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 12]
+            : Array(0...12)
+    }
+    private var totalSteps: Int { visibleSteps.count }
 
     var body: some View {
         ZStack {
@@ -24,9 +29,9 @@ struct OnboardingView: View {
 
                 // Content
                 TabView(selection: $currentStep) {
-                    ForEach(0..<totalSteps, id: \.self) { step in
-                        stepView(for: step)
-                            .tag(step)
+                    ForEach(0..<totalSteps, id: \.self) { index in
+                        stepView(for: visibleSteps[index])
+                            .tag(index)
                             .padding(.horizontal, 20)
                     }
                 }
@@ -102,9 +107,8 @@ struct OnboardingView: View {
     private func imageSlide(for step: Int) -> some View {
         Image(imageName(for: step))
             .resizable()
-            .scaledToFill()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
+            .scaledToFit()
+            .frame(maxWidth: .infinity)
             .padding(.horizontal, -20)
     }
 
@@ -303,8 +307,8 @@ struct OnboardingView: View {
     }
 
     private var canProceed: Bool {
-        switch currentStep {
-
+        let logical = visibleSteps[currentStep]
+        switch logical {
         case 10: return !vm.serviceName.isEmpty
         case 11: return !vm.bookingSlug.isEmpty
         default: return true
