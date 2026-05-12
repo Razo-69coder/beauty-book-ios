@@ -353,19 +353,6 @@ final class ServicesViewModel: ObservableObject {
     @Published var errorMessage: String? = nil
     @Published var total: Int = 0
 
-    private let mockServices: [Service] = [
-        Service(id: 1, name: "Маникюр классический", priceDefault: 1200, durationMin: 60, category: "Маникюр"),
-        Service(id: 2, name: "Маникюр с покрытием", priceDefault: 1800, durationMin: 90, category: "Маникюр"),
-        Service(id: 3, name: "Снятие покрытия", priceDefault: 500, durationMin: 30, category: "Маникюр"),
-        Service(id: 4, name: "Дизайн ногтей", priceDefault: 800, durationMin: 60, category: "Маникюр"),
-        Service(id: 5, name: "Педикюр классический", priceDefault: 1500, durationMin: 90, category: "Педикюр"),
-        Service(id: 6, name: "Педикюр с покрытием", priceDefault: 2200, durationMin: 120, category: "Педикюр"),
-        Service(id: 7, name: "Наращивание ресниц", priceDefault: 2000, durationMin: 120, category: "Ресницы"),
-        Service(id: 8, name: "Коррекция ресниц", priceDefault: 1500, durationMin: 90, category: "Ресницы"),
-        Service(id: 9, name: "Ламинирование бровей", priceDefault: 1200, durationMin: 60, category: "Брови"),
-        Service(id: 10, name: "Окрашивание бровей", priceDefault: 800, durationMin: 30, category: "Брови"),
-    ]
-
     private let api = APIClient.shared
 
     var categories: [String] {
@@ -381,9 +368,9 @@ final class ServicesViewModel: ObservableObject {
             services = response.services
             total = response.services.count
         } catch {
-            services = mockServices
-            total = services.count
-            errorMessage = error.localizedDescription
+            services = []
+            total = 0
+            errorMessage = "Нет подключения к интернету"
         }
 
         isLoading = false

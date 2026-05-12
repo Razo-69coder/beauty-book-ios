@@ -270,7 +270,8 @@ extension APIClient {
         let daysMap = ["week": 7, "month": 30, "year": 365]
         let days = daysMap[period] ?? 30
         let data = try await get("/masters/me/stats/earnings-by-day?period=\(period)")
-        let items = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] ?? []
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+        let items = json["days"] as? [[String: Any]] ?? []
         return items.compactMap { dict in
             guard let date = dict["date"] as? String,
                   let total = dict["total"] as? Int else { return nil }
