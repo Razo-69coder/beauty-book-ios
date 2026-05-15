@@ -1,6 +1,6 @@
-name: BeautyBook
+name: SolvoBeauty
 options:
-  bundleIdPrefix: com.beautybook
+  bundleIdPrefix: com.solvobeauty
   deploymentTarget:
     iOS: "17.0"
 
@@ -15,7 +15,7 @@ settings:
     CODE_SIGNING_ALLOWED: "NO"
 
 targets:
-  BeautyBook:
+  SolvoBeauty:
     type: application
     platform: iOS
     sources:
@@ -37,7 +37,7 @@ targets:
       - path: Assets.xcassets
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.beautybook.app.53C33F97M2
+        PRODUCT_BUNDLE_IDENTIFIER: com.solvobeauty.app.53C33F97M2
         INFOPLIST_FILE: Info.plist
         DEVELOPMENT_TEAM: ""
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
@@ -49,21 +49,21 @@ targets:
     info:
       path: Info.plist
       properties:
-        CFBundleName: BeautyBook
-        CFBundleDisplayName: Beauty Book
-        CFBundleIdentifier: com.beautybook.app.53C33F97M2
+        CFBundleName: SolvoBeauty
+        CFBundleDisplayName: Solvo Beauty
+        CFBundleIdentifier: com.solvobeauty.app.53C33F97M2
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         CFBundleShortVersionString: "1.0.0"
         CFBundlePackageType: APPL
-        CFBundleExecutable: BeautyBook
+        CFBundleExecutable: SolvoBeauty
         CFBundleIconName: AppIcon
         UILaunchScreen:
           UIColorName: ""
         UIRequiresFullScreen: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
-        NSContactsUsageDescription: "Beauty Book использует контакты для быстрого добавления клиентов"
-        NSCameraUsageDescription: "Beauty Book использует камеру для фото работ клиента"
-        NSPhotoLibraryUsageDescription: "Beauty Book использует галерею для фото работ клиента"
-        NSPhotoLibraryAddUsageDescription: "Beauty Book сохраняет фото работ"
+        NSContactsUsageDescription: "Solvo Beauty использует контакты для быстрого добавления клиентов"
+        NSCameraUsageDescription: "Solvo Beauty использует камеру для фото работ клиента"
+        NSPhotoLibraryUsageDescription: "Solvo Beauty использует галерею для фото работ клиента"
+        NSPhotoLibraryAddUsageDescription: "Solvo Beauty сохраняет фото работ"
     dependencies: []

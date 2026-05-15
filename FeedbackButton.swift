@@ -66,6 +66,7 @@ struct FeedbackSheet: View {
                 TextEditor(text: $text)
                     .font(DS.body)
                     .foregroundColor(theme.textPrimary)
+                    .colorScheme(theme == .platinum ? .light : .dark)
                     .frame(minHeight: 120)
                     .padding(12)
                     .background(theme.backgroundInput)

@@ -260,6 +260,7 @@ struct ClientsListView: View {
                         }
                     }
                 }
+                .onTapGesture { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
             }
             .overlay(alignment: .bottomTrailing) {
                 fabButton
@@ -626,6 +627,7 @@ struct AddClientSheet: View {
                             DatePicker("", selection: $birthdayDate, displayedComponents: [.date])
                                 .datePickerStyle(.graphical)
                                 .accentColor(theme.accent)
+                                .colorScheme(.dark)
                                 .environment(\.locale, Locale(identifier: "ru_RU"))
                                 .onChange(of: birthdayDate) { _, newDate in
                                     let f = DateFormatter(); f.dateFormat = "MM-dd"

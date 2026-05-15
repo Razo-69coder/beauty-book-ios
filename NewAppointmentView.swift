@@ -160,7 +160,7 @@ struct NewAppointmentView: View {
 
                     sectionView(index: 2, title: "Дата и время") {
                         VStack(spacing: 16) {
-                            DatePicker("", selection: $vm.selectedDate, in: Date()..., displayedComponents: .date)
+                            DatePicker("", selection: $vm.selectedDate, displayedComponents: .date)
                                 .datePickerStyle(.graphical)
                                 .accentColor(theme.accent)
                                 .colorScheme(theme == .platinum ? .light : .dark)
