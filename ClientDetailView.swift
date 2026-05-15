@@ -14,6 +14,7 @@ struct ClientDetailView: View {
     @State private var showGalleryPicker = false
     @State private var selectedPhoto: UIImage? = nil
     @State private var isLoading = false
+    @State private var showEditSheet = false
 
     var body: some View {
         theme.backgroundDeep
@@ -43,8 +44,25 @@ struct ClientDetailView: View {
                 photos = []
                 uiPhotos = ClientPhotoStorage.load(clientId: client.id)
                 isLoading = false
-    }
-}
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showEditSheet = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .foregroundColor(theme.accent)
+                    }
+                }
+            }
+            .sheet(isPresented: $showEditSheet) {
+                ClientEditView(client: client, onSave: { _ in
+                    showEditSheet = false
+                    NotificationCenter.default.post(name: NSNotification.Name("ClientUpdated"), object: nil)
+                })
+                .environment(\.theme, theme)
+            }
+        }
 
 struct ClientPhotoStorage {
     static func directory(for clientId: Int) -> URL {
