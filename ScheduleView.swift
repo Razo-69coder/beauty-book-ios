@@ -131,6 +131,33 @@ struct ScheduleView: View {
         }
     }
 
+    @State private var statusActionAppointment: Appointment? = nil
+
+    private func showStatusActions(for appt: Appointment) {
+        statusActionAppointment = appt
+    }
+
+    private func changeStatus(for appt: Appointment, to newStatus: AppointmentStatus) {
+        guard appt.status != newStatus else { return }
+        Task {
+            try? await APIClient.shared.updateAppointmentStatus(id: appt.id, status: newStatus)
+            if let idx = vm.appointments.firstIndex(where: { $0.id == appt.id }) {
+                var updated = vm.appointments[idx]
+                updated = Appointment(
+                    id: updated.id, clientId: updated.clientId, masterId: updated.masterId,
+                    procedure: updated.procedure, appointmentDate: updated.appointmentDate,
+                    time: updated.time, price: updated.price, notes: updated.notes,
+                    status: newStatus, depositStatus: updated.depositStatus,
+                    depositAmount: updated.depositAmount, clientName: updated.clientName,
+                    clientPhone: updated.clientPhone, serviceDoneAt: updated.serviceDoneAt,
+                    duration: updated.duration
+                )
+                vm.appointments[idx] = updated
+            }
+            HapticManager.success()
+        }
+    }
+
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -325,8 +352,15 @@ struct AppointmentBlock: View {
         return darkColors.contains(where: { hex.hasPrefix($0) }) ? .white : Color(hex: "#3D2B2B")
     }
 
+    private var statusColor: Color { Color(hex: appointment.status.hexColor) }
+
     var body: some View {
         HStack(spacing: 0) {
+            Circle()
+                .fill(statusColor)
+                .frame(width: 8, height: 8)
+                .padding(.leading, 6)
+
             RoundedRectangle(cornerRadius: 2)
                 .fill(
                     theme == .platinum
@@ -428,21 +462,50 @@ struct AppointmentDetailSheet: View {
                     .background(theme.backgroundCard)
                     .cornerRadius(DS.r16)
 
-                    if appointment.status != .completed && appointment.status != .cancelled {
-                        Button(role: .destructive) {
-                            onCancel()
-                            dismiss()
+                    VStack(spacing: 12) {
+                        Menu {
+                            ForEach(AppointmentStatus.allCases.filter { $0 != appointment.status }, id: \.self) { status in
+                                Button {
+                                    Task {
+                                        try? await APIClient.shared.updateAppointmentStatus(id: appointment.id, status: status)
+                                        dismiss()
+                                    }
+                                } label: {
+                                    HStack {
+                                        Circle().fill(Color(hex: status.hexColor)).frame(width: 10, height: 10)
+                                        Text(status.displayName)
+                                    }
+                                }
+                            }
                         } label: {
                             HStack {
-                                Image(systemName: "xmark.circle")
-                                Text("Отменить запись")
+                                Image(systemName: "arrow.triangle.swap")
+                                Text("Изменить статус")
                             }
                             .font(DS.body)
-                            .foregroundColor(.red)
+                            .foregroundColor(theme.accent)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
-                            .background(Color.red.opacity(0.1))
+                            .background(theme.accent.opacity(0.1))
                             .cornerRadius(DS.r12)
+                        }
+
+                        if appointment.status != .completed && appointment.status != .cancelled && appointment.status != .noShow {
+                            Button(role: .destructive) {
+                                onCancel()
+                                dismiss()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "xmark.circle")
+                                    Text("Отменить запись")
+                                }
+                                .font(DS.body)
+                                .foregroundColor(.red)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color.red.opacity(0.1))
+                                .cornerRadius(DS.r12)
+                            }
                         }
                     }
                 }

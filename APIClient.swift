@@ -76,6 +76,10 @@ enum Endpoint {
     case subscriptionNotify
     case subscriptionStatus
     case telegramLinkToken
+    // Status
+    case updateAppointmentStatus(id: Int, status: String)
+    // Import
+    case importClients([ClientImportItem])
 }
 
 extension Endpoint {
@@ -114,6 +118,8 @@ extension Endpoint {
         case .subscriptionNotify:        return "/subscription/notify"
         case .subscriptionStatus:       return "/subscription/status"
         case .telegramLinkToken:        return "/telegram-link-token"
+        case .updateAppointmentStatus(let id, _): return "/appointments/\(id)/status"
+        case .importClients:             return "/clients/import"
         }
     }
 
@@ -129,6 +135,8 @@ extension Endpoint {
         case .addBlockedDay, .subscriptionNotify:   return "POST"
         case .removeBlockedDay: return "DELETE"
         case .telegramLinkToken: return "GET"
+        case .updateAppointmentStatus: return "PATCH"
+        case .importClients: return "POST"
         default:
             return "GET"
         }
@@ -175,6 +183,10 @@ extension Endpoint {
         case .updateBookingLink(let link): return try? encoder.encode(["link": link])
         case .addBlockedDay(let date): return try? encoder.encode(["date": date])
         case .updateLoyaltySettings(let r): return try? encoder.encode(r)
+        case .updateAppointmentStatus(_, let status):
+            return try? JSONEncoder().encode(["status": status])
+        case .importClients(let items):
+            return try? encoder.encode(ClientImportRequest(clients: items))
         default: return nil
         }
     }
@@ -243,6 +255,14 @@ final class APIClient: ObservableObject {
         }
         req.httpBody = endpoint.body
         return req
+    }
+
+    func updateAppointmentStatus(id: Int, status: AppointmentStatus) async throws -> MessageResponse {
+        return try await request(.updateAppointmentStatus(id: id, status: status.rawValue), as: MessageResponse.self)
+    }
+
+    func importClients(_ items: [ClientImportItem]) async throws -> ClientImportResponse {
+        return try await request(.importClients(items), as: ClientImportResponse.self)
     }
 }
 

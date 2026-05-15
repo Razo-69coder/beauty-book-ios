@@ -222,12 +222,12 @@ final class ClientsViewModel: ObservableObject {
         catch { clients.append(client) }
     }
 
-    func add(name: String, phone: String, notes: String, birthday: String) async {
+    func add(name: String, phone: String, notes: String, birthday: String, source: String = "", allergies: String = "") async {
         do {
-            let _ = try await api.request(.createClient(ClientCreateRequest(name: name, phone: phone, notes: notes)), as: MessageResponse.self)
+            let _ = try await api.request(.createClient(ClientCreateRequest(name: name, phone: phone, notes: notes, source: source, allergies: allergies)), as: MessageResponse.self)
             await load()
         } catch {
-            let temp = Client(id: Int.random(in: 10000...99999), name: name, phone: phone, notes: notes, lastVisit: nil, username: nil, telegramId: nil, appointmentsCount: nil, birthday: birthday.isEmpty ? nil : birthday)
+            let temp = Client(id: Int.random(in: 10000...99999), name: name, phone: phone, notes: notes, lastVisit: nil, username: nil, telegramId: nil, appointmentsCount: nil, birthday: birthday.isEmpty ? nil : birthday, source: source.isEmpty ? nil : source, allergies: allergies.isEmpty ? nil : allergies)
             clients.insert(temp, at: 0)
         }
     }
@@ -239,6 +239,7 @@ struct ClientsListView: View {
     @StateObject private var vm = ClientsViewModel()
     @Environment(\.theme) private var theme
     @State private var showImportContacts = false
+    @State private var showImportCSV = false
 
     var body: some View {
         Color.clear
@@ -275,6 +276,11 @@ struct ClientsListView: View {
                 }
                 .environment(\.theme, theme)
             }
+            .sheet(isPresented: $showImportCSV) {
+                ImportClientsView()
+                    .environment(\.theme, theme)
+                    .onDisappear { Task { await vm.load() } }
+            }
             .sheet(item: $vm.selectedClient) { client in
                 ClientDetailView(client: client).environment(\.theme, theme)
             }
@@ -295,12 +301,21 @@ struct ClientsListView: View {
                         .foregroundColor(theme.textMuted)
                 }
                 Spacer()
-                Button {
-                    showImportContacts = true
-                } label: {
-                    Image(systemName: "person.crop.circle.badge.plus")
-                        .font(.system(size: 22))
-                        .foregroundColor(theme.accent)
+                HStack(spacing: 12) {
+                    Button {
+                        showImportCSV = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 20))
+                            .foregroundColor(theme.accent)
+                    }
+                    Button {
+                        showImportContacts = true
+                    } label: {
+                        Image(systemName: "person.crop.circle.badge.plus")
+                            .font(.system(size: 22))
+                            .foregroundColor(theme.accent)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -554,6 +569,10 @@ struct AddClientSheet: View {
     @State private var birthday = ""
     @State private var showBirthdayPicker = false
     @State private var birthdayDate = Date()
+    @State private var source = ""
+    @State private var allergies = ""
+
+    private let sourceOptions = ["", "Сарафанное радио", "Авито", "ВКонтакте", "Instagram", "Другое"]
     private var isValid: Bool { !name.isEmpty && !phone.isEmpty }
 
     private func formattedBirthday(_ bday: String) -> String {
@@ -615,8 +634,33 @@ struct AddClientSheet: View {
                                 }
                         }
 
+                        Menu {
+                            ForEach(sourceOptions, id: \.self) { option in
+                                Button(option.isEmpty ? "Не указано" : option) { source = option }
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "location.circle")
+                                    .foregroundColor(source.isEmpty ? theme.textMuted : theme.accent)
+                                Text(source.isEmpty ? "Откуда узнала о вас?" : source)
+                                    .font(DS.body)
+                                    .foregroundColor(source.isEmpty ? theme.textMuted : theme.textPrimary)
+                                Spacer()
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(theme.textMuted)
+                            }
+                            .padding(16)
+                            .background(theme.backgroundInput)
+                            .cornerRadius(DS.r12)
+                            .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
+                        }
+
+                        BBTextField(placeholder: "Аллергии и противопоказания (необязательно)", text: $allergies)
+                            .environment(\.theme, theme)
+
                         BBPrimaryButton(title: "Добавить клиента", isDisabled: !isValid) {
-                            Task { await vm.add(name: name, phone: phone, notes: notes, birthday: birthday) }
+                            Task { await vm.add(name: name, phone: phone, notes: notes, birthday: birthday, source: source, allergies: allergies) }
                             dismiss()
                         }
                         .environment(\.theme, theme)

@@ -177,6 +177,10 @@ struct ClientPhotoStorage {
                         Divider().background(theme.borderSubtle)
                         ContactRow(icon: "paperplane.fill", label: "Telegram", value: "@\(username)", theme: theme)
                     }
+                    if let notes = client.notes, !notes.isEmpty {
+                        Divider().background(theme.borderSubtle).padding(.horizontal, 16)
+                        ContactRow(icon: "note.text", label: "Заметки", value: notes, theme: theme)
+                    }
                     if let bday = client.birthday {
                         Divider().background(theme.borderSubtle).padding(.horizontal, 16)
                         HStack {
@@ -197,6 +201,46 @@ struct ClientPhotoStorage {
                             }
                         }
                         .padding(16)
+                    }
+                }
+            }
+
+            if let source = client.source, !source.isEmpty {
+                BBGlassCard {
+                    HStack(spacing: 12) {
+                        Image(systemName: "location.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(theme.accent)
+                            .frame(width: 20)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Откуда пришла")
+                                .font(DS.caption)
+                                .foregroundColor(theme.textMuted)
+                            Text(source)
+                                .font(DS.body)
+                                .foregroundColor(theme.textPrimary)
+                        }
+                        Spacer()
+                    }
+                }
+            }
+
+            if let allergies = client.allergies, !allergies.isEmpty {
+                BBGlassCard {
+                    HStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(Color(hex: "#FF6B35"))
+                            .frame(width: 20)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Аллергии и противопоказания")
+                                .font(DS.caption)
+                                .foregroundColor(theme.textMuted)
+                            Text(allergies)
+                                .font(DS.body)
+                                .foregroundColor(Color(hex: "#FF6B35"))
+                        }
+                        Spacer()
                     }
                 }
             }

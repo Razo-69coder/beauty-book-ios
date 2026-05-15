@@ -114,6 +114,8 @@ struct Client: Decodable, Identifiable {
     let telegramId: Int?
     var appointmentsCount: Int?
     var birthday: String?
+    var source: String?
+    var allergies: String?
 }
 
 struct ClientDetail: Decodable, Identifiable {
@@ -124,6 +126,8 @@ struct ClientDetail: Decodable, Identifiable {
     let username: String?
     let telegramId: Int?
     let history: [AppointmentHistory]
+    var source: String?
+    var allergies: String?
 }
 
 struct ClientPhoto: Identifiable, Codable {
@@ -158,12 +162,16 @@ struct ClientCreateRequest: Encodable {
     let name: String
     let phone: String
     let notes: String
+    let source: String
+    let allergies: String
 }
 
 struct ClientUpdateRequest: Encodable {
     let name: String
     let phone: String
     let notes: String
+    let source: String
+    let allergies: String
 }
 
 // MARK: - Appointments
@@ -191,6 +199,7 @@ enum AppointmentStatus: String, Decodable, CaseIterable {
     case pending   = "pending"
     case completed = "completed"
     case cancelled = "cancelled"
+    case noShow    = "no_show"
 
     var displayName: String {
         switch self {
@@ -198,6 +207,7 @@ enum AppointmentStatus: String, Decodable, CaseIterable {
         case .pending:   return "Ожидает"
         case .completed: return "Выполнено"
         case .cancelled: return "Отменено"
+        case .noShow:    return "Неявка"
         }
     }
 
@@ -207,6 +217,7 @@ enum AppointmentStatus: String, Decodable, CaseIterable {
         case .pending:   return "#FFD166"
         case .completed: return "#4ECDC4"
         case .cancelled: return "#FF4757"
+        case .noShow:    return "#FF6B35"
         }
     }
 }
@@ -322,6 +333,23 @@ enum ExpenseCategory: String, CaseIterable {
         case .other: return "ellipsis.circle"
         }
     }
+}
+
+// MARK: - Client Import
+
+struct ClientImportItem: Encodable {
+    let name: String
+    let phone: String
+    let notes: String
+}
+
+struct ClientImportRequest: Encodable {
+    let clients: [ClientImportItem]
+}
+
+struct ClientImportResponse: Decodable {
+    let imported: Int
+    let skipped: Int
 }
 
 // MARK: - Keychain Manager
