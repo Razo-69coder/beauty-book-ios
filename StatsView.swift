@@ -538,9 +538,20 @@ struct BarChartView: View {
 
     private var maxValue: Int { data.map { $0.1 }.max() ?? 1 }
 
+    private var labelStep: Int {
+        if data.count <= 7  { return 1 }
+        if data.count <= 12 { return 1 }
+        if data.count <= 16 { return 4 }
+        return 5
+    }
+
+    private var labelFont: Font {
+        data.count > 12 ? .system(size: 9) : DS.caption
+    }
+
     var body: some View {
         GeometryReader { geo in
-            HStack(alignment: .bottom, spacing: 4) {
+            HStack(alignment: .bottom, spacing: data.count > 20 ? 2 : 4) {
                 ForEach(Array(data.enumerated()), id: \.offset) { idx, item in
                     VStack(spacing: 4) {
                         let ratio = maxValue > 0 ? CGFloat(item.1) / CGFloat(maxValue) : 0
@@ -549,13 +560,14 @@ struct BarChartView: View {
                             .fill(item.1 > 0 ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
                             .frame(height: max(4, geo.size.height * 0.8 * ratio))
                             .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(Double(idx) * 0.03), value: ratio)
-                        if idx % 3 == 0 {
+                        if idx % labelStep == 0 {
                             Text(item.0)
-                                .font(DS.caption)
+                                .font(labelFont)
                                 .foregroundColor(theme.textMuted)
                                 .lineLimit(1)
+                                .minimumScaleFactor(0.7)
                         } else {
-                            Text("").font(DS.caption)
+                            Text("").font(labelFont)
                         }
                     }
                     .frame(maxWidth: .infinity)
