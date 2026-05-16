@@ -3,7 +3,7 @@ import PhotosUI
 import UIKit
 
 struct ClientDetailView: View {
-    let client: Client
+    @State var client: Client
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
     @State private var history: [AppointmentHistory] = []
@@ -35,15 +35,7 @@ struct ClientDetailView: View {
                 }
             }
             .task {
-                isLoading = true
-                if let resp = try? await APIClient.shared.request(.clientDetail(id: client.id), as: ClientDetail.self) {
-                    history = resp.history
-                } else {
-                    history = []
-                }
-                photos = []
-                uiPhotos = ClientPhotoStorage.load(clientId: client.id)
-                isLoading = false
+                await loadClientDetail()
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -56,9 +48,9 @@ struct ClientDetailView: View {
                 }
             }
             .sheet(isPresented: $showEditSheet) {
-                ClientEditView(client: client, onSave: { _ in
-                    showEditSheet = false
-                    NotificationCenter.default.post(name: NSNotification.Name("ClientUpdated"), object: nil)
+                ClientEditView(client: client, onSave: { updatedClient in
+                    client = updatedClient
+                    Task { await loadClientDetail() }
                 })
                 .environment(\.theme, theme)
             }
@@ -377,6 +369,18 @@ struct ClientPhotoStorage {
         guard let d = f.date(from: str) else { return str }
         let f2 = DateFormatter(); f2.dateFormat = "d MMM"; f2.locale = Locale(identifier: "ru_RU")
         return f2.string(from: d)
+    }
+
+    private func loadClientDetail() async {
+        isLoading = true
+        if let resp = try? await APIClient.shared.request(.clientDetail(id: client.id), as: ClientDetail.self) {
+            history = resp.history
+        } else {
+            history = []
+        }
+        photos = []
+        uiPhotos = ClientPhotoStorage.load(clientId: client.id)
+        isLoading = false
     }
 }
 

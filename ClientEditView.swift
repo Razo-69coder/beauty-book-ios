@@ -73,10 +73,12 @@ struct ClientEditView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var vm: ClientEditViewModel
     let onSave: (Client) -> Void
+    let originalClient: Client
 
     init(client: Client, onSave: @escaping (Client) -> Void) {
         self._vm = StateObject(wrappedValue: ClientEditViewModel(client: client))
         self.onSave = onSave
+        self.originalClient = client
     }
 
     var body: some View {
@@ -95,9 +97,29 @@ struct ClientEditView: View {
                         Button {
                             Task {
                                 if await vm.save() {
+                                    let birthdayStr: String?
+                                    if vm.hasBirthday {
+                                        let f = DateFormatter()
+                                        f.dateFormat = "MM-dd"
+                                        birthdayStr = f.string(from: vm.birthdayDate)
+                                    } else {
+                                        birthdayStr = nil
+                                    }
+                                    let updated = Client(
+                                        id: originalClient.id,
+                                        name: vm.name.trimmingCharacters(in: .whitespaces),
+                                        phone: vm.phone.trimmingCharacters(in: .whitespaces),
+                                        notes: vm.notes.trimmingCharacters(in: .whitespaces),
+                                        lastVisit: originalClient.lastVisit,
+                                        username: originalClient.username,
+                                        telegramId: originalClient.telegramId,
+                                        appointmentsCount: originalClient.appointmentsCount,
+                                        birthday: birthdayStr,
+                                        source: vm.source.trimmingCharacters(in: .whitespaces),
+                                        allergies: vm.allergies.trimmingCharacters(in: .whitespaces)
+                                    )
+                                    onSave(updated)
                                     dismiss()
-                                    NotificationCenter.default.post(
-                                        name: NSNotification.Name("ClientUpdated"), object: nil)
                                 }
                             }
                         } label: {
