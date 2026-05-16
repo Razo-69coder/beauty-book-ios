@@ -119,6 +119,7 @@ struct ClientEditView: View {
                                         allergies: vm.allergies.trimmingCharacters(in: .whitespaces)
                                     )
                                     onSave(updated)
+                                    NotificationCenter.default.post(name: NSNotification.Name("ClientUpdated"), object: nil)
                                     dismiss()
                                 }
                             }

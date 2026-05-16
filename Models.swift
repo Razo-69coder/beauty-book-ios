@@ -307,13 +307,21 @@ struct ExpenseCreateRequest: Encodable {
 // MARK: - Earnings by Day
 
 struct EarningsDay: Identifiable, Decodable {
-    let id = UUID()
+    let id: UUID
     let date: String
     let total: Int
-    var count: Int = 0
+    var count: Int
 
     private enum CodingKeys: String, CodingKey {
         case date, total, count
+    }
+
+    init(from decoder: Decoder) throws {
+        id = UUID()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        date = try c.decode(String.self, forKey: .date)
+        total = try c.decode(Int.self, forKey: .total)
+        count = (try? c.decodeIfPresent(Int.self, forKey: .count)) ?? 0
     }
 }
 

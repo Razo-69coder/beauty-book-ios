@@ -2,7 +2,7 @@ import SwiftUI
 
 @MainActor
 final class ScheduleViewModel: ObservableObject {
-    @Published var selectedDate: Date = Date()
+    @Published var selectedDate: Date = Calendar.current.startOfDay(for: Date())
     @Published var appointments: [Appointment] = []
     @Published var isLoading: Bool = false
     @Published var selectedAppointment: Appointment? = nil
@@ -13,7 +13,10 @@ final class ScheduleViewModel: ObservableObject {
     private let calendar = Calendar.current
 
     var dates: [Date] {
-        (-180..<185).compactMap { calendar.date(byAdding: .day, value: $0, to: Date()) }
+        (-180..<185).compactMap { offset -> Date? in
+            guard let d = calendar.date(byAdding: .day, value: offset, to: Date()) else { return nil }
+            return calendar.startOfDay(for: d)
+        }
     }
 
     var selectedDateFormatted: String {
@@ -703,7 +706,7 @@ struct MonthPickerView: View {
                     ForEach(months, id: \.self) { m in
                         Button {
                             if let target = findFirstOfMonth(month: m, year: currentYear) {
-                                selectedDate = target
+                                selectedDate = calendar.startOfDay(for: target)
                             }
                             dismiss()
                         } label: {
