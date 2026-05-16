@@ -283,7 +283,9 @@ struct ClientsListView: View {
                     .onDisappear { Task { await vm.load() } }
             }
             .sheet(item: $vm.selectedClient) { client in
-                ClientDetailView(client: client).environment(\.theme, theme)
+                NavigationStack {
+                    ClientDetailView(client: client).environment(\.theme, theme)
+                }
             }
     }
 
@@ -627,7 +629,7 @@ struct AddClientSheet: View {
                             DatePicker("", selection: $birthdayDate, displayedComponents: [.date])
                                 .datePickerStyle(.graphical)
                                 .accentColor(theme.accent)
-                                .colorScheme(.dark)
+                                .colorScheme(theme == .platinum ? .light : .dark)
                                 .environment(\.locale, Locale(identifier: "ru_RU"))
                                 .onChange(of: birthdayDate) { _, newDate in
                                     let f = DateFormatter(); f.dateFormat = "MM-dd"
