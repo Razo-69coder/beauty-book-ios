@@ -386,8 +386,10 @@ struct ClientsListView: View {
     private var clientsList: some View {
         VStack(spacing: 8) {
             ForEach(vm.filtered) { client in
-                ClientCard(client: client, theme: theme)
-                    .onTapGesture { vm.selectedClient = client }
+                Button { vm.selectedClient = client } label: {
+                    ClientCard(client: client, theme: theme)
+                }
+                .buttonStyle(CardPressStyle())
             }
         }
         .padding(.horizontal, 20)
@@ -449,10 +451,17 @@ struct ClientsListView: View {
 
 // MARK: - Client Card
 
+struct CardPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(DS.springSnappy, value: configuration.isPressed)
+    }
+}
+
 struct ClientCard: View {
     let client: Client
     let theme: AppTheme
-    @State private var isPressed = false
 
     private var initials: String {
         let name = client.name.trimmingCharacters(in: .whitespaces)
@@ -552,13 +561,6 @@ struct ClientCard: View {
         .overlay(
             RoundedRectangle(cornerRadius: DS.r16)
                 .stroke(theme.borderSubtle, lineWidth: 1)
-        )
-        .scaleEffect(isPressed ? 0.98 : 1.0)
-        .animation(DS.springSnappy, value: isPressed)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded   { _ in isPressed = false }
         )
     }
 }

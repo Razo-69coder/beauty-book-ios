@@ -162,7 +162,6 @@ struct ServiceCard: View {
     let service: Service
     let onDelete: () -> Void
     @Environment(\.theme) private var theme
-    @State private var isPressed = false
     @State private var showDeleteConfirm = false
 
     var body: some View {
@@ -208,13 +207,6 @@ struct ServiceCard: View {
         .overlay(
             RoundedRectangle(cornerRadius: DS.r16)
                 .stroke(theme.borderSubtle, lineWidth: 1)
-        )
-        .scaleEffect(isPressed ? 0.98 : 1.0)
-        .animation(DS.springSnappy, value: isPressed)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded { _ in isPressed = false }
         )
         .confirmationDialog("Удалить услугу?", isPresented: $showDeleteConfirm) {
             Button("Удалить", role: .destructive) { onDelete() }
