@@ -122,7 +122,7 @@ struct SplashView: View {
 }
 
 @MainActor
-final class AppState: ObservableObject {
+@MainActor final class AppState: ObservableObject {
     @Published var isAuthenticated: Bool = KeychainManager.shared.isAuthenticated
     @Published var currentMaster: MasterProfile? = nil
     @Published var subscriptionRequired: Bool = false

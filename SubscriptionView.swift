@@ -1,8 +1,5 @@
 import SwiftUI
 
-// MARK: - Empty Response
-struct EmptyResponse: Decodable {}
-
 // MARK: - View Model
 @MainActor
 final class SubscriptionViewModel: ObservableObject {
