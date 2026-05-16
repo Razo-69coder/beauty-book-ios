@@ -121,7 +121,6 @@ struct SplashView: View {
     }
 }
 
-@MainActor
 @MainActor final class AppState: ObservableObject {
     @Published var isAuthenticated: Bool = KeychainManager.shared.isAuthenticated
     @Published var currentMaster: MasterProfile? = nil
@@ -130,13 +129,13 @@ struct SplashView: View {
     init() {
         NotificationCenter.default.addObserver(
             forName: .tokenExpired, object: nil, queue: .main
-        ) { [weak self] _ in self?.logout() }
+        ) { [weak self] _ in Task { @MainActor in self?.logout() } }
         NotificationCenter.default.addObserver(
             forName: .subscriptionRequired, object: nil, queue: .main
-        ) { [weak self] _ in self?.requireSubscription() }
+        ) { [weak self] _ in Task { @MainActor in self?.requireSubscription() } }
         NotificationCenter.default.addObserver(
             forName: .subscriptionActivated, object: nil, queue: .main
-        ) { [weak self] _ in self?.activateSubscription() }
+        ) { [weak self] _ in Task { @MainActor in self?.activateSubscription() } }
     }
 
     func login(master: MasterProfile, token: String) {
