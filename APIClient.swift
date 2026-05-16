@@ -301,6 +301,7 @@ extension APIClient {
     }
     
     func earningsByDay(days: Int) async throws -> [EarningsDay] {
+        print("earningsByDay URL: \(APIConfig.baseURL)/masters/me/stats/earnings-by-day?days=\(days)")
         let data = try await get("/masters/me/stats/earnings-by-day?days=\(days)")
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
         let items = json["days"] as? [[String: Any]] ?? []

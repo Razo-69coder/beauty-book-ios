@@ -54,7 +54,12 @@ final class StatsViewModel: ObservableObject {
         case .month: daysCount = 30
         case .year:  daysCount = 365
         }
-        rawEarnings = ((try? await api.earningsByDay(days: daysCount)) ?? [])
+        do {
+            rawEarnings = try await api.earningsByDay(days: daysCount)
+        } catch {
+            print("earningsByDay error: \(error)")
+            rawEarnings = []
+        }
         print("earningsByDay count: \(rawEarnings.count), days param: \(daysCount), period: \(selectedPeriod), first 3: \(rawEarnings.prefix(3).map { "\($0.date)=\($0.total)" })")
         selectedWeek = nil
         recomputeEarnings()
@@ -72,13 +77,8 @@ final class StatsViewModel: ObservableObject {
             let dayNames = ["","Пн","Вт","Ср","Чт","Пт","Сб","Вс"]
             return raw.enumerated().map { (dayNames[$0.offset + 1], $0.element.total) }
         case .month:
-            let currentMonth = calendar.component(.month, from: today)
-            let currentYear = calendar.component(.year, from: today)
             let monthDays = raw.compactMap { d -> (String, Int)? in
-                guard let date = f.date(from: d.date),
-                      calendar.component(.month, from: date) == currentMonth,
-                      calendar.component(.year, from: date) == currentYear
-                else { return nil }
+                guard let date = f.date(from: d.date) else { return nil }
                 return (d.date, d.total)
             }
             var weeks: [Int: Int] = [:]
@@ -429,7 +429,7 @@ struct StatsView: View {
             BBGlassCard {
                 if vm.selectedWeek == nil && vm.selectedPeriod == .week {
                     weekSelector
-                } else if vm.earningsByDay.isEmpty || vm.earningsByDay.allSatisfy({ $0.1 == 0 }) {
+                } else if vm.earningsByDay.isEmpty {
                     Text("Данные появятся после первых записей 💅")
                         .font(DS.bodySmall)
                         .foregroundColor(theme.textMuted)
