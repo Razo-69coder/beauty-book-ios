@@ -404,6 +404,12 @@ struct ReminderTemplate: Decodable, Identifiable {
     var id: String { type }
     let type: String
     let template: String
+    let enabled: Bool
+}
+
+struct ReminderTemplateUpdate: Encodable {
+    let template: String
+    let enabled: Bool
 }
 
 struct ReminderTemplatesResponse: Decodable {

@@ -81,7 +81,7 @@ enum Endpoint {
     case updateAppointmentStatus(id: Int, status: String)
     case statsYearly(year: Int)
     case getReminderTemplates
-    case updateReminderTemplate(type: String, template: String)
+    case updateReminderTemplate(type: String, template: String, enabled: Bool)
     // Import
     case importClients([ClientImportItem])
 }
@@ -199,8 +199,8 @@ extension Endpoint {
             return try? JSONEncoder().encode(["status": status])
         case .importClients(let items):
             return try? encoder.encode(ClientImportRequest(clients: items))
-        case .updateReminderTemplate(_, let template):
-            return try? encoder.encode(["template": template])
+        case .updateReminderTemplate(_, let template, let enabled):
+            return try? encoder.encode(ReminderTemplateUpdate(template: template, enabled: enabled))
         default: return nil
         }
     }
