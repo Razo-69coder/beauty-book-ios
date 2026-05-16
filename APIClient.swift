@@ -127,7 +127,7 @@ extension Endpoint {
         case .importClients:             return "/clients/import"
         case .statsYearly:              return "/masters/me/stats/yearly"
         case .getReminderTemplates:     return "/reminders/templates"
-        case .updateReminderTemplate(let type, _): return "/reminders/templates/\(type)"
+        case .updateReminderTemplate(let type, _, _): return "/reminders/templates/\(type)"
         }
     }
 
