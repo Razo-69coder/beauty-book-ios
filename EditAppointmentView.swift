@@ -344,3 +344,52 @@ struct ServiceEditRow: View {
         }
     }
 }
+
+struct ServiceMultiPicker: View {
+    let services: [Service]
+    @Binding var selectedIds: Set<Int>
+    let theme: AppTheme
+    let onDone: ([Service]) -> Void
+
+    var body: some View {
+        NavigationView {
+            List(services) { service in
+                Button {
+                    if selectedIds.contains(service.id) {
+                        selectedIds.remove(service.id)
+                    } else {
+                        selectedIds.insert(service.id)
+                    }
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(service.name)
+                                .font(DS.body)
+                                .foregroundColor(theme.textPrimary)
+                            Text("\(service.priceDefault)₽ · \(service.durationMin) мин")
+                                .font(DS.caption)
+                                .foregroundColor(theme.textMuted)
+                        }
+                        Spacer()
+                        if selectedIds.contains(service.id) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(theme.accent)
+                        }
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("Выберите услуги")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Готово") {
+                        let selected = services.filter { selectedIds.contains($0.id) }
+                        onDone(selected)
+                    }
+                    .foregroundColor(theme.accent)
+                }
+            }
+        }
+    }
+}
