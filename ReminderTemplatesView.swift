@@ -39,7 +39,7 @@ struct ReminderTemplatesView: View {
         .task { await vm.load() }
     }
 
-    private static let defaultTemplates: [String: String] = [
+    static let defaultTemplates: [String: String] = [
         "24h": "🔔 Напоминание о записи\n\nЗавтра, {date} в {time}\n📋 {procedure}\n\nЖдём вас!",
         "2h": "⏰ Через 2 часа ваша запись!\n\n📅 {date} в {time}\n📋 {procedure}\n\nНе забудьте!",
         "birthday": "🎂 С днём рождения, {name}!\n\nМастер {master_name} поздравляет вас! 🎉\n\n🎁 Скидка {discount_percent}% на следующий визит!",

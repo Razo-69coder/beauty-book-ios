@@ -29,7 +29,7 @@ final class StatsViewModel: ObservableObject {
     @Published var yearlyStats: YearlyStatsResponse? = nil
     @Published var selectedWeek: Int? = nil
     private var rawEarnings: [EarningsDay] = []
-    private var monthWeekOrder: [Int] = []
+    var monthWeekOrder: [Int] = []
 
     var availableYears: [Int] {
         let current = Calendar.current.component(.year, from: Date())
