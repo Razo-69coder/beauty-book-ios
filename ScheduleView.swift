@@ -13,7 +13,7 @@ final class ScheduleViewModel: ObservableObject {
     private let calendar = Calendar.current
 
     var dates: [Date] {
-        (-3..<18).compactMap { calendar.date(byAdding: .day, value: $0, to: Date()) }
+        (-180..<185).compactMap { calendar.date(byAdding: .day, value: $0, to: Date()) }
     }
 
     var selectedDateFormatted: String {
@@ -101,6 +101,8 @@ struct ScheduleView: View {
 
             VStack(spacing: 0) {
                 headerSection
+                monthHeader
+                    .padding(.horizontal, 20)
                 dateStrip
                 summaryBar
 
@@ -120,10 +122,22 @@ struct ScheduleView: View {
                 .environment(\.theme, theme)
         }
         .sheet(item: $vm.selectedAppointment) { appt in
-            AppointmentDetailSheet(appointment: appt, theme: theme) {
+            AppointmentDetailSheet(appointment: appt, theme: theme, onCancel: {
                 Task { await vm.cancelAppointment(appt.id) }
                 vm.selectedAppointment = nil
-            }
+            }, onEdit: {
+                vm.selectedAppointment = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    editingAppointment = appt
+                }
+            })
+        }
+        .sheet(item: $editingAppointment) { appt in
+            EditAppointmentView(appointment: appt, onUpdated: {
+                editingAppointment = nil
+                Task { await vm.loadSchedule() }
+            })
+                .environment(\.theme, theme)
         }
         .task { await vm.loadSchedule() }
         .onChange(of: vm.selectedDate) { _, _ in
@@ -132,6 +146,7 @@ struct ScheduleView: View {
     }
 
     @State private var statusActionAppointment: Appointment? = nil
+    @State private var editingAppointment: Appointment? = nil
 
     private func showStatusActions(for appt: Appointment) {
         statusActionAppointment = appt
@@ -177,6 +192,16 @@ struct ScheduleView: View {
         .padding(.bottom, 8)
     }
 
+    private var monthHeader: some View {
+        let f = DateFormatter()
+        f.dateFormat = "LLLL yyyy"
+        f.locale = Locale(identifier: "ru_RU")
+        let text = f.string(from: vm.selectedDate)
+        return Text(text.prefix(1).uppercased() + text.dropFirst())
+            .font(DS.headline)
+            .foregroundColor(theme.textPrimary)
+    }
+
     private var dateStrip: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
@@ -213,16 +238,24 @@ struct ScheduleView: View {
             HStack(spacing: 6) {
                 Image(systemName: "calendar.badge.clock")
                     .font(.system(size: 12))
-                Text("\(vm.appointments.count)")
-                    .font(DS.label)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("\(vm.appointments.count)")
+                        .font(DS.label)
+                    Text("записей")
+                        .font(DS.caption)
+                }
             }
             .foregroundColor(theme.textMuted)
 
             HStack(spacing: 6) {
                 Image(systemName: "rublesign.circle")
                     .font(.system(size: 12))
-                Text("\(vm.appointments.reduce(0) { $0 + $1.price })")
-                    .font(DS.label)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("\(vm.appointments.reduce(0) { $0 + $1.price })")
+                        .font(DS.label)
+                    Text("выручка")
+                        .font(DS.caption)
+                }
             }
             .foregroundColor(theme.accent)
 
@@ -417,6 +450,7 @@ struct AppointmentDetailSheet: View {
     let appointment: Appointment
     let theme: AppTheme
     let onCancel: () -> Void
+    var onEdit: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
 
@@ -463,6 +497,24 @@ struct AppointmentDetailSheet: View {
                     .cornerRadius(DS.r16)
 
                     VStack(spacing: 12) {
+                        if let onEdit = onEdit {
+                            Button {
+                                onEdit()
+                                dismiss()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "pencil")
+                                    Text("Редактировать")
+                                }
+                                .font(DS.body)
+                                .foregroundColor(theme.accent)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(theme.accent.opacity(0.1))
+                                .cornerRadius(DS.r12)
+                            }
+                        }
+
                         Menu {
                             ForEach(AppointmentStatus.allCases.filter { $0 != appointment.status }, id: \.self) { status in
                                 Button {
