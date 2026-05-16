@@ -267,6 +267,7 @@ struct SettingsView: View {
                         loyaltySection
                         notificationsSection
                         scheduleSection
+                    paymentDetailsSection
                     appSection
                     aboutSection
                     logoutButton
@@ -793,6 +794,74 @@ struct SettingsView: View {
                 Task { await vm.save() }
             }
             .environment(\.theme, theme)
+        }
+    }
+
+    // MARK: - Payment Details Section
+
+    private var paymentDetailsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BBSectionHeader(title: "Реквизиты для оплаты")
+
+            BBGlassCard {
+                VStack(spacing: 0) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "creditcard.fill")
+                            .foregroundColor(theme.accent)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Номер карты")
+                                .font(DS.caption)
+                                .foregroundColor(theme.textMuted)
+                            TextField("0000 0000 0000 0000", text: $vm.paymentCard)
+                                .font(DS.body)
+                                .foregroundColor(theme.textPrimary)
+                                .keyboardType(.numberPad)
+                        }
+                    }
+                    .padding(16)
+
+                    Divider().background(theme.borderSubtle)
+
+                    HStack(spacing: 12) {
+                        Image(systemName: "phone.fill")
+                            .foregroundColor(theme.accent)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Телефон для перевода")
+                                .font(DS.caption)
+                                .foregroundColor(theme.textMuted)
+                            TextField("+7 (999) 000-00-00", text: $vm.paymentPhone)
+                                .font(DS.body)
+                                .foregroundColor(theme.textPrimary)
+                                .keyboardType(.phonePad)
+                        }
+                    }
+                    .padding(16)
+
+                    Divider().background(theme.borderSubtle)
+
+                    HStack(spacing: 12) {
+                        Image(systemName: "building.columns.fill")
+                            .foregroundColor(theme.accent)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Банки (Сбер, Тинькофф...)")
+                                .font(DS.caption)
+                                .foregroundColor(theme.textMuted)
+                            TextField("Сбербанк, Тинькофф", text: $vm.paymentBanks)
+                                .font(DS.body)
+                                .foregroundColor(theme.textPrimary)
+                        }
+                    }
+                    .padding(16)
+                }
+            }
+
+            Text("Реквизиты будут отображаться в напоминаниях об оплате клиентам")
+                .font(DS.caption)
+                .foregroundColor(theme.textMuted)
+                .padding(.horizontal, 4)
         }
     }
 

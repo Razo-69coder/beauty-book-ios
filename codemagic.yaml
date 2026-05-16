@@ -41,8 +41,8 @@ workflows:
       - name: Build for App Store
         script: |
           xcodebuild \
-            -project BeautyBook.xcodeproj \
-            -scheme BeautyBook \
+            -project SolvoBeauty.xcodeproj \
+            -scheme SolvoBeauty \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
