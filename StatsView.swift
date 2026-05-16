@@ -27,6 +27,9 @@ final class StatsViewModel: ObservableObject {
 
     @Published var selectedYear: Int = Calendar.current.component(.year, from: Date())
     @Published var yearlyStats: YearlyStatsResponse? = nil
+    @Published var selectedWeek: Int? = nil
+    private var rawEarnings: [EarningsDay] = []
+    private var monthWeekOrder: [Int] = []
 
     var availableYears: [Int] {
         let current = Calendar.current.component(.year, from: Date())
@@ -45,10 +48,62 @@ final class StatsViewModel: ObservableObject {
         } else {
             stats = StatsResponse(totalClients: 0, totalAppointments: 0, totalEarnings: 0, monthEarnings: 0, topProcedures: [])
         }
-        earningsByDay = ((try? await api.earningsByDay(period: selectedPeriod.rawValue)) ?? []).map { ($0.date, $0.total) }
+        let daysCount: Int
+        switch selectedPeriod {
+        case .week:  daysCount = 30
+        case .month: daysCount = 30
+        case .year:  daysCount = 365
+        }
+        rawEarnings = ((try? await api.earningsByDay(days: daysCount)) ?? [])
+        selectedWeek = nil
+        recomputeEarnings()
         expenses = (try? await api.fetchExpenses()) ?? []
         await loadYearlyStats()
         isLoading = false
+    }
+
+    private func groupEarnings(_ raw: [EarningsDay], period: Period, daysCount: Int) -> [(String, Int)] {
+        let calendar = Calendar.current
+        let today = Date()
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+        switch period {
+        case .week:
+            let dayNames = ["","Пн","Вт","Ср","Чт","Пт","Сб","Вс"]
+            return raw.enumerated().map { (dayNames[$0.offset + 1], $0.element.total) }
+        case .month:
+            let currentMonth = calendar.component(.month, from: today)
+            let currentYear = calendar.component(.year, from: today)
+            let monthDays = raw.compactMap { d -> (String, Int)? in
+                guard let date = f.date(from: d.date),
+                      calendar.component(.month, from: date) == currentMonth,
+                      calendar.component(.year, from: date) == currentYear
+                else { return nil }
+                return (d.date, d.total)
+            }
+            var weeks: [Int: Int] = [:]
+            for (dateStr, total) in monthDays {
+                guard let date = f.date(from: dateStr) else { continue }
+                let w = calendar.component(.weekOfMonth, from: date)
+                weeks[w, default: 0] += total
+            }
+            monthWeekOrder = weeks.keys.sorted()
+            return monthWeekOrder.map { ("Нед \($0)", weeks[$0] ?? 0) }
+        case .year:
+            let year = selectedYear
+            let monthNames = ["","Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"]
+            var months: [Int: Int] = [:]
+            for d in raw {
+                guard let date = f.date(from: d.date),
+                      calendar.component(.year, from: date) == year
+                else { continue }
+                let m = calendar.component(.month, from: date)
+                months[m, default: 0] += d.total
+            }
+            return (1...12).compactMap { m in
+                guard let total = months[m], total > 0 else { return nil }
+                return (monthNames[m], total)
+            }
+        }
     }
     
     func addExpense(category: String, amount: Int, description: String, date: String = "") async -> Bool {
@@ -83,8 +138,72 @@ final class StatsViewModel: ObservableObject {
     }
 
     func loadYearlyStats() async {
+        print("Loading yearly stats for year: \(selectedYear)")
         if let s = try? await api.request(.statsYearly(year: selectedYear), as: YearlyStatsResponse.self) {
             yearlyStats = s
+            print("Yearly stats loaded for year: \(selectedYear), revenue: \(s.totalRevenue)")
+        } else {
+            print("Failed to load yearly stats for year: \(selectedYear)")
+        }
+    }
+
+    func recomputeEarnings() {
+        if let week = selectedWeek {
+            earningsByDay = daysForWeek(week)
+        } else if selectedPeriod == .week {
+            earningsByDay = []
+        } else {
+            earningsByDay = groupEarnings(rawEarnings, period: selectedPeriod, daysCount: selectedPeriod == .year ? 365 : 30)
+        }
+    }
+
+    func daysForWeek(_ weekNumber: Int) -> [(String, Int)] {
+        let calendar = Calendar.current
+        let today = Date()
+        let month = calendar.component(.month, from: today)
+        let year = calendar.component(.year, from: today)
+        let pf = DateFormatter()
+        pf.dateFormat = "yyyy-MM-dd"
+        let df = DateFormatter()
+        df.dateFormat = "EEE"
+        df.locale = Locale(identifier: "ru_RU")
+        return rawEarnings.compactMap { d in
+            guard let date = pf.date(from: d.date),
+                  calendar.component(.weekOfMonth, from: date) == weekNumber,
+                  calendar.component(.month, from: date) == month,
+                  calendar.component(.year, from: date) == year
+            else { return nil }
+            let label = df.string(from: date).capitalized.prefix(2).uppercased()
+            return (String(label), d.total)
+        }
+    }
+
+    var weekOptions: [(number: Int, label: String)] {
+        let calendar = Calendar.current
+        let today = Date()
+        let month = calendar.component(.month, from: today)
+        let year = calendar.component(.year, from: today)
+        let df = DateFormatter()
+        df.dateFormat = "d MMM"
+        df.locale = Locale(identifier: "ru_RU")
+        guard let firstOfMonth = calendar.date(from: DateComponents(year: year, month: month, day: 1)),
+              let range = calendar.range(of: .day, in: .month, for: firstOfMonth)
+        else { return [] }
+        var weekDays: [Int: [Int]] = [:]
+        for day in 1...range.count {
+            guard let date = calendar.date(from: DateComponents(year: year, month: month, day: day)) else { continue }
+            weekDays[calendar.component(.weekOfMonth, from: date), default: []].append(day)
+        }
+        return weekDays.keys.sorted().map { w in
+            let days = weekDays[w]!
+            let monthName = df.string(from: firstOfMonth).split(separator: " ").last ?? ""
+            let label: String
+            if days.count == 1 {
+                label = "\(days.first!) \(monthName)"
+            } else {
+                label = "\(days.first!)–\(days.last!) \(monthName)"
+            }
+            return (w, label)
         }
     }
 }
@@ -144,7 +263,7 @@ struct StatsView: View {
                     Button {
                         if vm.selectedYear > vm.availableYears.first! {
                             vm.selectedYear -= 1
-                            Task { await vm.loadYearlyStats() }
+                            Task { await vm.load() }
                         }
                     } label: {
                         Image(systemName: "chevron.left")
@@ -158,7 +277,7 @@ struct StatsView: View {
                     Button {
                         if vm.selectedYear < vm.availableYears.last! {
                             vm.selectedYear += 1
-                            Task { await vm.loadYearlyStats() }
+                            Task { await vm.load() }
                         }
                     } label: {
                         Image(systemName: "chevron.right")
@@ -279,6 +398,20 @@ struct StatsView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 BBSectionHeader(title: "Выручка по дням")
+                if vm.selectedWeek != nil {
+                    Button {
+                        vm.selectedWeek = nil
+                        vm.recomputeEarnings()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                            Text("Назад")
+                        }
+                        .font(DS.bodySmall)
+                        .foregroundColor(theme.accent)
+                    }
+                    .padding(.leading, 8)
+                }
                 Spacer()
                 Picker("", selection: $vm.selectedPeriod) {
                     ForEach(StatsViewModel.Period.allCases, id: \.self) { p in
@@ -293,18 +426,53 @@ struct StatsView: View {
             }
 
             BBGlassCard {
-                if vm.earningsByDay.isEmpty || vm.earningsByDay.allSatisfy({ $0.1 == 0 }) {
+                if vm.selectedWeek == nil && vm.selectedPeriod == .week {
+                    weekSelector
+                } else if vm.earningsByDay.isEmpty || vm.earningsByDay.allSatisfy({ $0.1 == 0 }) {
                     Text("Данные появятся после первых записей 💅")
                         .font(DS.bodySmall)
                         .foregroundColor(theme.textMuted)
                         .frame(maxWidth: .infinity)
                         .frame(height: 140)
                 } else {
-                    BarChartView(data: vm.earningsByDay, theme: theme)
-                        .frame(height: 140)
+                    BarChartView(
+                        data: vm.earningsByDay,
+                        theme: theme,
+                        onTap: vm.selectedPeriod == .month && vm.selectedWeek == nil ? { idx in
+                            guard idx < vm.monthWeekOrder.count else { return }
+                            vm.selectedWeek = vm.monthWeekOrder[idx]
+                            vm.recomputeEarnings()
+                        } : nil
+                    )
+                    .frame(height: 140)
                 }
             }
         }
+    }
+
+    private var weekSelector: some View {
+        let options = vm.weekOptions
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(options, id: \.number) { opt in
+                    Button {
+                        vm.selectedWeek = opt.number
+                        vm.recomputeEarnings()
+                    } label: {
+                        Text(opt.label)
+                            .font(DS.caption)
+                            .foregroundColor(theme.textPrimary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(theme.backgroundCard)
+                            .cornerRadius(DS.r8)
+                            .overlay(RoundedRectangle(cornerRadius: DS.r8).stroke(theme.borderSubtle, lineWidth: 1))
+                    }
+                }
+            }
+            .padding(.horizontal, 4)
+        }
+        .frame(height: 60)
     }
 
     // MARK: - Two Column Section
@@ -486,6 +654,7 @@ struct TopProcedureRow: View {
 struct BarChartView: View {
     let data: [(String, Int)]
     let theme: AppTheme
+    var onTap: ((Int) -> Void)? = nil
 
     private var maxValue: Int { data.map { $0.1 }.max() ?? 1 }
 
@@ -510,6 +679,8 @@ struct BarChartView: View {
                         }
                     }
                     .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                    .onTapGesture { onTap?(idx) }
                 }
             }
         }

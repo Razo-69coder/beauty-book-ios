@@ -210,6 +210,7 @@ struct ScheduleView: View {
                 MonthPickerView(
                     selectedDate: $vm.selectedDate,
                     pickerMonth: $pickerMonth,
+                    dates: vm.dates,
                     theme: theme
                 )
             }
@@ -658,6 +659,7 @@ extension Date {
 struct MonthPickerView: View {
     @Binding var selectedDate: Date
     @Binding var pickerMonth: Date
+    let dates: [Date]
     let theme: AppTheme
     @Environment(\.dismiss) private var dismiss
 
@@ -700,11 +702,8 @@ struct MonthPickerView: View {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
                     ForEach(months, id: \.self) { m in
                         Button {
-                            var comps = calendar.dateComponents([.year, .month, .day], from: pickerMonth)
-                            comps.month = m
-                            comps.day = 1
-                            if let firstOfMonth = calendar.date(from: comps) {
-                                selectedDate = firstOfMonth
+                            if let target = findFirstOfMonth(month: m, year: currentYear) {
+                                selectedDate = target
                             }
                             dismiss()
                         } label: {
@@ -719,9 +718,12 @@ struct MonthPickerView: View {
                     }
                 }
                 .padding(.horizontal, 20)
+
+                Spacer()
             }
             .padding(.top, 20)
-            .background(theme.backgroundDeep)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(theme.backgroundDeep.ignoresSafeArea())
             .navigationTitle("Выберите месяц")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -730,6 +732,17 @@ struct MonthPickerView: View {
                         .foregroundColor(theme.accent)
                 }
             }
+        }
+    }
+
+    private func findFirstOfMonth(month: Int, year: Int) -> Date? {
+        dates.first { d in
+            calendar.component(.month, from: d) == month &&
+            calendar.component(.year, from: d) == year &&
+            calendar.component(.day, from: d) == 1
+        } ?? dates.first { d in
+            calendar.component(.month, from: d) == month &&
+            calendar.component(.year, from: d) == year
         }
     }
 

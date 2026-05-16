@@ -39,6 +39,17 @@ struct ReminderTemplatesView: View {
         .task { await vm.load() }
     }
 
+    private static let defaultTemplates: [String: String] = [
+        "24h": "🔔 Напоминание о записи\n\nЗавтра, {date} в {time}\n📋 {procedure}\n\nЖдём вас!",
+        "2h": "⏰ Через 2 часа ваша запись!\n\n📅 {date} в {time}\n📋 {procedure}\n\nНе забудьте!",
+        "birthday": "🎂 С днём рождения, {name}!\n\nМастер {master_name} поздравляет вас! 🎉\n\n🎁 Скидка {discount_percent}% на следующий визит!",
+        "return": "🏆 {name}, вы у нас уже {visit_count} раз!\n\nВы заработали скидку {discount_percent}% на следующий визит 🎉",
+        "correction": "💅 Привет, {name}!\n\nПрошло 3 недели после визита — самое время на коррекцию!\n\nЗапишитесь к мастеру {master_name} заранее 🗓",
+        "review": "💅 {name}, как прошёл визит?\n\nОцените процедуру «{procedure}»:",
+        "payment_24h": "⚠️ Напоминание об оплате\n\nЗавтра, {date} в {time} у вас запись.\n\nНеобходима предоплата {deposit_pct}%.",
+        "payment_2h": "💳 Напоминание об оплате\n\nВы записаны на {date} в {time}.\n\nВнесите предоплату {deposit_pct}% для подтверждения записи ✅",
+    ]
+
     private func templateCard(type: String, label: String, placeholder: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle(isOn: Binding(
@@ -52,27 +63,17 @@ struct ReminderTemplatesView: View {
             .tint(theme.accent)
 
             if vm.enabled[type, default: true] {
-                ZStack(alignment: .topLeading) {
-                    if vm.templates[type, default: ""].isEmpty {
-                        Text(placeholder)
-                            .font(DS.body)
-                            .foregroundColor(theme.textMuted.opacity(0.6))
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 14)
-                            .allowsHitTesting(false)
-                    }
-                    TextEditor(text: Binding(
-                        get: { vm.templates[type, default: ""] },
-                        set: { vm.templates[type] = $0 }
-                    ))
-                        .font(DS.body)
-                        .colorScheme(theme == .platinum ? .light : .dark)
-                        .frame(minHeight: 100)
-                        .padding(12)
-                        .background(theme.backgroundInput)
-                        .cornerRadius(DS.r12)
-                        .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
-                }
+                TextEditor(text: Binding(
+                    get: { vm.templates[type, default: ""] },
+                    set: { vm.templates[type] = $0 }
+                ))
+                    .font(DS.body)
+                    .colorScheme(theme == .platinum ? .light : .dark)
+                    .frame(minHeight: 100)
+                    .padding(12)
+                    .background(theme.backgroundInput)
+                    .cornerRadius(DS.r12)
+                    .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
 
                 Button {
                     Task { await vm.save(type: type) }
@@ -104,10 +105,16 @@ final class ReminderTemplatesViewModel: ObservableObject {
 
     func load() async {
         isLoading = true
+        let defaults = ReminderTemplatesView.defaultTemplates
         if let resp = try? await api.request(.getReminderTemplates, as: ReminderTemplatesResponse.self) {
             for t in resp.templates {
-                templates[t.type] = t.template
+                templates[t.type] = t.template.isEmpty ? defaults[t.type] ?? "" : t.template
                 enabled[t.type] = t.enabled
+            }
+        } else {
+            for (key, value) in defaults {
+                templates[key] = value
+                enabled[key] = true
             }
         }
         isLoading = false

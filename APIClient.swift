@@ -300,10 +300,8 @@ extension APIClient {
         _ = try await delete("/expenses/\(id)")
     }
     
-    func earningsByDay(period: String) async throws -> [EarningsDay] {
-        let daysMap = ["week": 7, "month": 30, "year": 365]
-        let days = daysMap[period] ?? 30
-        let data = try await get("/masters/me/stats/earnings-by-day?period=\(period)")
+    func earningsByDay(days: Int) async throws -> [EarningsDay] {
+        let data = try await get("/masters/me/stats/earnings-by-day?days=\(days)")
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
         let items = json["days"] as? [[String: Any]] ?? []
         return items.compactMap { dict in
