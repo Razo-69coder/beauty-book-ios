@@ -40,13 +40,13 @@ final class ClientEditViewModel: ObservableObject {
     func save() async -> Bool {
         isSaving = true
         errorMessage = nil
-        let birthdayStr: String
+        let birthdayStr: String?
         if hasBirthday {
             let f = DateFormatter()
             f.dateFormat = "MM-dd"
             birthdayStr = f.string(from: birthdayDate)
         } else {
-            birthdayStr = ""
+            birthdayStr = nil
         }
         let req = ClientUpdateRequest(
             name: name.trimmingCharacters(in: .whitespaces),

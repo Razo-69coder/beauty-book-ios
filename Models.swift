@@ -170,7 +170,7 @@ struct ClientUpdateRequest: Encodable {
     let name: String
     let phone: String
     let notes: String
-    let birthday: String
+    let birthday: String?
     let source: String
     let allergies: String
 }

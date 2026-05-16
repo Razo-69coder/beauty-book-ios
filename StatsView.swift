@@ -55,6 +55,7 @@ final class StatsViewModel: ObservableObject {
         case .year:  daysCount = 365
         }
         rawEarnings = ((try? await api.earningsByDay(days: daysCount)) ?? [])
+        print("earningsByDay count: \(rawEarnings.count), days param: \(daysCount), period: \(selectedPeriod), first 3: \(rawEarnings.prefix(3).map { "\($0.date)=\($0.total)" })")
         selectedWeek = nil
         recomputeEarnings()
         expenses = (try? await api.fetchExpenses()) ?? []

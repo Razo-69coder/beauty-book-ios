@@ -40,14 +40,25 @@ struct ReminderTemplatesView: View {
     }
 
     static let defaultTemplates: [String: String] = [
-        "24h": "🔔 Напоминание о записи\n\nЗавтра, {date} в {time}\n📋 {procedure}\n\nЖдём вас!",
-        "2h": "⏰ Через 2 часа ваша запись!\n\n📅 {date} в {time}\n📋 {procedure}\n\nНе забудьте!",
-        "birthday": "🎂 С днём рождения, {name}!\n\nМастер {master_name} поздравляет вас! 🎉\n\n🎁 Скидка {discount_percent}% на следующий визит!",
-        "return": "🏆 {name}, вы у нас уже {visit_count} раз!\n\nВы заработали скидку {discount_percent}% на следующий визит 🎉",
-        "correction": "💅 Привет, {name}!\n\nПрошло 3 недели после визита — самое время на коррекцию!\n\nЗапишитесь к мастеру {master_name} заранее 🗓",
-        "review": "💅 {name}, как прошёл визит?\n\nОцените процедуру «{procedure}»:",
-        "payment_24h": "⚠️ Напоминание об оплате\n\nЗавтра, {date} в {time} у вас запись.\n\nНеобходима предоплата {deposit_pct}%.",
-        "payment_2h": "💳 Напоминание об оплате\n\nВы записаны на {date} в {time}.\n\nВнесите предоплату {deposit_pct}% для подтверждения записи ✅",
+        "24h": "🔔 Напоминание о записи\n\nЗавтра, 15.05.2026 в 14:30\n📋 Маникюр\n\nЖдём вас!",
+        "2h": "⏰ Через 2 часа ваша запись!\n\n📅 15.05.2026 в 14:30\n📋 Маникюр\n\nНе забудьте!",
+        "birthday": "🎂 С днём рождения, Анна!\n\nМастер Елена поздравляет вас! 🎉\n\n🎁 Скидка 10% на следующий визит!",
+        "return": "🏆 Анна, вы у нас уже 5 раз!\n\nВы заработали скидку 10% на следующий визит 🎉",
+        "correction": "💅 Привет, Анна!\n\nПрошло 3 недели после визита — самое время на коррекцию!\n\nЗапишитесь к мастеру Елена заранее 🗓",
+        "review": "💅 Анна, как прошёл визит?\n\nОцените процедуру «Маникюр»:",
+        "payment_24h": "⚠️ Напоминание об оплате\n\nЗавтра, 15.05.2026 в 14:30 у вас запись.\n\nНеобходима предоплата 30%.",
+        "payment_2h": "💳 Напоминание об оплате\n\nВы записаны на 15.05.2026 в 14:30.\n\nВнесите предоплату 30% для подтверждения записи ✅",
+    ]
+
+    private static let variableHints: [String: String] = [
+        "24h": "{name}, {date}, {time}, {procedure}",
+        "2h": "{name}, {date}, {time}, {procedure}",
+        "birthday": "{name}, {master_name}, {discount_percent}",
+        "return": "{name}, {visit_count}, {discount_percent}",
+        "correction": "{name}, {master_name}",
+        "review": "{name}, {procedure}",
+        "payment_24h": "{name}, {date}, {time}, {deposit_pct}",
+        "payment_2h": "{name}, {date}, {time}, {deposit_pct}",
     ]
 
     private func templateCard(type: String, label: String, placeholder: String) -> some View {
@@ -74,6 +85,10 @@ struct ReminderTemplatesView: View {
                     .background(theme.backgroundInput)
                     .cornerRadius(DS.r12)
                     .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
+
+                Text("Переменные: \(Self.variableHints[type] ?? "")")
+                    .font(DS.caption)
+                    .foregroundColor(theme.textMuted.opacity(0.6))
 
                 Button {
                     Task { await vm.save(type: type) }
