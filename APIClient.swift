@@ -301,15 +301,12 @@ extension APIClient {
     }
     
     func earningsByDay(days: Int) async throws -> [EarningsDay] {
-        print("earningsByDay URL: \(APIConfig.baseURL)/masters/me/stats/earnings-by-day?days=\(days)")
+        print("earningsByDay request: \(APIConfig.baseURL)/masters/me/stats/earnings-by-day?days=\(days)")
         let data = try await get("/masters/me/stats/earnings-by-day?days=\(days)")
-        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-        let items = json["days"] as? [[String: Any]] ?? []
-        return items.compactMap { dict in
-            guard let date = dict["date"] as? String,
-                  let total = dict["total"] as? Int else { return nil }
-            return EarningsDay(date: date, total: total)
-        }
+        print("earningsByDay raw: \(String(data: data, encoding: .utf8) ?? "nil")")
+        let response = try JSONDecoder().decode(EarningsByDayResponse.self, from: data)
+        print("earningsByDay decoded: \(response.days.count) items")
+        return response.days
     }
 
     func telegramLinkToken() async throws -> (token: String, botUsername: String) {

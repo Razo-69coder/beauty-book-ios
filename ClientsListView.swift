@@ -287,6 +287,9 @@ struct ClientsListView: View {
                     ClientDetailView(client: client).environment(\.theme, theme)
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ClientUpdated"))) { _ in
+                Task { await vm.load() }
+            }
     }
 
     // MARK: - Header

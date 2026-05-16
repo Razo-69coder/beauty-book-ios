@@ -74,8 +74,22 @@ final class StatsViewModel: ObservableObject {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
         switch period {
         case .week:
-            let dayNames = ["","Пн","Вт","Ср","Чт","Пт","Сб","Вс"]
-            return raw.enumerated().map { (dayNames[$0.offset + 1], $0.element.total) }
+            let dayNames = ["", "Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
+            let weekday = calendar.component(.weekday, from: today)
+            let daysToMonday = weekday == 1 ? -6 : 2 - weekday
+            guard let monday = calendar.date(byAdding: .day, value: daysToMonday, to: today) else { return [] }
+            var byWeekday: [Int: Int] = [:]
+            for d in raw {
+                guard let date = f.date(from: d.date),
+                      date >= monday,
+                      date < calendar.date(byAdding: .day, value: 7, to: monday)!
+                else { continue }
+                let wd = calendar.component(.weekday, from: date)
+                byWeekday[wd, default: 0] += d.total
+            }
+            return (2...7).compactMap { wd in
+                (dayNames[wd], byWeekday[wd] ?? 0)
+            }
         case .month:
             let monthDays = raw.compactMap { d -> (String, Int)? in
                 guard let date = f.date(from: d.date) else { return nil }
@@ -149,6 +163,7 @@ final class StatsViewModel: ObservableObject {
     }
 
     func recomputeEarnings() {
+        print("recomputeEarnings: rawEarnings=\(rawEarnings.count), period=\(selectedPeriod)")
         if let week = selectedWeek {
             earningsByDay = daysForWeek(week)
         } else if selectedPeriod == .week {
