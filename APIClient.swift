@@ -52,6 +52,7 @@ enum Endpoint {
     case appointments(date: String?, status: String?)
     case appointmentDetail(id: Int)
     case createAppointment(AppointmentCreateRequest)
+    case updateAppointment(id: Int, AppointmentUpdateRequest)
     case cancelAppointment(id: Int)
     case markDone(id: Int)
     // Schedule / Slots
@@ -78,6 +79,9 @@ enum Endpoint {
     case telegramLinkToken
     // Status
     case updateAppointmentStatus(id: Int, status: String)
+    case statsYearly(year: Int)
+    case getReminderTemplates
+    case updateReminderTemplate(type: String, template: String)
     // Import
     case importClients([ClientImportItem])
 }
@@ -101,6 +105,7 @@ extension Endpoint {
         case .appointments:             return "/appointments"
         case .appointmentDetail(let id): return "/appointments/\(id)"
         case .createAppointment:        return "/appointments"
+        case .updateAppointment(let id, _): return "/appointments/\(id)"
         case .cancelAppointment(let id): return "/appointments/\(id)"
         case .markDone(let id):         return "/appointments/\(id)/done"
         case .schedule:                 return "/schedule"
@@ -120,6 +125,9 @@ extension Endpoint {
         case .telegramLinkToken:        return "/telegram-link-token"
         case .updateAppointmentStatus(let id, _): return "/appointments/\(id)/status"
         case .importClients:             return "/clients/import"
+        case .statsYearly:              return "/masters/me/stats/yearly"
+        case .getReminderTemplates:     return "/reminders/templates"
+        case .updateReminderTemplate(let type, _): return "/reminders/templates/\(type)"
         }
     }
 
@@ -128,7 +136,7 @@ extension Endpoint {
         case .login, .register, .forgotPassword, .sendFeedback,
              .createClient, .createAppointment, .createService, .markDone:
             return "POST"
-        case .updateSettings, .updatePayment, .updateProfile, .updateClient, .updateBookingLink, .updateLoyaltySettings:
+        case .updateSettings, .updatePayment, .updateProfile, .updateClient, .updateBookingLink, .updateLoyaltySettings, .updateAppointment:
             return "PUT"
         case .deleteClient, .cancelAppointment, .deleteService:
             return "DELETE"
@@ -137,6 +145,7 @@ extension Endpoint {
         case .telegramLinkToken: return "GET"
         case .updateAppointmentStatus: return "PATCH"
         case .importClients: return "POST"
+        case .updateReminderTemplate: return "PUT"
         default:
             return "GET"
         }
@@ -162,6 +171,8 @@ extension Endpoint {
             return items.isEmpty ? nil : items
         case .schedule(let date): return [URLQueryItem(name: "date", value: date)]
         case .slots(let date):    return [URLQueryItem(name: "date", value: date)]
+        case .statsYearly(let year):
+            return [URLQueryItem(name: "year", value: "\(year)")]
         default: return nil
         }
     }
@@ -179,6 +190,7 @@ extension Endpoint {
         case .createClient(let r):        return try? encoder.encode(r)
         case .updateClient(_, let r):     return try? encoder.encode(r)
         case .createAppointment(let r):   return try? encoder.encode(r)
+        case .updateAppointment(_, let r): return try? encoder.encode(r)
         case .createService(let r):       return try? encoder.encode(r)
         case .updateBookingLink(let link): return try? encoder.encode(["link": link])
         case .addBlockedDay(let date): return try? encoder.encode(["date": date])
@@ -187,6 +199,8 @@ extension Endpoint {
             return try? JSONEncoder().encode(["status": status])
         case .importClients(let items):
             return try? encoder.encode(ClientImportRequest(clients: items))
+        case .updateReminderTemplate(_, let template):
+            return try? encoder.encode(["template": template])
         default: return nil
         }
     }

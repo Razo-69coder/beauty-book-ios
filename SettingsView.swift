@@ -254,6 +254,7 @@ struct SettingsView: View {
         @State private var showLogoutAlert = false
         @State private var showBlockedDays = false
         @State private var showOnboarding = false
+        @State private var showReminderTemplates = false
 
         var body: some View {
         Color.clear
@@ -269,6 +270,7 @@ struct SettingsView: View {
                         scheduleSection
                     paymentDetailsSection
                     appSection
+                    reminderTemplatesSection
                     aboutSection
                     logoutButton
                     }
@@ -876,6 +878,37 @@ struct SettingsView: View {
                     SettingsRow(icon: "bell.fill", label: "Уведомления", value: "Включены", theme: theme)
                 }
             }
+        }
+    }
+
+    // MARK: - Reminder Templates
+
+    private var reminderTemplatesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BBSectionHeader(title: "Шаблоны сообщений")
+            
+            BBGlassCard {
+                Button(action: { showReminderTemplates = true }) {
+                    HStack {
+                        Image(systemName: "doc.text.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(theme.accent)
+                            .frame(width: 32)
+                        Text("Шаблоны напоминаний")
+                            .font(DS.body)
+                            .foregroundColor(theme.textPrimary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12))
+                            .foregroundColor(theme.textMuted)
+                    }
+                    .padding(.vertical, 12)
+                }
+            }
+        }
+        .sheet(isPresented: $showReminderTemplates) {
+            ReminderTemplatesView()
+                .environment(\.theme, theme)
         }
     }
 

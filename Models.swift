@@ -239,12 +239,12 @@ struct AppointmentCreateRequest: Encodable {
 }
 
 struct AppointmentUpdateRequest: Encodable {
-    var procedure: String?
-    var appointmentDate: String?
-    var time: String?
-    var price: Int?
-    var notes: String?
-    var status: String?
+    let procedure: String
+    let appointmentDate: String
+    let time: String
+    let price: Int
+    let serviceId: Int
+    let status: String
 }
 
 // MARK: - Schedule
@@ -386,6 +386,28 @@ final class KeychainManager {
         let q: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrAccount: key]
         SecItemDelete(q as CFDictionary)
     }
+}
+
+struct YearlyStatsResponse: Decodable {
+    let totalRevenue: Int
+    let totalAppointments: Int
+    let topServices: [TopServiceItem]
+}
+
+struct TopServiceItem: Decodable, Identifiable {
+    var id: String { procedure }
+    let procedure: String
+    let count: Int
+}
+
+struct ReminderTemplate: Decodable, Identifiable {
+    var id: String { type }
+    let type: String
+    let template: String
+}
+
+struct ReminderTemplatesResponse: Decodable {
+    let templates: [ReminderTemplate]
 }
 
 struct EmptyResponse: Decodable {}

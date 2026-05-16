@@ -25,6 +25,14 @@ final class StatsViewModel: ObservableObject {
         }
     }
 
+    @Published var selectedYear: Int = Calendar.current.component(.year, from: Date())
+    @Published var yearlyStats: YearlyStatsResponse? = nil
+
+    var availableYears: [Int] {
+        let current = Calendar.current.component(.year, from: Date())
+        return Array(2025...current + 2)
+    }
+
     private let api = APIClient.shared
 
     var totalExpenses: Int { expenses.reduce(0) { $0 + $1.amount } }
@@ -39,6 +47,7 @@ final class StatsViewModel: ObservableObject {
         }
         earningsByDay = ((try? await api.earningsByDay(period: selectedPeriod.rawValue)) ?? []).map { ($0.date, $0.total) }
         expenses = (try? await api.fetchExpenses()) ?? []
+        await loadYearlyStats()
         isLoading = false
     }
     
@@ -72,6 +81,12 @@ final class StatsViewModel: ObservableObject {
         try? await api.deleteExpense(id: id)
         expenses.removeAll { $0.id == id }
     }
+
+    func loadYearlyStats() async {
+        if let s = try? await api.request(.statsYearly(year: selectedYear), as: YearlyStatsResponse.self) {
+            yearlyStats = s
+        }
+    }
 }
 
 struct StatsView: View {
@@ -98,6 +113,9 @@ struct StatsView: View {
                 if let stats = vm.stats {
                     kpiGrid(stats: stats)
                     profitRow(stats: stats)
+                    if let ys = vm.yearlyStats {
+                        yearlyStatsSection(ys)
+                    }
                     earningsChart
                     twoColumnSection
                 }
@@ -117,9 +135,21 @@ struct StatsView: View {
             Text("Аналитика")
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundColor(theme.textPrimary)
-            Text("За последние 30 дней")
-                .font(DS.bodySmall)
-                .foregroundColor(theme.textMuted)
+            HStack {
+                Text("За последние 30 дней")
+                    .font(DS.bodySmall)
+                    .foregroundColor(theme.textMuted)
+                Spacer()
+                Picker("Год", selection: $vm.selectedYear) {
+                    ForEach(vm.availableYears, id: \.self) { year in
+                        Text("\(year)").tag(year)
+                    }
+                }
+                .pickerStyle(.menu)
+                .onChange(of: vm.selectedYear) { _, _ in
+                    Task { await vm.loadYearlyStats() }
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 8)
@@ -185,6 +215,45 @@ struct StatsView: View {
         .background(theme.backgroundCard)
         .cornerRadius(DS.r12)
         .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
+    }
+
+    // MARK: - Yearly Stats
+
+    private func yearlyStatsSection(_ ys: YearlyStatsResponse) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BBSectionHeader(title: "За \(String(vm.selectedYear)) год")
+            
+            HStack(spacing: 12) {
+                KpiCell(value: ys.totalRevenue.formatted, label: "Выручка за год", accentBorder: true, theme: theme)
+                KpiCell(value: "\(ys.totalAppointments)", label: "Записей за год", accentBorder: false, theme: theme)
+            }
+            
+            if !ys.topServices.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Топ услуг за год")
+                        .font(DS.bodySmall)
+                        .foregroundColor(theme.textMuted)
+                    ForEach(Array(ys.topServices.prefix(5).enumerated()), id: \.offset) { index, svc in
+                        HStack {
+                            Text("#\(index + 1)")
+                                .font(DS.caption)
+                                .foregroundColor(theme.textMuted)
+                                .frame(width: 20)
+                            Text(svc.procedure)
+                                .font(DS.caption)
+                                .foregroundColor(theme.textPrimary)
+                            Spacer()
+                            Text("\(svc.count)")
+                                .font(DS.caption)
+                                .foregroundColor(theme.accent)
+                        }
+                        .padding(8)
+                        .background(theme.backgroundCard)
+                        .cornerRadius(DS.r8)
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Earnings Chart
