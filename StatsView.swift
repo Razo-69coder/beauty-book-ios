@@ -10,11 +10,11 @@ final class StatsViewModel: ObservableObject {
     @Published var showAddExpense = false
     @Published var expenseError: String? = nil
     @Published var isAddingExpense = false
+    @Published var selectedYear: Int = Calendar.current.component(.year, from: Date())
+    @Published var yearlyStats: YearlyStatsResponse? = nil
 
     enum Period: String, CaseIterable {
-        case week = "week"
-        case month = "month"
-        case year = "year"
+        case week, month, year
 
         var displayName: String {
             switch self {
@@ -25,21 +25,45 @@ final class StatsViewModel: ObservableObject {
         }
     }
 
-    @Published var selectedYear: Int = Calendar.current.component(.year, from: Date())
-    @Published var yearlyStats: YearlyStatsResponse? = nil
-    @Published var selectedWeek: Int? = nil
-    private var rawEarnings: [EarningsDay] = []
-    var monthWeekOrder: [Int] = []
-
     var availableYears: [Int] {
         let current = Calendar.current.component(.year, from: Date())
         return Array((current - 3)...current)
     }
 
     private let api = APIClient.shared
+    private var rawEarnings: [EarningsDay] = []
 
     var totalExpenses: Int { expenses.reduce(0) { $0 + $1.amount } }
-    var netProfit: Int { (stats?.monthEarnings ?? 0) - totalExpenses }
+
+    var currentRevenue: Int {
+        switch selectedPeriod {
+        case .week:
+            return earningsByDay.reduce(0) { $0 + $1.1 }
+        case .month:
+            return stats?.monthEarnings ?? 0
+        case .year:
+            return yearlyStats?.totalRevenue ?? 0
+        }
+    }
+
+    var currentAppointments: Int {
+        switch selectedPeriod {
+        case .week, .month:
+            return stats?.totalAppointments ?? 0
+        case .year:
+            return yearlyStats?.totalAppointments ?? 0
+        }
+    }
+
+    var currentClients: Int {
+        stats?.totalClients ?? 0
+    }
+
+    var avgCheck: Int {
+        let apps = currentAppointments
+        guard apps > 0 else { return 0 }
+        return currentRevenue / apps
+    }
 
     func load() async {
         isLoading = true
@@ -50,7 +74,7 @@ final class StatsViewModel: ObservableObject {
         }
         let daysCount: Int
         switch selectedPeriod {
-        case .week:  daysCount = 30
+        case .week:  daysCount = 7
         case .month: daysCount = 30
         case .year:  daysCount = 365
         }
@@ -60,15 +84,14 @@ final class StatsViewModel: ObservableObject {
             print("earningsByDay error: \(error)")
             rawEarnings = []
         }
-        print("earningsByDay count: \(rawEarnings.count), days param: \(daysCount), period: \(selectedPeriod), first 3: \(rawEarnings.prefix(3).map { "\($0.date)=\($0.total)" })")
-        selectedWeek = nil
-        recomputeEarnings()
+        print("earningsByDay loaded: \(rawEarnings.count), period: \(selectedPeriod)")
+        earningsByDay = groupEarnings(rawEarnings, period: selectedPeriod)
         expenses = (try? await api.fetchExpenses()) ?? []
         await loadYearlyStats()
         isLoading = false
     }
 
-    private func groupEarnings(_ raw: [EarningsDay], period: Period, daysCount: Int) -> [(String, Int)] {
+    private func groupEarnings(_ raw: [EarningsDay], period: Period) -> [(String, Int)] {
         let calendar = Calendar.current
         let today = Date()
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
@@ -91,25 +114,17 @@ final class StatsViewModel: ObservableObject {
                 (dayNames[wd], byWeekday[wd] ?? 0)
             }
         case .month:
-            let monthDays = raw.compactMap { d -> (String, Int)? in
+            let df = DateFormatter(); df.dateFormat = "d"
+            return raw.compactMap { d in
                 guard let date = f.date(from: d.date) else { return nil }
-                return (d.date, d.total)
+                return (df.string(from: date), d.total)
             }
-            var weeks: [Int: Int] = [:]
-            for (dateStr, total) in monthDays {
-                guard let date = f.date(from: dateStr) else { continue }
-                let w = calendar.component(.weekOfMonth, from: date)
-                weeks[w, default: 0] += total
-            }
-            monthWeekOrder = weeks.keys.sorted()
-            return monthWeekOrder.map { ("Нед \($0)", weeks[$0] ?? 0) }
         case .year:
-            let year = selectedYear
             let monthNames = ["","Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"]
             var months: [Int: Int] = [:]
             for d in raw {
                 guard let date = f.date(from: d.date),
-                      calendar.component(.year, from: date) == year
+                      calendar.component(.year, from: date) == selectedYear
                 else { continue }
                 let m = calendar.component(.month, from: date)
                 months[m, default: 0] += d.total
@@ -120,7 +135,7 @@ final class StatsViewModel: ObservableObject {
             }
         }
     }
-    
+
     func addExpense(category: String, amount: Int, description: String, date: String = "") async -> Bool {
         isAddingExpense = true
         expenseError = nil
@@ -146,7 +161,7 @@ final class StatsViewModel: ObservableObject {
             return false
         }
     }
-    
+
     func deleteExpense(id: Int) async {
         try? await api.deleteExpense(id: id)
         expenses.removeAll { $0.id == id }
@@ -159,67 +174,6 @@ final class StatsViewModel: ObservableObject {
             print("Yearly stats loaded for year: \(selectedYear), revenue: \(s.totalRevenue)")
         } else {
             print("Failed to load yearly stats for year: \(selectedYear)")
-        }
-    }
-
-    func recomputeEarnings() {
-        print("recomputeEarnings: rawEarnings=\(rawEarnings.count), period=\(selectedPeriod)")
-        if let week = selectedWeek {
-            earningsByDay = daysForWeek(week)
-        } else if selectedPeriod == .week {
-            earningsByDay = []
-        } else {
-            earningsByDay = groupEarnings(rawEarnings, period: selectedPeriod, daysCount: selectedPeriod == .year ? 365 : 30)
-        }
-    }
-
-    func daysForWeek(_ weekNumber: Int) -> [(String, Int)] {
-        let calendar = Calendar.current
-        let today = Date()
-        let month = calendar.component(.month, from: today)
-        let year = calendar.component(.year, from: today)
-        let pf = DateFormatter()
-        pf.dateFormat = "yyyy-MM-dd"
-        let df = DateFormatter()
-        df.dateFormat = "EEE"
-        df.locale = Locale(identifier: "ru_RU")
-        return rawEarnings.compactMap { d in
-            guard let date = pf.date(from: d.date),
-                  calendar.component(.weekOfMonth, from: date) == weekNumber,
-                  calendar.component(.month, from: date) == month,
-                  calendar.component(.year, from: date) == year
-            else { return nil }
-            let label = df.string(from: date).capitalized.prefix(2).uppercased()
-            return (String(label), d.total)
-        }
-    }
-
-    var weekOptions: [(number: Int, label: String)] {
-        let calendar = Calendar.current
-        let today = Date()
-        let month = calendar.component(.month, from: today)
-        let year = calendar.component(.year, from: today)
-        let df = DateFormatter()
-        df.dateFormat = "d MMM"
-        df.locale = Locale(identifier: "ru_RU")
-        guard let firstOfMonth = calendar.date(from: DateComponents(year: year, month: month, day: 1)),
-              let range = calendar.range(of: .day, in: .month, for: firstOfMonth)
-        else { return [] }
-        var weekDays: [Int: [Int]] = [:]
-        for day in 1...range.count {
-            guard let date = calendar.date(from: DateComponents(year: year, month: month, day: day)) else { continue }
-            weekDays[calendar.component(.weekOfMonth, from: date), default: []].append(day)
-        }
-        return weekDays.keys.sorted().map { w in
-            let days = weekDays[w]!
-            let monthName = df.string(from: firstOfMonth).split(separator: " ").last ?? ""
-            let label: String
-            if days.count == 1 {
-                label = "\(days.first!) \(monthName)"
-            } else {
-                label = "\(days.first!)–\(days.last!) \(monthName)"
-            }
-            return (w, label)
         }
     }
 }
@@ -244,15 +198,11 @@ struct StatsView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
                 headerSection
-
-                if let stats = vm.stats {
-                    kpiGrid(stats: stats)
-                    profitRow(stats: stats)
-                    if let ys = vm.yearlyStats {
-                        yearlyStatsSection(ys)
-                    }
+                if vm.stats != nil {
+                    kpiGrid
                     earningsChart
-                    twoColumnSection
+                    topProceduresSection
+                    expensesSection
                 }
             }
             .padding(.horizontal, 20)
@@ -266,145 +216,71 @@ struct StatsView: View {
     // MARK: - Header
 
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Аналитика")
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundColor(theme.textPrimary)
-            HStack {
-                Text("За последние 30 дней")
-                    .font(DS.bodySmall)
-                    .foregroundColor(theme.textMuted)
-                Spacer()
-                HStack(spacing: 12) {
-                    Button {
-                        if vm.selectedYear > vm.availableYears.first! {
-                            vm.selectedYear -= 1
-                            Task { await vm.load() }
-                        }
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(vm.selectedYear > vm.availableYears.first! ? theme.accent : theme.textMuted)
-                    }
-                    Text("\(String(vm.selectedYear))")
-                        .font(DS.headline)
-                        .foregroundColor(theme.textPrimary)
-                        .frame(minWidth: 50)
-                    Button {
-                        if vm.selectedYear < vm.availableYears.last! {
-                            vm.selectedYear += 1
-                            Task { await vm.load() }
-                        }
-                    } label: {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(vm.selectedYear < vm.availableYears.last! ? theme.accent : theme.textMuted)
-                    }
+
+            Picker("", selection: $vm.selectedPeriod) {
+                ForEach(StatsViewModel.Period.allCases, id: \.self) { p in
+                    Text(p.displayName).tag(p)
                 }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: vm.selectedPeriod) { _, _ in
+                Task { await vm.load() }
+            }
+
+            if vm.selectedPeriod == .year {
+                yearPickerRow
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 8)
     }
 
-    // MARK: - KPI Grid
+    private var yearPickerRow: some View {
+        HStack {
+            Spacer()
+            Button {
+                if vm.selectedYear > vm.availableYears.first! {
+                    vm.selectedYear -= 1
+                    Task { await vm.load() }
+                }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(vm.selectedYear > vm.availableYears.first! ? theme.accent : theme.textMuted)
+            }
+            Text("\(String(vm.selectedYear))")
+                .font(DS.headline)
+                .foregroundColor(theme.textPrimary)
+                .frame(minWidth: 60)
+                .multilineTextAlignment(.center)
+            Button {
+                if vm.selectedYear < vm.availableYears.last! {
+                    vm.selectedYear += 1
+                    Task { await vm.load() }
+                }
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(vm.selectedYear < vm.availableYears.last! ? theme.accent : theme.textMuted)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 4)
+    }
 
-    private func kpiGrid(stats: StatsResponse) -> some View {
+    // MARK: - KPI
+
+    private var kpiGrid: some View {
         let columns = [GridItem(.flexible()), GridItem(.flexible())]
         return LazyVGrid(columns: columns, spacing: 12) {
-            KpiCell(value: stats.monthEarnings.formatted, label: "Выручка", accentBorder: true, theme: theme)
-            KpiCell(value: "\(stats.totalAppointments)", label: "Записей", accentBorder: false, theme: theme)
-            KpiCell(value: "\(stats.totalClients)", label: "Клиентов", accentBorder: false, theme: theme)
-            KpiCell(value: avgCheck.formatted, label: "Ср. чек", accentBorder: true, theme: theme)
-        }
-    }
-
-    private var avgCheck: Int {
-        guard let stats = vm.stats, stats.totalAppointments > 0 else { return 0 }
-        return stats.monthEarnings / stats.totalAppointments
-    }
-
-    // MARK: - Profit Row
-
-    private func profitRow(stats: StatsResponse) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Выручка")
-                    .font(DS.caption)
-                    .foregroundColor(theme.textMuted)
-                Text(stats.monthEarnings.formatted + " ₽")
-                    .font(DS.body)
-                    .foregroundColor(theme.textPrimary)
-            }
-            Spacer()
-            Text("−")
-                .font(DS.titleSmall)
-                .foregroundColor(theme.textMuted)
-            Spacer()
-            VStack(alignment: .trailing, spacing: 4) {
-                Text("Расходы")
-                    .font(DS.caption)
-                    .foregroundColor(theme.textMuted)
-                Text(vm.totalExpenses.formatted + " ₽")
-                    .font(DS.body)
-                    .foregroundColor(theme.statusRed)
-            }
-            Spacer()
-            Text("=")
-                .font(DS.titleSmall)
-                .foregroundColor(theme.textMuted)
-            Spacer()
-            VStack(alignment: .trailing, spacing: 4) {
-                Text("Прибыль")
-                    .font(DS.caption)
-                    .foregroundColor(theme.textMuted)
-                Text(vm.netProfit.formatted + " ₽")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundColor(vm.netProfit >= 0 ? theme.statusGreen : theme.statusRed)
-            }
-        }
-        .padding(16)
-        .background(theme.backgroundCard)
-        .cornerRadius(DS.r12)
-        .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
-    }
-
-    // MARK: - Yearly Stats
-
-    private func yearlyStatsSection(_ ys: YearlyStatsResponse) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            BBSectionHeader(title: "За \(String(vm.selectedYear)) год")
-            
-            HStack(spacing: 12) {
-                KpiCell(value: ys.totalRevenue.formatted, label: "Выручка за год", accentBorder: true, theme: theme)
-                KpiCell(value: "\(ys.totalAppointments)", label: "Записей за год", accentBorder: false, theme: theme)
-            }
-            
-            if !ys.topServices.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Топ услуг за год")
-                        .font(DS.bodySmall)
-                        .foregroundColor(theme.textMuted)
-                    ForEach(Array(ys.topServices.prefix(5).enumerated()), id: \.offset) { index, svc in
-                        HStack {
-                            Text("#\(index + 1)")
-                                .font(DS.caption)
-                                .foregroundColor(theme.textMuted)
-                                .frame(width: 20)
-                            Text(svc.procedure)
-                                .font(DS.caption)
-                                .foregroundColor(theme.textPrimary)
-                            Spacer()
-                            Text("\(svc.count)")
-                                .font(DS.caption)
-                                .foregroundColor(theme.accent)
-                        }
-                        .padding(8)
-                        .background(theme.backgroundCard)
-                        .cornerRadius(DS.r8)
-                    }
-                }
-            }
+            KpiCell(value: vm.currentRevenue.formatted, label: "Выручка", accentBorder: true, theme: theme)
+            KpiCell(value: "\(vm.currentAppointments)", label: "Записей", accentBorder: false, theme: theme)
+            KpiCell(value: "\(vm.currentClients)", label: "Клиентов", accentBorder: false, theme: theme)
+            KpiCell(value: vm.avgCheck.formatted, label: "Ср. чек", accentBorder: true, theme: theme)
         }
     }
 
@@ -412,95 +288,59 @@ struct StatsView: View {
 
     private var earningsChart: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                BBSectionHeader(title: "Выручка по дням")
-                if vm.selectedWeek != nil {
-                    Button {
-                        vm.selectedWeek = nil
-                        vm.recomputeEarnings()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                            Text("Назад")
-                        }
-                        .font(DS.bodySmall)
-                        .foregroundColor(theme.accent)
-                    }
-                    .padding(.leading, 8)
-                }
-                Spacer()
-                Picker("", selection: $vm.selectedPeriod) {
-                    ForEach(StatsViewModel.Period.allCases, id: \.self) { p in
-                        Text(p.displayName).tag(p)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 240)
-                .onChange(of: vm.selectedPeriod) { _ in
-                    Task { await vm.load() }
-                }
-            }
+            BBSectionHeader(title: "Выручка")
 
             BBGlassCard {
-                if vm.selectedWeek == nil && vm.selectedPeriod == .week {
-                    weekSelector
-                } else if vm.earningsByDay.isEmpty {
+                if vm.earningsByDay.isEmpty {
                     Text("Данные появятся после первых записей 💅")
                         .font(DS.bodySmall)
                         .foregroundColor(theme.textMuted)
                         .frame(maxWidth: .infinity)
                         .frame(height: 140)
                 } else {
-                    BarChartView(
-                        data: vm.earningsByDay,
-                        theme: theme,
-                        onTap: vm.selectedPeriod == .month && vm.selectedWeek == nil ? { idx in
-                            guard idx < vm.monthWeekOrder.count else { return }
-                            vm.selectedWeek = vm.monthWeekOrder[idx]
-                            vm.recomputeEarnings()
-                        } : nil
-                    )
-                    .frame(height: 140)
+                    BarChartView(data: vm.earningsByDay, theme: theme)
+                        .frame(height: 140)
                 }
             }
         }
     }
 
-    private var weekSelector: some View {
-        let options = vm.weekOptions
-        return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(options, id: \.number) { opt in
-                    Button {
-                        vm.selectedWeek = opt.number
-                        vm.recomputeEarnings()
-                    } label: {
-                        Text(opt.label)
-                            .font(DS.caption)
-                            .foregroundColor(theme.textPrimary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(theme.backgroundCard)
-                            .cornerRadius(DS.r8)
-                            .overlay(RoundedRectangle(cornerRadius: DS.r8).stroke(theme.borderSubtle, lineWidth: 1))
+    // MARK: - Top Procedures
+
+    private var topProceduresSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BBSectionHeader(title: "Топ услуг")
+
+            if let stats = vm.stats, !stats.topProcedures.isEmpty {
+                BBGlassCard {
+                    VStack(spacing: 8) {
+                        ForEach(Array(stats.topProcedures.prefix(5).enumerated()), id: \.offset) { index, proc in
+                            TopProcedureRow(
+                                index: index,
+                                name: proc.procedure,
+                                count: proc.count,
+                                maxCount: stats.topProcedures.first?.count ?? 1,
+                                theme: theme
+                            )
+                        }
                     }
+                    .padding(8)
+                }
+            } else {
+                BBGlassCard {
+                    Text("Нет данных")
+                        .font(DS.bodySmall)
+                        .foregroundColor(theme.textMuted)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
                 }
             }
-            .padding(.horizontal, 4)
-        }
-        .frame(height: 60)
-    }
-
-    // MARK: - Two Column Section
-
-    private var twoColumnSection: some View {
-        HStack(alignment: .top, spacing: 12) {
-            expensesColumn
-            topProceduresColumn
         }
     }
 
-    private var expensesColumn: some View {
+    // MARK: - Expenses
+
+    private var expensesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             BBSectionHeader(title: "Расходы", action: { vm.showAddExpense = true }, actionTitle: "Добавить")
 
@@ -555,34 +395,6 @@ struct StatsView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var topProceduresColumn: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            BBSectionHeader(title: "Топ услуг")
-
-            if let stats = vm.stats, !stats.topProcedures.isEmpty {
-                ForEach(Array(stats.topProcedures.prefix(5).enumerated()), id: \.offset) { index, proc in
-                    TopProcedureRow(
-                        index: index,
-                        name: proc.procedure,
-                        count: proc.count,
-                        maxCount: stats.topProcedures.first?.count ?? 1,
-                        theme: theme
-                    )
-                }
-            } else {
-                BBGlassCard {
-                    Text("Нет данных")
-                        .font(DS.bodySmall)
-                        .foregroundColor(theme.textMuted)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
     }
 }
 
