@@ -52,22 +52,26 @@ struct ReminderTemplatesView: View {
             .tint(theme.accent)
 
             if vm.enabled[type, default: true] {
-                TextEditor(text: Binding(
-                    get: { vm.templates[type, default: ""] },
-                    set: { vm.templates[type] = $0 }
-                ))
-                    .font(DS.body)
-                    .colorScheme(theme == .platinum ? .light : .dark)
-                    .frame(minHeight: 100)
-                    .padding(12)
-                    .background(theme.backgroundInput)
-                    .cornerRadius(DS.r12)
-                    .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
-
-                if vm.templates[type, default: ""].isEmpty {
-                    Text("Будет использован шаблон по умолчанию")
-                        .font(DS.caption)
-                        .foregroundColor(theme.textMuted)
+                ZStack(alignment: .topLeading) {
+                    if vm.templates[type, default: ""].isEmpty {
+                        Text(placeholder)
+                            .font(DS.body)
+                            .foregroundColor(theme.textMuted.opacity(0.6))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
+                            .allowsHitTesting(false)
+                    }
+                    TextEditor(text: Binding(
+                        get: { vm.templates[type, default: ""] },
+                        set: { vm.templates[type] = $0 }
+                    ))
+                        .font(DS.body)
+                        .colorScheme(theme == .platinum ? .light : .dark)
+                        .frame(minHeight: 100)
+                        .padding(12)
+                        .background(theme.backgroundInput)
+                        .cornerRadius(DS.r12)
+                        .overlay(RoundedRectangle(cornerRadius: DS.r12).stroke(theme.borderSubtle, lineWidth: 1))
                 }
 
                 Button {

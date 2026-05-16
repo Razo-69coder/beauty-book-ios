@@ -147,6 +147,8 @@ struct ScheduleView: View {
 
     @State private var statusActionAppointment: Appointment? = nil
     @State private var editingAppointment: Appointment? = nil
+    @State private var showMonthPicker = false
+    @State private var pickerMonth = Date()
 
     private func showStatusActions(for appt: Appointment) {
         statusActionAppointment = appt
@@ -200,6 +202,17 @@ struct ScheduleView: View {
         return Text(text.prefix(1).uppercased() + text.dropFirst())
             .font(DS.headline)
             .foregroundColor(theme.textPrimary)
+            .onTapGesture {
+                pickerMonth = vm.selectedDate
+                showMonthPicker = true
+            }
+            .sheet(isPresented: $showMonthPicker) {
+                MonthPickerView(
+                    selectedDate: $vm.selectedDate,
+                    pickerMonth: $pickerMonth,
+                    theme: theme
+                )
+            }
     }
 
     private var dateStrip: some View {
@@ -639,6 +652,106 @@ struct DateCapsule: View {
 extension Date {
     func isSameDay(as other: Date) -> Bool {
         Calendar.current.isDate(self, inSameDayAs: other)
+    }
+}
+
+struct MonthPickerView: View {
+    @Binding var selectedDate: Date
+    @Binding var pickerMonth: Date
+    let theme: AppTheme
+    @Environment(\.dismiss) private var dismiss
+
+    private let calendar = Calendar.current
+    private let months = Array(1...12)
+
+    private var currentYear: Int {
+        calendar.component(.year, from: pickerMonth)
+    }
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 16) {
+                HStack(spacing: 20) {
+                    Button {
+                        if let d = calendar.date(byAdding: .year, value: -1, to: pickerMonth) {
+                            pickerMonth = d
+                        }
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(theme.accent)
+                    }
+
+                    Text("\(String(currentYear))")
+                        .font(DS.titleSmall)
+                        .foregroundColor(theme.textPrimary)
+
+                    Button {
+                        if let d = calendar.date(byAdding: .year, value: 1, to: pickerMonth) {
+                            pickerMonth = d
+                        }
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(theme.accent)
+                    }
+                }
+
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
+                    ForEach(months, id: \.self) { m in
+                        Button {
+                            var comps = calendar.dateComponents([.year, .month, .day], from: pickerMonth)
+                            comps.month = m
+                            comps.day = 1
+                            if let firstOfMonth = calendar.date(from: comps) {
+                                selectedDate = firstOfMonth
+                            }
+                            dismiss()
+                        } label: {
+                            Text(monthName(m))
+                                .font(DS.body)
+                                .foregroundColor(monthColor(m))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(monthBg(m))
+                                .cornerRadius(DS.r12)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+            .padding(.top, 20)
+            .background(theme.backgroundDeep)
+            .navigationTitle("Выберите месяц")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Готово") { dismiss() }
+                        .foregroundColor(theme.accent)
+                }
+            }
+        }
+    }
+
+    private func monthName(_ m: Int) -> String {
+        let months = ["","Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"]
+        return months[m]
+    }
+
+    private func monthColor(_ m: Int) -> Color {
+        let curMonth = calendar.component(.month, from: selectedDate)
+        let curYear = calendar.component(.year, from: selectedDate)
+        if m == curMonth && currentYear == curYear { return .white }
+        return theme.textPrimary
+    }
+
+    private func monthBg(_ m: Int) -> some View {
+        let curMonth = calendar.component(.month, from: selectedDate)
+        let curYear = calendar.component(.year, from: selectedDate)
+        if m == curMonth && currentYear == curYear {
+            return AnyView(theme.gradientPrimary)
+        }
+        return AnyView(Color.clear)
     }
 }
 

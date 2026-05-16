@@ -30,7 +30,7 @@ final class StatsViewModel: ObservableObject {
 
     var availableYears: [Int] {
         let current = Calendar.current.component(.year, from: Date())
-        return Array(2025...current + 2)
+        return Array((current - 3)...current)
     }
 
     private let api = APIClient.shared
@@ -140,14 +140,31 @@ struct StatsView: View {
                     .font(DS.bodySmall)
                     .foregroundColor(theme.textMuted)
                 Spacer()
-                Picker("Год", selection: $vm.selectedYear) {
-                    ForEach(vm.availableYears, id: \.self) { year in
-                        Text("\(year)").tag(year)
+                HStack(spacing: 12) {
+                    Button {
+                        if vm.selectedYear > vm.availableYears.first! {
+                            vm.selectedYear -= 1
+                            Task { await vm.loadYearlyStats() }
+                        }
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(vm.selectedYear > vm.availableYears.first! ? theme.accent : theme.textMuted)
                     }
-                }
-                .pickerStyle(.menu)
-                .onChange(of: vm.selectedYear) { _, _ in
-                    Task { await vm.loadYearlyStats() }
+                    Text("\(String(vm.selectedYear))")
+                        .font(DS.headline)
+                        .foregroundColor(theme.textPrimary)
+                        .frame(minWidth: 50)
+                    Button {
+                        if vm.selectedYear < vm.availableYears.last! {
+                            vm.selectedYear += 1
+                            Task { await vm.loadYearlyStats() }
+                        }
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(vm.selectedYear < vm.availableYears.last! ? theme.accent : theme.textMuted)
+                    }
                 }
             }
         }
