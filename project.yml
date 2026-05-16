@@ -37,7 +37,7 @@ targets:
       - path: Assets.xcassets
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.solvobeauty.app.53C33F97M2
+        PRODUCT_BUNDLE_IDENTIFIER: com.beautybook.app.53C33F97M2
         INFOPLIST_FILE: Info.plist
         DEVELOPMENT_TEAM: ""
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
@@ -51,7 +51,7 @@ targets:
       properties:
         CFBundleName: SolvoBeauty
         CFBundleDisplayName: Solvo Beauty
-        CFBundleIdentifier: com.solvobeauty.app.53C33F97M2
+        CFBundleIdentifier: com.beautybook.app.53C33F97M2
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         CFBundleShortVersionString: "1.0.0"
         CFBundlePackageType: APPL
