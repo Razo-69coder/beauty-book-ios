@@ -260,7 +260,7 @@ struct ClientsListView: View {
                         }
                     }
                 }
-                .onTapGesture { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
+                .simultaneousGesture(TapGesture().onEnded { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) })
             }
             .overlay(alignment: .bottomTrailing) {
                 fabButton

@@ -1,10 +1,15 @@
 import SwiftUI
 
 struct FeedbackButton: View {
-    @State private var position: CGPoint = CGPoint(x: 44, y: UIScreen.main.bounds.height * 0.75)
+    @State private var storedOffset: CGSize = .zero
+    @State private var dragTranslation: CGSize = .zero
     @State private var isDragging = false
     @State private var showSheet = false
     @Environment(\.theme) private var theme
+
+    private var anchor: CGSize {
+        CGSize(width: 44, height: UIScreen.main.bounds.height * 0.75)
+    }
 
     var body: some View {
         VStack(spacing: 2) {
@@ -20,18 +25,29 @@ struct FeedbackButton: View {
                 .scaleEffect(isDragging ? 1.1 : 1.0)
                 .animation(DS.springSnappy, value: isDragging)
         }
-        .position(position)
+        .offset(
+            x: anchor.width + storedOffset.width + dragTranslation.width,
+            y: anchor.height + storedOffset.height + dragTranslation.height
+        )
         .gesture(
             DragGesture()
                 .onChanged { v in
                     isDragging = true
-                    position = v.location
+                    dragTranslation = v.translation
                 }
-                .onEnded { _ in
+                .onEnded { v in
                     isDragging = false
+                    storedOffset = CGSize(
+                        width: storedOffset.width + v.translation.width,
+                        height: storedOffset.height + v.translation.height
+                    )
+                    dragTranslation = .zero
+                    let currentX = anchor.width + storedOffset.width
                     let screenW = UIScreen.main.bounds.width
-                    let newX = position.x < screenW / 2 ? 44.0 : screenW - 44.0
-                    withAnimation(DS.springSnappy) { position.x = newX }
+                    let targetX = currentX < screenW / 2 ? 12.0 : screenW - 80.0
+                    withAnimation(DS.springSnappy) {
+                        storedOffset.width = targetX - anchor.width
+                    }
                 }
         )
         .onTapGesture { showSheet = true }
