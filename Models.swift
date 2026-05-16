@@ -310,9 +310,10 @@ struct EarningsDay: Identifiable, Decodable {
     let id = UUID()
     let date: String
     let total: Int
+    var count: Int = 0
 
     private enum CodingKeys: String, CodingKey {
-        case date, total
+        case date, total, count
     }
 }
 

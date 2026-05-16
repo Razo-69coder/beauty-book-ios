@@ -11,6 +11,7 @@ final class StatsViewModel: ObservableObject {
     @Published var expenseError: String? = nil
     @Published var isAddingExpense = false
     @Published var selectedYear: Int = Calendar.current.component(.year, from: Date())
+    @Published var selectedMonth: Int? = nil
     @Published var yearlyStats: YearlyStatsResponse? = nil
 
     enum Period: String, CaseIterable {
@@ -31,27 +32,29 @@ final class StatsViewModel: ObservableObject {
     }
 
     private let api = APIClient.shared
-    private var rawEarnings: [EarningsDay] = []
+    @Published private var rawEarnings: [EarningsDay] = []
 
     var totalExpenses: Int { expenses.reduce(0) { $0 + $1.amount } }
 
     var currentRevenue: Int {
+        if selectedPeriod == .year && selectedMonth != nil {
+            return rawEarnings.reduce(0) { $0 + $1.total }
+        }
         switch selectedPeriod {
-        case .week:
-            return earningsByDay.reduce(0) { $0 + $1.1 }
-        case .month:
-            return stats?.monthEarnings ?? 0
-        case .year:
-            return yearlyStats?.totalRevenue ?? 0
+        case .week:  return rawEarnings.reduce(0) { $0 + $1.total }
+        case .month: return stats?.monthEarnings ?? 0
+        case .year:  return yearlyStats?.totalRevenue ?? 0
         }
     }
 
     var currentAppointments: Int {
+        if selectedPeriod == .year && selectedMonth != nil {
+            return rawEarnings.reduce(0) { $0 + $1.count }
+        }
         switch selectedPeriod {
-        case .week, .month:
-            return stats?.totalAppointments ?? 0
-        case .year:
-            return yearlyStats?.totalAppointments ?? 0
+        case .week:  return rawEarnings.reduce(0) { $0 + $1.count }
+        case .month: return rawEarnings.reduce(0) { $0 + $1.count }
+        case .year:  return yearlyStats?.totalAppointments ?? 0
         }
     }
 
@@ -67,34 +70,53 @@ final class StatsViewModel: ObservableObject {
 
     func load() async {
         isLoading = true
-        if let s = try? await api.request(.stats, as: StatsResponse.self) {
-            stats = s
+        async let statsLoad = api.request(.stats, as: StatsResponse.self)
+        async let expensesLoad = api.fetchExpenses()
+        stats = (try? await statsLoad) ?? StatsResponse(totalClients: 0, totalAppointments: 0, totalEarnings: 0, monthEarnings: 0, topProcedures: [])
+        expenses = (try? await expensesLoad) ?? []
+
+        if selectedPeriod == .year && selectedMonth != nil {
+            await loadMonthInYear()
         } else {
-            stats = StatsResponse(totalClients: 0, totalAppointments: 0, totalEarnings: 0, monthEarnings: 0, topProcedures: [])
+            let daysCount: Int
+            switch selectedPeriod {
+            case .week:  daysCount = 7
+            case .month: daysCount = 30
+            case .year:  daysCount = 365
+            }
+            rawEarnings = (try? await api.earningsByDay(days: daysCount)) ?? []
+            earningsByDay = groupEarnings(rawEarnings, period: selectedPeriod)
+            if selectedPeriod == .year {
+                await loadYearlyStats()
+            }
         }
-        let daysCount: Int
-        switch selectedPeriod {
-        case .week:  daysCount = 7
-        case .month: daysCount = 30
-        case .year:  daysCount = 365
-        }
-        do {
-            rawEarnings = try await api.earningsByDay(days: daysCount)
-        } catch {
-            print("earningsByDay error: \(error)")
-            rawEarnings = []
-        }
-        print("earningsByDay loaded: \(rawEarnings.count), period: \(selectedPeriod)")
-        earningsByDay = groupEarnings(rawEarnings, period: selectedPeriod)
-        expenses = (try? await api.fetchExpenses()) ?? []
-        await loadYearlyStats()
         isLoading = false
     }
 
+    private func loadMonthInYear() async {
+        guard let month = selectedMonth else { return }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        let comps = DateComponents(year: selectedYear, month: month, day: 1)
+        let cal = Calendar(identifier: .gregorian)
+        guard let firstDay = cal.date(from: comps) else { return }
+        let lastDay = cal.date(byAdding: DateComponents(month: 1, day: -1), to: firstDay) ?? firstDay
+        let start = f.string(from: firstDay)
+        let end = f.string(from: lastDay)
+        rawEarnings = (try? await api.earningsByRange(start: start, end: end)) ?? []
+        earningsByDay = rawEarnings.compactMap { d in
+            guard let date = f.date(from: d.date) else { return nil }
+            return ("\(cal.component(.day, from: date))", d.total)
+        }
+    }
+
     private func groupEarnings(_ raw: [EarningsDay], period: Period) -> [(String, Int)] {
-        let calendar = Calendar.current
+        let calendar = Calendar(identifier: .gregorian)
         let today = Date()
-        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
         switch period {
         case .week:
             let dayNames = ["", "Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
@@ -114,7 +136,9 @@ final class StatsViewModel: ObservableObject {
                 (dayNames[wd], byWeekday[wd] ?? 0)
             }
         case .month:
-            let df = DateFormatter(); df.dateFormat = "d"
+            let df = DateFormatter()
+            df.locale = Locale(identifier: "en_US_POSIX")
+            df.dateFormat = "d"
             return raw.compactMap { d in
                 guard let date = f.date(from: d.date) else { return nil }
                 return (df.string(from: date), d.total)
@@ -168,13 +192,7 @@ final class StatsViewModel: ObservableObject {
     }
 
     func loadYearlyStats() async {
-        print("Loading yearly stats for year: \(selectedYear)")
-        if let s = try? await api.request(.statsYearly(year: selectedYear), as: YearlyStatsResponse.self) {
-            yearlyStats = s
-            print("Yearly stats loaded for year: \(selectedYear), revenue: \(s.totalRevenue)")
-        } else {
-            print("Failed to load yearly stats for year: \(selectedYear)")
-        }
+        yearlyStats = try? await api.request(.statsYearly(year: selectedYear), as: YearlyStatsResponse.self)
     }
 }
 
@@ -228,11 +246,13 @@ struct StatsView: View {
             }
             .pickerStyle(.segmented)
             .onChange(of: vm.selectedPeriod) { _, _ in
+                vm.selectedMonth = nil
                 Task { await vm.load() }
             }
 
             if vm.selectedPeriod == .year {
                 yearPickerRow
+                monthGridRow
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -245,6 +265,7 @@ struct StatsView: View {
             Button {
                 if vm.selectedYear > vm.availableYears.first! {
                     vm.selectedYear -= 1
+                    vm.selectedMonth = nil
                     Task { await vm.load() }
                 }
             } label: {
@@ -260,6 +281,7 @@ struct StatsView: View {
             Button {
                 if vm.selectedYear < vm.availableYears.last! {
                     vm.selectedYear += 1
+                    vm.selectedMonth = nil
                     Task { await vm.load() }
                 }
             } label: {
@@ -270,6 +292,36 @@ struct StatsView: View {
             Spacer()
         }
         .padding(.vertical, 4)
+    }
+
+    private var monthGridRow: some View {
+        let monthNames = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"]
+        let currentYear = Calendar.current.component(.year, from: Date())
+        let currentMonth = Calendar.current.component(.month, from: Date())
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 6)
+        return LazyVGrid(columns: columns, spacing: 6) {
+            ForEach(1...12, id: \.self) { m in
+                let isFuture = vm.selectedYear == currentYear && m > currentMonth
+                let isSelected = vm.selectedMonth == m
+                Text(monthNames[m - 1])
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                    .foregroundColor(isFuture ? theme.textMuted.opacity(0.4) : (isSelected ? .white : theme.textMuted))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 5)
+                    .background(isSelected ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
+                    .cornerRadius(8)
+                    .onTapGesture {
+                        guard !isFuture else { return }
+                        if vm.selectedMonth == m {
+                            vm.selectedMonth = nil
+                        } else {
+                            vm.selectedMonth = m
+                        }
+                        Task { await vm.load() }
+                    }
+            }
+        }
+        .padding(.top, 4)
     }
 
     // MARK: - KPI

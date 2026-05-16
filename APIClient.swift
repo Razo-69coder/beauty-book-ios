@@ -301,12 +301,13 @@ extension APIClient {
     }
     
     func earningsByDay(days: Int) async throws -> [EarningsDay] {
-        print("earningsByDay request: \(APIConfig.baseURL)/masters/me/stats/earnings-by-day?days=\(days)")
         let data = try await get("/masters/me/stats/earnings-by-day?days=\(days)")
-        print("earningsByDay raw: \(String(data: data, encoding: .utf8) ?? "nil")")
-        let response = try JSONDecoder().decode(EarningsByDayResponse.self, from: data)
-        print("earningsByDay decoded: \(response.days.count) items")
-        return response.days
+        return try JSONDecoder().decode(EarningsByDayResponse.self, from: data).days
+    }
+
+    func earningsByRange(start: String, end: String) async throws -> [EarningsDay] {
+        let data = try await get("/masters/me/stats/earnings-by-range?start=\(start)&end=\(end)")
+        return try JSONDecoder().decode(EarningsByDayResponse.self, from: data).days
     }
 
     func telegramLinkToken() async throws -> (token: String, botUsername: String) {
