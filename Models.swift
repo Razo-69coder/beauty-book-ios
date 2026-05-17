@@ -236,6 +236,7 @@ struct AppointmentCreateRequest: Encodable {
     let time: String
     let price: Int
     let notes: String
+    let durationMin: Int
 }
 
 struct AppointmentUpdateRequest: Encodable {

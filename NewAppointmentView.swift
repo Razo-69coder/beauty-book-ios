@@ -89,7 +89,8 @@ final class NewAppointmentViewModel: ObservableObject {
         let req = AppointmentCreateRequest(
             clientId: client.id, procedure: service.name,
             appointmentDate: f.string(from: selectedDate),
-            time: selectedTime, price: Int(price) ?? service.priceDefault, notes: notes
+            time: selectedTime, price: Int(price) ?? service.priceDefault, notes: notes,
+            durationMin: duration
         )
         do {
             let _ = try await api.request(.createAppointment(req), as: MessageResponse.self)
