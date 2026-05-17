@@ -104,9 +104,11 @@ struct ServicesView: View {
                             BBSectionHeader(title: category)
 
                             ForEach(services) { service in
-                                ServiceCard(service: service) {
+                                ServiceCard(service: service, onDelete: {
                                     Task { await viewModel.deleteService(service) }
-                                }
+                                }, onEdit: { name, price, duration, category in
+                                    Task { await viewModel.updateService(service, name: name, price: price, duration: duration, category: category) }
+                                })
                                 .environment(\.theme, theme)
                             }
                         }
@@ -161,8 +163,10 @@ struct ServicesView: View {
 struct ServiceCard: View {
     let service: Service
     let onDelete: () -> Void
+    var onEdit: ((String, Int, Int, String) -> Void)? = nil
     @Environment(\.theme) private var theme
     @State private var showDeleteConfirm = false
+    @State private var showEditSheet = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -193,12 +197,17 @@ struct ServiceCard: View {
 
             Spacer()
 
-            Button {
-                showDeleteConfirm = true
-            } label: {
-                Image(systemName: "trash")
-                    .font(.system(size: 16))
-                    .foregroundColor(theme.statusRed.opacity(0.7))
+            HStack(spacing: 8) {
+                Button { showEditSheet = true } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 16))
+                        .foregroundColor(theme.accent.opacity(0.8))
+                }
+                Button { showDeleteConfirm = true } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 16))
+                        .foregroundColor(theme.statusRed.opacity(0.7))
+                }
             }
         }
         .padding(16)
@@ -210,6 +219,12 @@ struct ServiceCard: View {
         )
         .confirmationDialog("Удалить услугу?", isPresented: $showDeleteConfirm) {
             Button("Удалить", role: .destructive) { onDelete() }
+        }
+        .sheet(isPresented: $showEditSheet) {
+            EditServiceSheet(service: service, onSave: { name, price, duration, category in
+                onEdit?(name, price, duration, category)
+            })
+            .environment(\.theme, theme)
         }
     }
 }
@@ -390,6 +405,117 @@ final class ServicesViewModel: ObservableObject {
         } catch {
             services.removeAll { $0.id == service.id }
             total -= 1
+        }
+    }
+
+    func updateService(_ service: Service, name: String, price: Int, duration: Int, category: String) async {
+        let req = ServiceCreateRequest(name: name, priceDefault: price, durationMin: duration, category: category)
+        do {
+            let _ = try await api.request(.updateService(id: service.id, req), as: MessageResponse.self)
+            if let idx = services.firstIndex(where: { $0.id == service.id }) {
+                services[idx] = Service(id: service.id, name: name, priceDefault: price, durationMin: duration, category: category)
+            }
+        } catch {}
+    }
+}
+
+struct EditServiceSheet: View {
+    let service: Service
+    let onSave: (String, Int, Int, String) -> Void
+    @Environment(\.theme) private var theme
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var name: String
+    @State private var price: String
+    @State private var duration: Int
+    @State private var category: String
+
+    private let categories = ["Основные", "Маникюр", "Педикюр", "Ресницы", "Брови", "Макияж", "Массаж", "Другое"]
+    private let durationOptions = [15, 30, 45, 60, 90, 120, 150, 180, 210, 240]
+
+    init(service: Service, onSave: @escaping (String, Int, Int, String) -> Void) {
+        self.service = service
+        self.onSave = onSave
+        _name = State(initialValue: service.name)
+        _price = State(initialValue: "\(service.priceDefault)")
+        _duration = State(initialValue: service.durationMin)
+        _category = State(initialValue: service.category)
+    }
+
+    func durationLabel(_ mins: Int) -> String {
+        if mins >= 60 {
+            let h = mins / 60; let m = mins % 60
+            return m > 0 ? "\(h)ч \(m)м" : "\(h)ч"
+        }
+        return "\(mins)м"
+    }
+
+    var isValid: Bool { !name.isEmpty && !price.isEmpty }
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Название").font(DS.bodySmall).foregroundColor(theme.textMuted)
+                        BBTextField(placeholder: "Название услуги", text: $name).environment(\.theme, theme)
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Категория").font(DS.bodySmall).foregroundColor(theme.textMuted)
+                        Menu {
+                            ForEach(categories, id: \.self) { cat in Button(cat) { category = cat } }
+                        } label: {
+                            HStack {
+                                Text(category).font(DS.body).foregroundColor(theme.textPrimary)
+                                Spacer()
+                                Image(systemName: "chevron.down").font(.system(size: 12)).foregroundColor(theme.textMuted)
+                            }
+                            .padding(16).background(theme.backgroundInput).cornerRadius(DS.r12)
+                        }
+                    }
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Цена").font(DS.bodySmall).foregroundColor(theme.textMuted)
+                            HStack {
+                                BBTextField(placeholder: "0", text: $price, keyboardType: .numberPad).environment(\.theme, theme)
+                                Text("₽").font(DS.body).foregroundColor(theme.textMuted)
+                            }
+                        }
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Длительность").font(DS.bodySmall).foregroundColor(theme.textMuted)
+                            Menu {
+                                ForEach(durationOptions, id: \.self) { mins in Button(durationLabel(mins)) { duration = mins } }
+                            } label: {
+                                HStack {
+                                    Text(durationLabel(duration)).font(DS.body).foregroundColor(theme.textPrimary)
+                                    Spacer()
+                                    Image(systemName: "chevron.down").font(.system(size: 12)).foregroundColor(theme.textMuted)
+                                }
+                                .padding(16).background(theme.backgroundInput).cornerRadius(DS.r12)
+                            }
+                        }
+                    }
+                }
+                .padding(20)
+            }
+            .background(theme.backgroundDeep)
+            .navigationTitle("Редактировать услугу")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Отмена") { dismiss() }.foregroundColor(theme.accent)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Сохранить") {
+                        if let priceInt = Int(price) {
+                            onSave(name, priceInt, duration, category)
+                            dismiss()
+                        }
+                    }
+                    .foregroundColor(isValid ? theme.accent : theme.textMuted)
+                    .disabled(!isValid)
+                }
+            }
         }
     }
 }
