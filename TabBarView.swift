@@ -152,7 +152,9 @@ struct TabContent: View {
             case .stats:
                 StatsView()
             case .settings:
-                SettingsView()
+                NavigationStack {
+                    SettingsView()
+                }
             }
         }
     }

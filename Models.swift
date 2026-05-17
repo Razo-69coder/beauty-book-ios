@@ -426,3 +426,14 @@ struct ReminderTemplatesResponse: Decodable {
 }
 
 struct EmptyResponse: Decodable {}
+
+// MARK: - Custom Slots
+
+struct CustomSlotsMonthResponse: Decodable {
+    let slots: [String: [String]]
+}
+
+struct CustomSlotRequest: Encodable {
+    let date: String
+    let time: String
+}

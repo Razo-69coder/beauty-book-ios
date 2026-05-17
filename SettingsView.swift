@@ -772,6 +772,26 @@ struct SettingsView: View {
 
                 Divider().background(theme.borderSubtle)
 
+                NavigationLink(destination: CustomScheduleView().environment(\.theme, theme)) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Моё расписание")
+                                .font(DS.body)
+                                .foregroundColor(theme.textPrimary)
+                            Text("Задать конкретные слоты на каждый день")
+                                .font(DS.bodySmall)
+                                .foregroundColor(theme.textMuted)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12))
+                            .foregroundColor(theme.textMuted)
+                    }
+                    .padding(16)
+                }
+
+                Divider().background(theme.borderSubtle)
+
                 Button(action: { showBlockedDays = true }) {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {

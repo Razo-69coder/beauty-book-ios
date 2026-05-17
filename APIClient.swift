@@ -346,6 +346,32 @@ extension APIClient {
         return data
     }
     
+    func fetchCustomSlots(month: String) async throws -> [String: [String]] {
+        let data = try await get("/schedule/custom-slots?month=\(month)")
+        return (try? JSONDecoder().decode(CustomSlotsMonthResponse.self, from: data).slots) ?? [:]
+    }
+
+    func addCustomSlot(date: String, time: String) async throws {
+        let body = try encoder.encode(CustomSlotRequest(date: date, time: time))
+        _ = try await post("/schedule/custom-slots", body: body)
+    }
+
+    func removeCustomSlot(date: String, time: String) async throws {
+        let url = URL(string: APIConfig.baseURL + "/schedule/custom-slots")!
+        var req = URLRequest(url: url)
+        req.httpMethod = "DELETE"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.httpBody = try encoder.encode(CustomSlotRequest(date: date, time: time))
+        if let token = KeychainManager.shared.getToken() {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        let (_, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse, 200...299 ~= http.statusCode else {
+            throw NetworkError.serverError(0, "DELETE custom slot failed")
+        }
+    }
+
     private func delete(_ path: String) async throws -> Data {
         let url = URL(string: APIConfig.baseURL + path)!
         var req = URLRequest(url: url)
