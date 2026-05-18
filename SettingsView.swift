@@ -36,6 +36,13 @@ final class SettingsViewModel: ObservableObject {
         didSet { UserDefaults.standard.set(birthdayDiscount, forKey: "birthday_discount") }
     }
 
+    @Published var loyaltyDiscountType: String {
+        didSet { UserDefaults.standard.set(loyaltyDiscountType, forKey: "loyalty_discount_type") }
+    }
+    @Published var loyaltyDiscountRub: Int {
+        didSet { UserDefaults.standard.set(loyaltyDiscountRub, forKey: "loyalty_discount_rub") }
+    }
+
     @Published var remindersEnabled: Bool {
         didSet { UserDefaults.standard.set(remindersEnabled, forKey: "reminders_enabled") }
     }
@@ -70,6 +77,9 @@ final class SettingsViewModel: ObservableObject {
         loyaltyDiscount = UserDefaults.standard.integer(forKey: "loyalty_discount") == 0 ? 10 : UserDefaults.standard.integer(forKey: "loyalty_discount")
         birthdayDiscountEnabled = UserDefaults.standard.object(forKey: "birthday_discount_enabled") as? Bool ?? true
         birthdayDiscount = UserDefaults.standard.integer(forKey: "birthday_discount") == 0 ? 10 : UserDefaults.standard.integer(forKey: "birthday_discount")
+
+        loyaltyDiscountType = UserDefaults.standard.string(forKey: "loyalty_discount_type") ?? "percent"
+        loyaltyDiscountRub = UserDefaults.standard.integer(forKey: "loyalty_discount_rub") == 0 ? 300 : UserDefaults.standard.integer(forKey: "loyalty_discount_rub")
 
         remindersEnabled = UserDefaults.standard.object(forKey: "reminders_enabled") as? Bool ?? true
         paymentReminderEnabled = UserDefaults.standard.object(forKey: "payment_reminder_enabled") as? Bool ?? true
@@ -111,6 +121,8 @@ final class SettingsViewModel: ObservableObject {
             if let d = m.loyaltyDiscountPercent, d > 0 { loyaltyDiscount = d }
             if let e = m.birthdayDiscountEnabled { birthdayDiscountEnabled = e }
             if let d = m.birthdayDiscountPercent, d > 0 { birthdayDiscount = d }
+            if let t = m.loyaltyDiscountType { loyaltyDiscountType = t }
+            if let r = m.loyaltyDiscountRub, r > 0 { loyaltyDiscountRub = r }
         } else {
             masterName = ""
             email = ""
@@ -173,7 +185,9 @@ final class SettingsViewModel: ObservableObject {
             loyaltyThreshold: loyaltyThreshold,
             loyaltyDiscountPercent: loyaltyDiscount,
             birthdayEnabled: birthdayDiscountEnabled,
-            birthdayDiscountPercent: birthdayDiscount
+            birthdayDiscountPercent: birthdayDiscount,
+            loyaltyDiscountType: loyaltyDiscountType,
+            loyaltyDiscountRub: loyaltyDiscountRub
         )
         do {
             let _ = try await api.request(.updateLoyaltySettings(req), as: MessageResponse.self)
@@ -569,18 +583,55 @@ struct SettingsView: View {
                     Divider().background(theme.borderSubtle).padding(.horizontal, 16)
 
                     HStack {
+                        Text("Тип скидки")
+                            .font(DS.body).foregroundColor(theme.textPrimary)
+                        Spacer()
+                        HStack(spacing: 6) {
+                            Text("%")
+                                .font(DS.labelSmall)
+                                .foregroundColor(vm.loyaltyDiscountType == "percent" ? .white : theme.textSecondary)
+                                .padding(.horizontal, 10).padding(.vertical, 6)
+                                .background(vm.loyaltyDiscountType == "percent" ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
+                                .cornerRadius(DS.r8)
+                                .onTapGesture { vm.loyaltyDiscountType = "percent" }
+                            Text("₽")
+                                .font(DS.labelSmall)
+                                .foregroundColor(vm.loyaltyDiscountType == "rub" ? .white : theme.textSecondary)
+                                .padding(.horizontal, 10).padding(.vertical, 6)
+                                .background(vm.loyaltyDiscountType == "rub" ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
+                                .cornerRadius(DS.r8)
+                                .onTapGesture { vm.loyaltyDiscountType = "rub" }
+                        }
+                    }
+                    .padding(16)
+
+                    Divider().background(theme.borderSubtle).padding(.horizontal, 16)
+
+                    HStack {
                         Text("Размер скидки")
                             .font(DS.body).foregroundColor(theme.textPrimary)
                         Spacer()
                         HStack(spacing: 6) {
-                            ForEach([5, 10, 15], id: \.self) { pct in
-                                Text("\(pct)%")
-                                    .font(DS.labelSmall)
-                                    .foregroundColor(vm.loyaltyDiscount == pct ? .white : theme.textSecondary)
-                                    .padding(.horizontal, 10).padding(.vertical, 6)
-                                    .background(vm.loyaltyDiscount == pct ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
-                                    .cornerRadius(DS.r8)
-                                    .onTapGesture { vm.loyaltyDiscount = pct }
+                            if vm.loyaltyDiscountType == "percent" {
+                                ForEach([5, 10, 15], id: \.self) { pct in
+                                    Text("\(pct)%")
+                                        .font(DS.labelSmall)
+                                        .foregroundColor(vm.loyaltyDiscount == pct ? .white : theme.textSecondary)
+                                        .padding(.horizontal, 10).padding(.vertical, 6)
+                                        .background(vm.loyaltyDiscount == pct ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
+                                        .cornerRadius(DS.r8)
+                                        .onTapGesture { vm.loyaltyDiscount = pct }
+                                }
+                            } else {
+                                ForEach([100, 200, 300, 500], id: \.self) { rub in
+                                    Text("\(rub)₽")
+                                        .font(DS.labelSmall)
+                                        .foregroundColor(vm.loyaltyDiscountRub == rub ? .white : theme.textSecondary)
+                                        .padding(.horizontal, 10).padding(.vertical, 6)
+                                        .background(vm.loyaltyDiscountRub == rub ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundInput))
+                                        .cornerRadius(DS.r8)
+                                        .onTapGesture { vm.loyaltyDiscountRub = rub }
+                                }
                             }
                         }
                     }

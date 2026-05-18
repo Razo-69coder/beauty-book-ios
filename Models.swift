@@ -54,6 +54,8 @@ struct MasterProfile: Decodable, Identifiable {
     let birthdayDiscountPercent: Int?
     let loyaltyDiscountEnabled: Bool?
     let loyaltyDiscountPercent: Int?
+    let loyaltyDiscountType: String?
+    let loyaltyDiscountRub: Int?
 }
 
 struct MasterSettingsRequest: Encodable {
@@ -84,6 +86,8 @@ struct LoyaltySettingsRequest: Encodable {
     var loyaltyDiscountPercent: Int
     var birthdayEnabled: Bool
     var birthdayDiscountPercent: Int
+    var loyaltyDiscountType: String
+    var loyaltyDiscountRub: Int
 }
 
 // MARK: - Stats
