@@ -42,6 +42,7 @@ targets:
         DEVELOPMENT_TEAM: ""
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        CODE_SIGN_ENTITLEMENTS: BeautyBook.entitlements
         INFOPLIST_KEY_UIRequiresFullScreen: YES
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO

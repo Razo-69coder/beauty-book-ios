@@ -1,7 +1,61 @@
 import SwiftUI
+import UserNotifications
+
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+        print("[APNs] Device token: \(token)")
+        Task { await BeautyPushRegistrar.send(token: token) }
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        print("[APNs] Failed to register: \(error)")
+    }
+}
+
+struct BeautyPushRegistrar {
+    static func requestPermission() {
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let granted = (try? await center.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
+            if granted {
+                await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
+            }
+        }
+    }
+
+    static func send(token: String) async {
+        guard let apiToken = KeychainManager.shared.getToken() else { return }
+        let baseURL = "https://beauty-bot-44ou.onrender.com/api/v1"
+        guard let url = URL(string: baseURL + "/device/token") else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("Bearer \(apiToken)", forHTTPHeaderField: "Authorization")
+        let boundary = UUID().uuidString
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        var body = Data()
+        func field(_ name: String, _ value: String) {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(value)\r\n".data(using: .utf8)!)
+        }
+        field("token", token)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        req.httpBody = body
+        _ = try? await URLSession.shared.data(for: req)
+        print("[APNs] Beauty token registered")
+    }
+}
 
 @main
 struct BeautyBookApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var appState         = AppState()
     @StateObject private var themeManager    = ThemeManager.shared
     @State private var showSplash           = true
@@ -52,6 +106,7 @@ struct BeautyBookApp: App {
             .task {
                 try? await Task.sleep(nanoseconds: 2_200_000_000)
                 showSplash = false
+                BeautyPushRegistrar.requestPermission()
             }
         }
     }
