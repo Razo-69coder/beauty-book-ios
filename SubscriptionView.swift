@@ -47,62 +47,68 @@ struct SubscriptionView: View {
         ZStack {
             AppBackground(theme: theme).ignoresSafeArea()
             ScrollView {
-                VStack(spacing: 24) {
-                    Spacer(minLength: 40)
+                VStack(spacing: 28) {
+                    Spacer(minLength: 48)
 
-                    // Header
                     VStack(spacing: 12) {
                         Text("💳")
                             .font(.system(size: 60))
-                        Text("Активируйте подписку")
+                        Text("Выберите тариф")
                             .font(DS.titleLarge)
                             .foregroundColor(theme.textPrimary)
                             .multilineTextAlignment(.center)
-                        Text("Для продолжения работы оплатите подписку.\nПосле оплаты нажмите кнопку ниже.")
+                        Text("Оплата через безопасный сайт.\nПосле оплаты нажмите «Я оплатил».")
                             .font(DS.body)
                             .foregroundColor(theme.textSecondary)
                             .multilineTextAlignment(.center)
+                            .padding(.horizontal)
                     }
 
-                    // Requisites
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Реквизиты для оплаты")
-                            .font(DS.body)
-                            .foregroundColor(theme.textSecondary)
-                        VStack(spacing: 0) {
-                            rekvRow(label: "СБП номер", value: "+7 (903) 328-95-83")
-                            rekvRow(label: "Банк", value: "Сбербанк")
-                            rekvRow(label: "Получатель", value: "Арсений К.")
-                            rekvRow(label: "Сумма", value: "990 ₽ / месяц")
+                    Button(action: {
+                        if let url = URL(string: "https://solvobeauty.vercel.app/pay.html") {
+                            UIApplication.shared.open(url)
                         }
-                        .background(theme.backgroundCard)
-                        .cornerRadius(16)
+                    }) {
+                        HStack {
+                            Image(systemName: "safari")
+                            Text("Открыть страницу оплаты")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(theme.gradientPrimary)
+                        .foregroundColor(.white)
+                        .cornerRadius(14)
                     }
                     .padding(.horizontal)
 
-                    // Buttons
+                    Divider()
+                        .background(theme.borderSubtle)
+                        .padding(.horizontal)
+
                     VStack(spacing: 12) {
+                        Text("После оплаты")
+                            .font(DS.body)
+                            .foregroundColor(theme.textSecondary)
+
                         if vm.sent {
-                            Text("✅ Уведомление отправлено!\nМы активируем доступ в течение нескольких часов.")
-                                    .font(DS.body)
-                                    .foregroundColor(theme.accent)
-                                    .multilineTextAlignment(.center)
-                                    .padding()
+                            Text("✅ Уведомление отправлено!\nАктивируем доступ в течение нескольких часов.")
+                                .font(DS.body)
+                                .foregroundColor(theme.accent)
+                                .multilineTextAlignment(.center)
+                                .padding()
 
                             Button(action: { Task { await vm.checkStatus() } }) {
-                                Text("Проверить статус")
+                                Text(vm.checking ? "Проверяем..." : "Проверить статус")
                                     .font(DS.body)
                                     .foregroundColor(theme.textSecondary)
-                                    .padding(.top, 8)
                             }
                             .disabled(vm.checking)
 
                             if vm.notYetMessage {
-                                Text("Вы ещё не активированы. Ожидайте.")
-                                    .font(DS.body)
+                                Text("Ещё не активированы. Ожидайте.")
+                                    .font(DS.caption)
                                     .foregroundColor(.red)
                                     .multilineTextAlignment(.center)
-                                    .padding()
                             }
                         } else {
                             Button(action: { Task { await vm.notifyPaid() } }) {
@@ -115,9 +121,13 @@ struct SubscriptionView: View {
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(theme.gradientPrimary)
-                                .foregroundColor(.white)
+                                .background(theme.backgroundCard)
+                                .foregroundColor(theme.textPrimary)
                                 .cornerRadius(14)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .stroke(theme.accent, lineWidth: 1)
+                                )
                             }
                             .disabled(vm.isSending)
                         }
@@ -134,21 +144,5 @@ struct SubscriptionView: View {
                 }
             }
         }
-    }
-
-    @ViewBuilder
-    private func rekvRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(DS.body)
-                .foregroundColor(theme.textSecondary)
-            Spacer()
-            Text(value)
-                .font(DS.body)
-                .foregroundColor(theme.textPrimary)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        Divider().background(theme.borderSubtle)
     }
 }
