@@ -116,7 +116,7 @@ final class SettingsViewModel: ObservableObject {
             paymentCard = m.paymentCard ?? ""
             paymentPhone = m.paymentPhone ?? ""
             paymentBanks = m.paymentBanks ?? ""
-            isTelegramConnected = m.telegramId != nil && m.telegramId != 0
+            isTelegramConnected = (m.telegramId ?? 0) > 0
             if let t = m.loyaltyThreshold, t > 0 { loyaltyThreshold = t }
             if let d = m.loyaltyDiscountPercent, d > 0 { loyaltyDiscount = d }
             if let e = m.birthdayDiscountEnabled { birthdayDiscountEnabled = e }
