@@ -7,7 +7,8 @@ final class CustomScheduleViewModel: ObservableObject {
     @Published var slotsForDay: [String] = []
     @Published var isLoading = false
     @Published var showTimePicker = false
-    @Published var newSlotTime: Date = Date()
+    @Published var newSlotTimeText: String = ""
+    @Published var slotTimeError: String? = nil
 
     private let api = APIClient.shared
     private let cal = Calendar(identifier: .gregorian)
@@ -17,10 +18,6 @@ final class CustomScheduleViewModel: ObservableObject {
     private let monthFmt: DateFormatter = {
         let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM"; return f
     }()
-    private let timeFmt: DateFormatter = {
-        let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "HH:mm"; return f
-    }()
-
     var currentMonth: String { monthFmt.string(from: selectedDate) }
     var dateKey: String { dateFmt.string(from: selectedDate) }
 
@@ -50,12 +47,25 @@ final class CustomScheduleViewModel: ObservableObject {
     }
 
     func addSlot() async {
-        let timeStr = timeFmt.string(from: newSlotTime)
-        guard !slotsForDay.contains(timeStr) else { return }
+        let raw = newSlotTimeText.trimmingCharacters(in: .whitespaces)
+        let parts = raw.split(separator: ":")
+        guard parts.count == 2,
+              let h = Int(parts[0]), let m = Int(parts[1]),
+              h >= 0 && h <= 23, m >= 0 && m <= 59 else {
+            slotTimeError = "Введите время в формате ЧЧ:ММ, например 09:30"
+            return
+        }
+        let timeStr = String(format: "%02d:%02d", h, m)
+        guard !slotsForDay.contains(timeStr) else {
+            slotTimeError = "Этот слот уже добавлен"
+            return
+        }
+        slotTimeError = nil
         try? await api.addCustomSlot(date: dateKey, time: timeStr)
         slotsForDay.append(timeStr)
         slotsForDay.sort()
         slotsForMonth[dateKey] = slotsForDay
+        newSlotTimeText = ""
         showTimePicker = false
     }
 
@@ -105,6 +115,7 @@ struct CustomScheduleView: View {
         }
         .navigationTitle("Моё расписание")
         .navigationBarTitleDisplayMode(.inline)
+        .tint(theme.accent)
         .task { await vm.loadMonth() }
         .sheet(isPresented: $vm.showTimePicker) { timePickerSheet }
     }
@@ -249,11 +260,34 @@ struct CustomScheduleView: View {
             ZStack {
                 theme.backgroundDeep.ignoresSafeArea()
                 VStack(spacing: 24) {
-                    DatePicker("", selection: $vm.newSlotTime, displayedComponents: .hourAndMinute)
-                        .datePickerStyle(.wheel)
-                        .labelsHidden()
-                        .colorScheme(theme == .platinum ? .light : .dark)
-                        .environment(\.locale, Locale(identifier: "ru_RU"))
+                    VStack(spacing: 8) {
+                        Text("Введите время слота")
+                            .font(DS.body)
+                            .foregroundColor(theme.textMuted)
+
+                        TextField("09:30", text: $vm.newSlotTimeText)
+                            .keyboardType(.numbersAndPunctuation)
+                            .font(.system(size: 40, weight: .semibold, design: .monospaced))
+                            .foregroundColor(theme.textPrimary)
+                            .multilineTextAlignment(.center)
+                            .padding(.vertical, 16)
+                            .padding(.horizontal, 24)
+                            .background(theme.backgroundCard)
+                            .cornerRadius(16)
+                            .onChange(of: vm.newSlotTimeText) { _, new in
+                                vm.newSlotTimeText = formatTimeInput(new)
+                                vm.slotTimeError = nil
+                            }
+
+                        if let err = vm.slotTimeError {
+                            Text(err)
+                                .font(DS.bodySmall)
+                                .foregroundColor(theme.statusRed)
+                                .multilineTextAlignment(.center)
+                        }
+                    }
+                    .padding(.horizontal, 24)
+
                     BBPrimaryButton(title: "Добавить слот") {
                         Task { await vm.addSlot() }
                     }
@@ -261,17 +295,31 @@ struct CustomScheduleView: View {
                     .padding(.horizontal, 20)
                     Spacer()
                 }
-                .padding(.top, 20)
+                .padding(.top, 24)
             }
-            .navigationTitle("Выберите время")
+            .navigationTitle("Добавить время")
             .navigationBarTitleDisplayMode(.inline)
+            .tint(theme.accent)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Отмена") { vm.showTimePicker = false }.foregroundColor(theme.accent)
+                    Button("Отмена") {
+                        vm.newSlotTimeText = ""
+                        vm.slotTimeError = nil
+                        vm.showTimePicker = false
+                    }
+                    .foregroundColor(theme.accent)
                 }
             }
         }
         .presentationDetents([.medium])
+    }
+
+    private func formatTimeInput(_ input: String) -> String {
+        let digits = input.filter { $0.isNumber }
+        guard digits.count > 2 else { return String(digits.prefix(2)) }
+        let h = String(digits.prefix(2))
+        let m = String(digits.dropFirst(2).prefix(2))
+        return "\(h):\(m)"
     }
 }
 
