@@ -47,17 +47,18 @@ final class CustomScheduleViewModel: ObservableObject {
 
     func addSelectedSlots() async {
         let toAdd = selectedSlots.filter { !slotsForDay.contains($0) }.sorted()
-        for time in toAdd {
-            try? await api.addCustomSlot(date: dateKey, time: time)
+        guard !toAdd.isEmpty else { showTimePicker = false; return }
+        isLoading = true
+        await withTaskGroup(of: Void.self) { group in
+            for time in toAdd {
+                group.addTask { try? await self.api.addCustomSlot(date: self.dateKey, time: time) }
+            }
         }
         slotsForDay.append(contentsOf: toAdd)
         slotsForDay.sort()
-        if slotsForDay.isEmpty {
-            slotsForMonth.removeValue(forKey: dateKey)
-        } else {
-            slotsForMonth[dateKey] = slotsForDay
-        }
+        slotsForMonth[dateKey] = slotsForDay
         selectedSlots = []
+        isLoading = false
         showTimePicker = false
     }
 
