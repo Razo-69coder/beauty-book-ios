@@ -31,25 +31,24 @@ struct BeautyPushRegistrar {
     }
 
     static func send(token: String) async {
-        guard let apiToken = KeychainManager.shared.getToken() else { return }
+        guard let apiToken = KeychainManager.shared.getToken() else {
+            print("[APNs] No JWT token in keychain, skipping device token registration")
+            return
+        }
         let baseURL = "https://beauty-bot-44ou.onrender.com/api/v1"
         guard let url = URL(string: baseURL + "/device/token") else { return }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("Bearer \(apiToken)", forHTTPHeaderField: "Authorization")
-        let boundary = UUID().uuidString
-        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        var body = Data()
-        func field(_ name: String, _ value: String) {
-            body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
-            body.append("\(value)\r\n".data(using: .utf8)!)
+        req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        req.httpBody = "token=\(token)".data(using: .utf8)
+        do {
+            let (_, response) = try await URLSession.shared.data(for: req)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            print("[APNs] Device token registration status: \(status)")
+        } catch {
+            print("[APNs] Device token registration error: \(error)")
         }
-        field("token", token)
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        req.httpBody = body
-        _ = try? await URLSession.shared.data(for: req)
-        print("[APNs] Beauty token registered")
     }
 }
 

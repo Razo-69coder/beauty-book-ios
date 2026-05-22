@@ -133,6 +133,20 @@ struct ScheduleView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     editingAppointment = appt
                 }
+            }, onStatusChange: { newStatus in
+                if let idx = vm.appointments.firstIndex(where: { $0.id == appt.id }) {
+                    let old = vm.appointments[idx]
+                    vm.appointments[idx] = Appointment(
+                        id: old.id, clientId: old.clientId, masterId: old.masterId,
+                        procedure: old.procedure, appointmentDate: old.appointmentDate,
+                        time: old.time, price: old.price, notes: old.notes,
+                        status: newStatus, depositStatus: old.depositStatus,
+                        depositAmount: old.depositAmount, clientName: old.clientName,
+                        clientPhone: old.clientPhone, serviceDoneAt: old.serviceDoneAt,
+                        duration: old.duration
+                    )
+                }
+                vm.selectedAppointment = nil
             })
         }
         .sheet(item: $editingAppointment) { appt in
@@ -470,6 +484,7 @@ struct AppointmentDetailSheet: View {
     let theme: AppTheme
     let onCancel: () -> Void
     var onEdit: (() -> Void)? = nil
+    var onStatusChange: ((AppointmentStatus) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
 
@@ -539,7 +554,10 @@ struct AppointmentDetailSheet: View {
                                 Button {
                                     Task {
                                         try? await APIClient.shared.updateAppointmentStatus(id: appointment.id, status: status)
-                                        dismiss()
+                                        await MainActor.run {
+                                            onStatusChange?(status)
+                                            dismiss()
+                                        }
                                     }
                                 } label: {
                                     HStack {
