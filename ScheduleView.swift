@@ -161,20 +161,22 @@ struct ScheduleView: View {
         guard appt.status != newStatus else { return }
         Task {
             try? await APIClient.shared.updateAppointmentStatus(id: appt.id, status: newStatus)
-            if let idx = vm.appointments.firstIndex(where: { $0.id == appt.id }) {
-                var updated = vm.appointments[idx]
-                updated = Appointment(
-                    id: updated.id, clientId: updated.clientId, masterId: updated.masterId,
-                    procedure: updated.procedure, appointmentDate: updated.appointmentDate,
-                    time: updated.time, price: updated.price, notes: updated.notes,
-                    status: newStatus, depositStatus: updated.depositStatus,
-                    depositAmount: updated.depositAmount, clientName: updated.clientName,
-                    clientPhone: updated.clientPhone, serviceDoneAt: updated.serviceDoneAt,
-                    duration: updated.duration
-                )
-                vm.appointments[idx] = updated
+            await MainActor.run {
+                if let idx = vm.appointments.firstIndex(where: { $0.id == appt.id }) {
+                    var updated = vm.appointments[idx]
+                    updated = Appointment(
+                        id: updated.id, clientId: updated.clientId, masterId: updated.masterId,
+                        procedure: updated.procedure, appointmentDate: updated.appointmentDate,
+                        time: updated.time, price: updated.price, notes: updated.notes,
+                        status: newStatus, depositStatus: updated.depositStatus,
+                        depositAmount: updated.depositAmount, clientName: updated.clientName,
+                        clientPhone: updated.clientPhone, serviceDoneAt: updated.serviceDoneAt,
+                        duration: updated.duration
+                    )
+                    vm.appointments[idx] = updated
+                }
+                HapticManager.success()
             }
-            HapticManager.success()
         }
     }
 
