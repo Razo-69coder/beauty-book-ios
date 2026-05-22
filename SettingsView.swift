@@ -217,7 +217,8 @@ final class SettingsViewModel: ObservableObject {
     func connectTelegram() async {
         do {
             let (token, botUsername) = try await APIClient.shared.telegramLinkToken()
-            let deepLink = "tg://resolve?domain=\(botUsername)&start=master_\(token)"
+            let domain = botUsername.isEmpty ? "Beauty6699_bot" : botUsername
+            let deepLink = "tg://resolve?domain=\(domain)&start=master_\(token)"
             await MainActor.run {
                 if let url = URL(string: deepLink) {
                     UIApplication.shared.open(url)
