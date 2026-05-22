@@ -4,7 +4,7 @@
 <plist version="1.0">
 <dict>
     <key>method</key>
-    <string>app-store</string>
+    <string>app-store-connect</string>
     <key>teamID</key>
     <string>53C33F97M2</string>
     <key>uploadBitcode</key>
@@ -12,11 +12,6 @@
     <key>uploadSymbols</key>
     <true/>
     <key>signingStyle</key>
-    <string>manual</string>
-    <key>provisioningProfiles</key>
-    <dict>
-        <key>com.beautybook.app.53C33F97M2</key>
-        <string>Solva Beauty Distribution</string>
-    </dict>
+    <string>automatic</string>
 </dict>
 </plist>
