@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) {
         let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         print("[APNs] Device token: \(token)")
+        UserDefaults.standard.set(token, forKey: "apns_device_token")
         Task { await BeautyPushRegistrar.send(token: token) }
     }
 
@@ -28,6 +29,11 @@ struct BeautyPushRegistrar {
                 await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
             }
         }
+    }
+
+    static func sendSavedTokenIfNeeded() async {
+        guard let token = UserDefaults.standard.string(forKey: "apns_device_token") else { return }
+        await send(token: token)
     }
 
     static func send(token: String) async {

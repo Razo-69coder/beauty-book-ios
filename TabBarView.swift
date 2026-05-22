@@ -39,8 +39,8 @@ struct TabBarView: View {
             }
         }
         .task {
-            // Re-register push token every time user is authenticated and app is active
             BeautyPushRegistrar.requestPermission()
+            await BeautyPushRegistrar.sendSavedTokenIfNeeded()
         }
         .overlay(alignment: .topLeading) {
             FeedbackButton()
