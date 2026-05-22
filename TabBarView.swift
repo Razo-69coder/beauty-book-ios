@@ -38,6 +38,10 @@ struct TabBarView: View {
                 tabOpacity = 1.0
             }
         }
+        .task {
+            // Re-register push token every time user is authenticated and app is active
+            BeautyPushRegistrar.requestPermission()
+        }
         .overlay(alignment: .topLeading) {
             FeedbackButton()
                 .environment(\.theme, theme)
