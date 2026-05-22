@@ -12,6 +12,11 @@
     <key>uploadSymbols</key>
     <true/>
     <key>signingStyle</key>
-    <string>automatic</string>
+    <string>manual</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>com.beautybook.app.53C33F97M2</key>
+        <string>Solva Beauty Distribution</string>
+    </dict>
 </dict>
 </plist>

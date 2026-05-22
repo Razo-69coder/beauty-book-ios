@@ -47,6 +47,12 @@ workflows:
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -archivePath ./build/BeautyBook.xcarchive \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGNING_ALLOWED=YES \
+            PROVISIONING_PROFILE_SPECIFIER="Solva Beauty Distribution" \
+            DEVELOPMENT_TEAM=53C33F97M2 \
             archive
 
       - name: Export IPA
