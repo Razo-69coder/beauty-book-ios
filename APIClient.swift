@@ -78,6 +78,7 @@ enum Endpoint {
     case subscriptionNotify
     case subscriptionStatus
     case telegramLinkToken
+    case createPayment
     // Status
     case updateAppointmentStatus(id: Int, status: String)
     case statsYearly(year: Int)
@@ -125,6 +126,7 @@ extension Endpoint {
         case .subscriptionNotify:        return "/subscription/notify"
         case .subscriptionStatus:       return "/subscription/status"
         case .telegramLinkToken:        return "/telegram-link-token"
+        case .createPayment:            return "/payment/create"
         case .updateAppointmentStatus(let id, _): return "/appointments/\(id)/status"
         case .importClients:             return "/clients/import"
         case .statsYearly:              return "/masters/me/stats/yearly"
@@ -142,7 +144,7 @@ extension Endpoint {
             return "PUT"
         case .deleteClient, .cancelAppointment, .deleteService:
             return "DELETE"
-        case .addBlockedDay, .subscriptionNotify:   return "POST"
+        case .addBlockedDay, .subscriptionNotify, .createPayment:   return "POST"
         case .removeBlockedDay: return "DELETE"
         case .telegramLinkToken: return "GET"
         case .updateAppointmentStatus: return "PATCH"

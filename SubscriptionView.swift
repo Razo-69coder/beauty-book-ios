@@ -1,24 +1,45 @@
 import SwiftUI
+import SafariServices
+
+// MARK: - Models
+struct PaymentResponse: Decodable {
+    let paymentId: String
+    let confirmationUrl: String
+}
+
+// MARK: - SafariView
+struct SafariView: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        SFSafariViewController(url: url)
+    }
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
+}
 
 // MARK: - View Model
 @MainActor
 final class SubscriptionViewModel: ObservableObject {
-    @Published var isSending = false
-    @Published var sent = false
+    @Published var isLoading = false
     @Published var errorMessage: String? = nil
+    @Published var paymentURL: URL? = nil
+    @Published var showSafari = false
     @Published var checking = false
     @Published var notYetMessage = false
+    @Published var isActive = false
 
-    func notifyPaid() async {
-        isSending = true
+    func createPayment() async {
+        isLoading = true
         errorMessage = nil
         do {
-            let _: EmptyResponse = try await APIClient.shared.request(.subscriptionNotify)
-            sent = true
+            let resp: PaymentResponse = try await APIClient.shared.request(.createPayment, as: PaymentResponse.self)
+            paymentURL = URL(string: resp.confirmationUrl)
+            if paymentURL != nil {
+                showSafari = true
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
-        isSending = false
+        isLoading = false
     }
 
     func checkStatus() async {
@@ -28,6 +49,7 @@ final class SubscriptionViewModel: ObservableObject {
             struct StatusResp: Decodable { let isActive: Bool }
             let resp = try await APIClient.shared.request(.subscriptionStatus, as: StatusResp.self)
             if resp.isActive {
+                isActive = true
                 NotificationCenter.default.post(name: .subscriptionActivated, object: nil)
             } else {
                 notYetMessage = true
@@ -53,49 +75,52 @@ struct SubscriptionView: View {
                     VStack(spacing: 12) {
                         Text("💳")
                             .font(.system(size: 60))
-                        Text("Выберите тариф")
+                        Text("Подписка Solvo Beauty")
                             .font(DS.titleLarge)
                             .foregroundColor(theme.textPrimary)
                             .multilineTextAlignment(.center)
-                        Text("Оплата через безопасный сайт.\nПосле оплаты нажмите «Я оплатил».")
+                        Text("490 ₽ / месяц")
+                            .font(DS.titleMedium)
+                            .foregroundColor(theme.accent)
+                        Text("Оплата через ЮКассу (карта или СБП).\nПосле оплаты подписка активируется автоматически.")
                             .font(DS.body)
                             .foregroundColor(theme.textSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                     }
 
-                    Button(action: {
-                        if let url = URL(string: "https://solvobeauty.vercel.app/pay.html") {
-                            UIApplication.shared.open(url)
+                    if vm.isActive {
+                        VStack(spacing: 12) {
+                            Text("✅ Подписка активна")
+                                .font(DS.titleMedium)
+                                .foregroundColor(theme.accent)
                         }
-                    }) {
-                        HStack {
-                            Image(systemName: "safari")
-                            Text("Открыть страницу оплаты")
+                    } else {
+                        Button(action: { Task { await vm.createPayment() } }) {
+                            HStack {
+                                if vm.isLoading {
+                                    ProgressView().tint(.white)
+                                } else {
+                                    Text("Оплатить 490 ₽ / месяц")
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(theme.gradientPrimary)
+                            .foregroundColor(.white)
+                            .cornerRadius(14)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(theme.gradientPrimary)
-                        .foregroundColor(.white)
-                        .cornerRadius(14)
-                    }
-                    .padding(.horizontal)
-
-                    Divider()
-                        .background(theme.borderSubtle)
+                        .disabled(vm.isLoading)
                         .padding(.horizontal)
 
-                    VStack(spacing: 12) {
-                        Text("После оплаты")
-                            .font(DS.body)
-                            .foregroundColor(theme.textSecondary)
+                        Divider()
+                            .background(theme.borderSubtle)
+                            .padding(.horizontal)
 
-                        if vm.sent {
-                            Text("✅ Уведомление отправлено!\nАктивируем доступ в течение нескольких часов.")
+                        VStack(spacing: 12) {
+                            Text("Уже оплатили?")
                                 .font(DS.body)
-                                .foregroundColor(theme.accent)
-                                .multilineTextAlignment(.center)
-                                .padding()
+                                .foregroundColor(theme.textSecondary)
 
                             Button(action: { Task { await vm.checkStatus() } }) {
                                 Text(vm.checking ? "Проверяем..." : "Проверить статус")
@@ -105,43 +130,29 @@ struct SubscriptionView: View {
                             .disabled(vm.checking)
 
                             if vm.notYetMessage {
-                                Text("Ещё не активированы. Ожидайте.")
+                                Text("Ещё не активирована. Ожидайте.")
                                     .font(DS.caption)
                                     .foregroundColor(.red)
                                     .multilineTextAlignment(.center)
                             }
-                        } else {
-                            Button(action: { Task { await vm.notifyPaid() } }) {
-                                HStack {
-                                    if vm.isSending {
-                                        ProgressView().tint(.white)
-                                    } else {
-                                        Text("Я оплатил — уведомить администратора")
-                                    }
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(theme.backgroundCard)
-                                .foregroundColor(theme.textPrimary)
-                                .cornerRadius(14)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .stroke(theme.accent, lineWidth: 1)
-                                )
-                            }
-                            .disabled(vm.isSending)
                         }
-
-                        if let err = vm.errorMessage {
-                            Text(err)
-                                .font(DS.caption)
-                                .foregroundColor(.red)
-                        }
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
+
+                    if let err = vm.errorMessage {
+                        Text(err)
+                            .font(DS.caption)
+                            .foregroundColor(.red)
+                            .padding(.horizontal)
+                    }
 
                     Spacer(minLength: 40)
                 }
+            }
+        }
+        .sheet(isPresented: $vm.showSafari) {
+            if let url = vm.paymentURL {
+                SafariView(url: url)
             }
         }
     }
