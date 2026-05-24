@@ -110,6 +110,7 @@ struct BeautyBookApp: App {
                         }
                         .fullScreenCover(isPresented: $appState.subscriptionRequired) {
                             SubscriptionView()
+                                .environmentObject(appState)
                                 .environmentObject(themeManager)
                                 .environment(\.theme, themeManager.current)
                                 .interactiveDismissDisabled()
