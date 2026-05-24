@@ -64,6 +64,7 @@ struct BeautyBookApp: App {
     @StateObject private var appState         = AppState()
     @StateObject private var themeManager    = ThemeManager.shared
     @State private var showSplash           = true
+    @State private var showProWelcome       = false
     @AppStorage("onboarding_completed") private var onboardingCompleted = false
 
     var body: some Scene {
@@ -87,7 +88,22 @@ struct BeautyBookApp: App {
                         ) {
                             OnboardingView(onFinish: {
                                 onboardingCompleted = true
+                                let seen = UserDefaults.standard.bool(forKey: "hasSeenProWelcome")
+                                if !seen {
+                                    showProWelcome = true
+                                }
                             }, isPreview: false)
+                            .environmentObject(themeManager)
+                            .environment(\.theme, themeManager.current)
+                            .interactiveDismissDisabled()
+                        }
+                        .fullScreenCover(isPresented: $showProWelcome) {
+                            ProWelcomeView(
+                                trialEndDate: appState.trialEndDate ?? Date().addingTimeInterval(30 * 86400),
+                                onFinish: {
+                                    showProWelcome = false
+                                }
+                            )
                             .environmentObject(themeManager)
                             .environment(\.theme, themeManager.current)
                             .interactiveDismissDisabled()
@@ -185,6 +201,7 @@ struct SplashView: View {
     @Published var isAuthenticated: Bool = KeychainManager.shared.isAuthenticated
     @Published var currentMaster: MasterProfile? = nil
     @Published var subscriptionRequired: Bool = false
+    @Published var trialEndDate: Date? = nil
 
     init() {
         NotificationCenter.default.addObserver(
@@ -204,21 +221,44 @@ struct SplashView: View {
         currentMaster = master
         subscriptionRequired = false
         withAnimation(DS.springSmooth) { isAuthenticated = true }
+        Task { await fetchTrialStatus() }
     }
 
     func logout() {
         KeychainManager.shared.deleteToken()
         currentMaster = nil
+        trialEndDate = nil
         withAnimation(DS.springSmooth) { isAuthenticated = false }
     }
 
     func requireSubscription() {
-        // BETA: disabled
-        // withAnimation(DS.springSmooth) { subscriptionRequired = true }
     }
 
     func activateSubscription() {
         withAnimation(DS.springSmooth) { subscriptionRequired = false }
+    }
+
+    func fetchTrialStatus() async {
+        do {
+            struct TrialResp: Decodable {
+                let trialEndDate: String?
+                let daysLeft: Int
+                let isTrial: Bool
+            }
+            let resp = try await APIClient.shared.request(.trialStatus, as: TrialResp.self)
+            if let dateStr = resp.trialEndDate {
+                let f = ISO8601DateFormatter()
+                f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                if let date = f.date(from: dateStr) {
+                    trialEndDate = date
+                } else {
+                    f.formatOptions = [.withInternetDateTime]
+                    trialEndDate = f.date(from: dateStr)
+                }
+            }
+        } catch {
+            print("[TRIAL] Failed to fetch: \(error)")
+        }
     }
 }
 
