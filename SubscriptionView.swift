@@ -79,7 +79,7 @@ struct SubscriptionView: View {
                             .font(DS.titleLarge)
                             .foregroundColor(theme.textPrimary)
                             .multilineTextAlignment(.center)
-                        Text("490 ₽ / месяц")
+                        Text("690 ₽ / месяц")
                             .font(DS.titleMedium)
                             .foregroundColor(theme.accent)
                         Text("Оплата через ЮКассу (карта или СБП).\nПосле оплаты подписка активируется автоматически.")
@@ -101,7 +101,7 @@ struct SubscriptionView: View {
                                 if vm.isLoading {
                                     ProgressView().tint(.white)
                                 } else {
-                                    Text("Оплатить 490 ₽ / месяц")
+                                    Text("Оплатить 690 ₽ / месяц")
                                 }
                             }
                             .frame(maxWidth: .infinity)
