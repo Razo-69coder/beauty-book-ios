@@ -69,6 +69,11 @@ struct ProWelcomeView: View {
                         .cornerRadius(10)
                         .padding(.horizontal, 24)
 
+                    Text("После пробного периода — от 690 ₽/мес")
+                        .font(DS.caption)
+                        .foregroundColor(theme.textSecondary.opacity(0.5))
+                        .multilineTextAlignment(.center)
+
                     Button(action: {
                         UserDefaults.standard.set(true, forKey: "hasSeenProWelcome")
                         onFinish()

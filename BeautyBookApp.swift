@@ -108,12 +108,12 @@ struct BeautyBookApp: App {
                             .environment(\.theme, themeManager.current)
                             .interactiveDismissDisabled()
                         }
-//                        .fullScreenCover(isPresented: $appState.subscriptionRequired) {
-//                            SubscriptionView()
-//                                .environmentObject(themeManager)
-//                                .environment(\.theme, themeManager.current)
-//                                .interactiveDismissDisabled()
-//                        }
+                        .fullScreenCover(isPresented: $appState.subscriptionRequired) {
+                            SubscriptionView()
+                                .environmentObject(themeManager)
+                                .environment(\.theme, themeManager.current)
+                                .interactiveDismissDisabled()
+                        }
                 } else {
                     AuthView()
                         .environmentObject(appState)
@@ -232,6 +232,7 @@ struct SplashView: View {
     }
 
     func requireSubscription() {
+        withAnimation(DS.springSmooth) { subscriptionRequired = true }
     }
 
     func activateSubscription() {
@@ -244,6 +245,7 @@ struct SplashView: View {
                 let trialEndDate: String?
                 let daysLeft: Int
                 let isTrial: Bool
+                let isActive: Bool
             }
             let resp = try await APIClient.shared.request(.trialStatus, as: TrialResp.self)
             if let dateStr = resp.trialEndDate {
@@ -255,6 +257,9 @@ struct SplashView: View {
                     f.formatOptions = [.withInternetDateTime]
                     trialEndDate = f.date(from: dateStr)
                 }
+            }
+            if !resp.isTrial && !resp.isActive {
+                requireSubscription()
             }
         } catch {
             print("[TRIAL] Failed to fetch: \(error)")
