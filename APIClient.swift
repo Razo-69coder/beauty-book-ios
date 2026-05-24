@@ -78,7 +78,7 @@ enum Endpoint {
     case subscriptionNotify
     case subscriptionStatus
     case telegramLinkToken
-    case createPayment
+    case createPayment(plan: String)
     // Status
     case updateAppointmentStatus(id: Int, status: String)
     case statsYearly(year: Int)
@@ -144,7 +144,8 @@ extension Endpoint {
             return "PUT"
         case .deleteClient, .cancelAppointment, .deleteService:
             return "DELETE"
-        case .addBlockedDay, .subscriptionNotify, .createPayment:   return "POST"
+        case .addBlockedDay, .subscriptionNotify:   return "POST"
+        case .createPayment:                        return "POST"
         case .removeBlockedDay: return "DELETE"
         case .telegramLinkToken: return "GET"
         case .updateAppointmentStatus: return "PATCH"
@@ -206,6 +207,8 @@ extension Endpoint {
             return try? encoder.encode(ClientImportRequest(clients: items))
         case .updateReminderTemplate(_, let template, let enabled):
             return try? encoder.encode(ReminderTemplateUpdate(template: template, enabled: enabled))
+        case .createPayment(let plan):
+            return try? encoder.encode(["plan": plan])
         default: return nil
         }
     }

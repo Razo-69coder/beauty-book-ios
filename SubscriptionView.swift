@@ -7,6 +7,23 @@ struct PaymentResponse: Decodable {
     let confirmationUrl: String
 }
 
+struct PeriodOption {
+    let label: String
+    let price: String
+    let totalRub: String
+    let perMonth: String
+    let discount: String?
+    let planId: String
+    let months: Int
+}
+
+let periods = [
+    PeriodOption(label: "Месяц",   price: "690 ₽",   totalRub: "690 ₽",    perMonth: "690 ₽/мес",   discount: nil,   planId: "pro_1m",  months: 1),
+    PeriodOption(label: "6 мес",   price: "3 490 ₽", totalRub: "3 490 ₽",  perMonth: "582 ₽/мес",  discount: "−16%", planId: "pro_6m",  months: 6),
+    PeriodOption(label: "Год",     price: "5 990 ₽", totalRub: "5 990 ₽",  perMonth: "499 ₽/мес",  discount: "−28%", planId: "pro_1y",  months: 12),
+    PeriodOption(label: "2 года",  price: "9 990 ₽", totalRub: "9 990 ₽",  perMonth: "416 ₽/мес",  discount: "−40%", planId: "pro_2y",  months: 24),
+]
+
 // MARK: - SafariView
 struct SafariView: UIViewControllerRepresentable {
     let url: URL
@@ -27,11 +44,11 @@ final class SubscriptionViewModel: ObservableObject {
     @Published var notYetMessage = false
     @Published var isActive = false
 
-    func createPayment() async {
+    func createPayment(planId: String) async {
         isLoading = true
         errorMessage = nil
         do {
-            let resp: PaymentResponse = try await APIClient.shared.request(.createPayment, as: PaymentResponse.self)
+            let resp: PaymentResponse = try await APIClient.shared.request(.createPayment(plan: planId), as: PaymentResponse.self)
             paymentURL = URL(string: resp.confirmationUrl)
             if paymentURL != nil {
                 showSafari = true
@@ -64,30 +81,39 @@ struct SubscriptionView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @Environment(\.theme) var theme
     @StateObject private var vm = SubscriptionViewModel()
+    @State private var selectedPeriod: Int = 0
+
+    private var savings: Int {
+        guard selectedPeriod > 0 else { return 0 }
+        let p = periods[selectedPeriod]
+        let monthly = 690
+        return monthly * p.months - Int(p.price.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression))!
+    }
 
     var body: some View {
         ZStack {
             AppBackground(theme: theme).ignoresSafeArea()
             ScrollView {
-                VStack(spacing: 28) {
-                    Spacer(minLength: 48)
+                VStack(spacing: 24) {
+                    Spacer(minLength: 40)
 
-                    VStack(spacing: 12) {
+                    // Promo banner
+                    promoBanner
+
+                    VStack(spacing: 8) {
                         Text("💳")
-                            .font(.system(size: 60))
+                            .font(.system(size: 48))
                         Text("Подписка Solvo Beauty")
                             .font(DS.titleLarge)
                             .foregroundColor(theme.textPrimary)
                             .multilineTextAlignment(.center)
-                        Text("690 ₽ / месяц")
-                            .font(DS.titleMedium)
-                            .foregroundColor(theme.accent)
-                        Text("Оплата через ЮКассу (карта или СБП).\nПосле оплаты подписка активируется автоматически.")
-                            .font(DS.body)
-                            .foregroundColor(theme.textSecondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
                     }
+
+                    // Period picker
+                    periodPicker
+
+                    // Price block
+                    priceBlock
 
                     if vm.isActive {
                         VStack(spacing: 12) {
@@ -96,12 +122,12 @@ struct SubscriptionView: View {
                                 .foregroundColor(theme.accent)
                         }
                     } else {
-                        Button(action: { Task { await vm.createPayment() } }) {
+                        Button(action: { Task { await vm.createPayment(planId: periods[selectedPeriod].planId) } }) {
                             HStack {
                                 if vm.isLoading {
                                     ProgressView().tint(.white)
                                 } else {
-                                    Text("Оплатить 690 ₽ / месяц")
+                                    Text("Оплатить \(periods[selectedPeriod].totalRub)")
                                 }
                             }
                             .frame(maxWidth: .infinity)
@@ -153,6 +179,82 @@ struct SubscriptionView: View {
         .sheet(isPresented: $vm.showSafari) {
             if let url = vm.paymentURL {
                 SafariView(url: url)
+            }
+        }
+    }
+
+    // MARK: - Promo Banner
+    private var promoBanner: some View {
+        VStack(spacing: 4) {
+            Text("🎁 Первый месяц — бесплатно")
+                .font(DS.titleSmall)
+                .foregroundColor(theme.accent)
+            Text("Акция при запуске — Pro без оплаты на 30 дней")
+                .font(DS.caption)
+                .foregroundColor(theme.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .padding(.horizontal, 20)
+        .background(
+            LinearGradient(
+                colors: [theme.accent.opacity(0.15), theme.accentSecondary.opacity(0.1)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.accent.opacity(0.5), lineWidth: 0.5))
+        .cornerRadius(12)
+        .padding(.horizontal)
+    }
+
+    // MARK: - Period Picker
+    private var periodPicker: some View {
+        HStack(spacing: 8) {
+            ForEach(periods.indices, id: \.self) { i in
+                let p = periods[i]
+                let active = i == selectedPeriod
+                VStack(spacing: 2) {
+                    if let d = p.discount {
+                        Text(d)
+                            .font(DS.caption)
+                            .foregroundColor(theme.accent)
+                            .fontWeight(.semibold)
+                    } else {
+                        Color.clear.frame(height: 11)
+                    }
+                    Button(action: { selectedPeriod = i }) {
+                        Text(p.label)
+                            .font(DS.labelSmall)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(active ? theme.accent.opacity(0.2) : theme.backgroundCard)
+                            .foregroundColor(active ? theme.accent : theme.textSecondary)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(active ? theme.accent : theme.borderSubtle, lineWidth: 1)
+                            )
+                            .cornerRadius(10)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    // MARK: - Price Block
+    private var priceBlock: some View {
+        VStack(spacing: 4) {
+            Text(periods[selectedPeriod].price)
+                .font(DS.titleLarge)
+                .foregroundColor(theme.textPrimary)
+            Text(periods[selectedPeriod].perMonth)
+                .font(DS.caption)
+                .foregroundColor(theme.textSecondary)
+            if selectedPeriod > 0 {
+                Text("Экономия \(savings) ₽")
+                    .font(DS.labelSmall)
+                    .foregroundColor(theme.statusGreen)
             }
         }
     }
