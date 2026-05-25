@@ -99,10 +99,10 @@ struct BeautyBookApp: App {
                         }
                         .fullScreenCover(isPresented: $showProWelcome) {
                             ProWelcomeView(
-                                trialEndDate: appState.trialEndDate ?? Date().addingTimeInterval(30 * 86400),
                                 onFinish: {
                                     showProWelcome = false
-                                }
+                                },
+                                trialEndDate: appState.trialEndDate ?? Date().addingTimeInterval(30 * 86400)
                             )
                             .environmentObject(themeManager)
                             .environment(\.theme, themeManager.current)
