@@ -1013,6 +1013,22 @@ struct SettingsView: View {
             BBGlassCard {
                 VStack(spacing: 0) {
                     SettingsRow(icon: "bell.fill", label: "Уведомления", value: "Включены", theme: theme)
+                    Divider().background(theme.borderSubtle).padding(.leading, 44)
+                    Button(action: {
+                        Task {
+                            guard let token = KeychainManager.shared.getToken() else { return }
+                            guard let url = URL(string: "https://beauty-bot-44ou.onrender.com/api/v1/debug/push-test") else { return }
+                            var req = URLRequest(url: url)
+                            req.httpMethod = "POST"
+                            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                            let (data, _) = (try? await URLSession.shared.data(for: req)) ?? (nil, nil)
+                            if let data, let str = String(data: data, encoding: .utf8) {
+                                print("[PushTest] \(str)")
+                            }
+                        }
+                    }) {
+                        SettingsRow(icon: "paperplane.fill", label: "Тест пуш-уведомления", value: "", theme: theme)
+                    }
                 }
             }
         }
