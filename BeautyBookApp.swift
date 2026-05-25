@@ -49,6 +49,8 @@ struct BeautyPushRegistrar {
     }
 
     static func sendSavedTokenIfNeeded() async {
+        // Принудительно перерегистрируем токен при каждом запуске
+        await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
         guard let token = UserDefaults.standard.string(forKey: "apns_device_token") else { return }
         await send(token: token)
     }
