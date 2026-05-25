@@ -152,7 +152,12 @@ struct NotificationsSheet: View {
                 }
             }
         }
-        .task { await vm.load() }
+        .task {
+            await vm.load()
+            // Авто-прочитать через 1 секунду — пользователь уже видит уведомления
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            await vm.markAllRead()
+        }
         .alert("Подтвердить перенос?", isPresented: Binding(
             get: { confirmingAppt != nil },
             set: { if !$0 { confirmingAppt = nil } }

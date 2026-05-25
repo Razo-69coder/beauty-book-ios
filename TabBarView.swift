@@ -7,6 +7,7 @@ struct TabBarView: View {
     private var theme: AppTheme { themeManager.current }
     @StateObject private var notifVM = NotificationsViewModel()
     @State private var showNotifications = false
+    @Environment(\.scenePhase) private var scenePhase
     
     enum Tab: String, CaseIterable {
         case schedule = "Расписание"
@@ -58,6 +59,14 @@ struct TabBarView: View {
         .sheet(isPresented: $showNotifications) {
             NotificationsSheet(vm: notifVM)
                 .environment(\.theme, theme)
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
+                Task { await notifVM.refreshUnread() }
+            }
+        }
+        .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
+            Task { await notifVM.refreshUnread() }
         }
     }
     
