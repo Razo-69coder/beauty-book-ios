@@ -102,6 +102,15 @@ struct NotificationsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingAppt: AppNotification? = nil
     @State private var processingId: Int? = nil
+    @State private var showPendingOnly = false
+
+    private var displayedNotifications: [AppNotification] {
+        guard showPendingOnly else { return vm.notifications }
+        return vm.notifications.filter {
+            ($0.type == "new_booking" || $0.type == "client_reschedule")
+            && $0.appointment?.status == "pending"
+        }
+    }
 
     var body: some View {
         NavigationView {
@@ -120,10 +129,19 @@ struct NotificationsSheet: View {
                             .font(DS.body)
                             .foregroundColor(theme.textMuted)
                     }
+                } else if displayedNotifications.isEmpty && showPendingOnly {
+                    VStack(spacing: 12) {
+                        Image(systemName: "checkmark.circle")
+                            .font(.system(size: 48))
+                            .foregroundColor(theme.textMuted)
+                        Text("Все записи обработаны")
+                            .font(DS.body)
+                            .foregroundColor(theme.textMuted)
+                    }
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 10) {
-                            ForEach(vm.notifications) { notif in
+                            ForEach(displayedNotifications) { notif in
                                 NotificationRow(
                                     notif: notif, theme: theme,
                                     isProcessing: processingId == notif.id,
@@ -154,13 +172,25 @@ struct NotificationsSheet: View {
                     Button("Закрыть") { dismiss() }
                         .foregroundColor(theme.accent)
                 }
-                if vm.unreadCount > 0 {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Прочитать все") {
-                            Task { await vm.markAllRead() }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: 12) {
+                        Button(action: { showPendingOnly.toggle() }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: showPendingOnly ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                                if showPendingOnly {
+                                    Text("Ждут решения")
+                                        .font(.system(size: 12, weight: .medium))
+                                }
+                            }
+                            .foregroundColor(showPendingOnly ? theme.accent : theme.textMuted)
                         }
-                        .font(.system(size: 13))
-                        .foregroundColor(theme.accent)
+                        if vm.unreadCount > 0 && !showPendingOnly {
+                            Button("Все прочитаны") {
+                                Task { await vm.markAllRead() }
+                            }
+                            .font(.system(size: 13))
+                            .foregroundColor(theme.accent)
+                        }
                     }
                 }
             }
