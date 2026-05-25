@@ -104,6 +104,11 @@ final class SettingsViewModel: ObservableObject {
         return slug.isEmpty ? "" : "https://beauty-bot-44ou.onrender.com/book/\(slug)"
     }
 
+    var manageLink: String {
+        let slug = bookingLinkSlug.isEmpty ? "" : bookingLinkSlug
+        return slug.isEmpty ? "" : "https://solvobeauty.vercel.app/my/\(slug)"
+    }
+
     func load() async {
         if let m = try? await api.request(.me, as: MasterProfile.self) {
             masterName = m.name ?? ""
@@ -544,6 +549,66 @@ struct SettingsView: View {
                                     .background(theme.backgroundInput)
                                     .cornerRadius(DS.r12)
                             }
+                        }
+                    }
+                }
+            }
+
+            if !vm.manageLink.isEmpty {
+                BBGlassCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Ссылка для отмены и переноса")
+                            .font(DS.label)
+                            .foregroundColor(theme.textPrimary)
+                        Text("Клиент вводит номер телефона и управляет своей записью. Закрепи в Telegram-группе с клиентами.")
+                            .font(DS.bodySmall)
+                            .foregroundColor(theme.textMuted)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text(vm.manageLink)
+                            .font(DS.bodySmall)
+                            .foregroundColor(theme.accent)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(theme.backgroundInput)
+                            .cornerRadius(DS.r12)
+
+                        Button(action: {
+                            HapticManager.medium()
+                            UIPasteboard.general.string = vm.manageLink
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "doc.on.doc")
+                                Text("Скопировать ссылку")
+                            }
+                            .font(DS.label)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 40)
+                            .background(theme.accent)
+                            .cornerRadius(DS.r12)
+                        }
+
+                        Button(action: {
+                            HapticManager.medium()
+                            let av = UIActivityViewController(activityItems: [vm.manageLink], applicationActivities: nil)
+                            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                               let root = scene.windows.first?.rootViewController {
+                                root.present(av, animated: true)
+                            }
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "square.and.arrow.up")
+                                Text("Поделиться")
+                            }
+                            .font(DS.label)
+                            .foregroundColor(theme.accent)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 40)
+                            .background(theme.backgroundInput)
+                            .cornerRadius(DS.r12)
                         }
                     }
                 }
