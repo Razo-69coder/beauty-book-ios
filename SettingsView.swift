@@ -275,6 +275,9 @@ struct SettingsView: View {
         @State private var showBlockedDays = false
         @State private var showOnboarding = false
         @State private var showReminderTemplates = false
+        @State private var copiedManageLink = false
+        @State private var pushTestSent = false
+        @State private var pushTestLoading = false
 
         var body: some View {
         Color.clear
@@ -578,18 +581,21 @@ struct SettingsView: View {
                         Button(action: {
                             HapticManager.medium()
                             UIPasteboard.general.string = vm.manageLink
+                            copiedManageLink = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copiedManageLink = false }
                         }) {
                             HStack(spacing: 6) {
-                                Image(systemName: "doc.on.doc")
-                                Text("Скопировать ссылку")
+                                Image(systemName: copiedManageLink ? "checkmark" : "doc.on.doc")
+                                Text(copiedManageLink ? "Скопировано!" : "Скопировать ссылку")
                             }
                             .font(DS.label)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 40)
-                            .background(theme.accent)
+                            .background(copiedManageLink ? theme.statusGreen : theme.accent)
                             .cornerRadius(DS.r12)
                         }
+                        .buttonStyle(.plain)
 
                         Button(action: {
                             HapticManager.medium()
@@ -1015,9 +1021,11 @@ struct SettingsView: View {
                     SettingsRow(icon: "bell.fill", label: "Уведомления", value: "Включены", theme: theme)
                     Divider().background(theme.borderSubtle).padding(.leading, 44)
                     Button(action: {
+                        guard !pushTestLoading else { return }
                         Task {
-                            guard let token = KeychainManager.shared.getToken() else { return }
-                            guard let url = URL(string: "https://beauty-bot-44ou.onrender.com/api/v1/debug/push-test") else { return }
+                            pushTestLoading = true
+                            guard let token = KeychainManager.shared.getToken() else { pushTestLoading = false; return }
+                            guard let url = URL(string: "https://beauty-bot-44ou.onrender.com/api/v1/debug/push-test") else { pushTestLoading = false; return }
                             var req = URLRequest(url: url)
                             req.httpMethod = "POST"
                             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -1025,10 +1033,28 @@ struct SettingsView: View {
                             if let data, let str = String(data: data, encoding: .utf8) {
                                 print("[PushTest] \(str)")
                             }
+                            pushTestLoading = false
+                            pushTestSent = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { pushTestSent = false }
                         }
                     }) {
-                        SettingsRow(icon: "paperplane.fill", label: "Тест пуш-уведомления", value: "", theme: theme)
+                        HStack {
+                            Image(systemName: pushTestSent ? "checkmark.circle.fill" : "paperplane.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(pushTestSent ? theme.statusGreen : theme.accent)
+                                .frame(width: 32)
+                            Text(pushTestSent ? "Отправлено!" : "Тест пуш-уведомления")
+                                .font(DS.body)
+                                .foregroundColor(pushTestSent ? theme.statusGreen : theme.textPrimary)
+                            Spacer()
+                            if pushTestLoading {
+                                ProgressView().progressViewStyle(CircularProgressViewStyle(tint: theme.accent)).scaleEffect(0.8)
+                            }
+                        }
+                        .padding(.vertical, 12)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
