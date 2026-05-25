@@ -15,7 +15,6 @@ final class NotificationsViewModel: ObservableObject {
         if let resp = try? await api.request(.notifications, as: NotificationsResponse.self) {
             notifications = resp.notifications
         }
-        await refreshUnread()
         isLoading = false
     }
 
@@ -152,11 +151,11 @@ struct NotificationsSheet: View {
                 }
             }
         }
-        .task {
-            await vm.load()
-            // Авто-прочитать через 1 секунду — пользователь уже видит уведомления
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            await vm.markAllRead()
+        .onAppear {
+            Task {
+                await vm.load()
+                await vm.markAllRead()
+            }
         }
         .alert("Подтвердить перенос?", isPresented: Binding(
             get: { confirmingAppt != nil },
