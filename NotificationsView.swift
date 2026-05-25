@@ -51,6 +51,18 @@ final class NotificationsViewModel: ObservableObject {
         let result = try? await api.request(.updateAppointmentStatus(id: apptId, status: status.rawValue), as: MessageResponse.self)
         return result != nil
     }
+
+    func updateLocalApptStatus(notifId: Int, status: String) {
+        guard let idx = notifications.firstIndex(where: { $0.id == notifId }) else { return }
+        let n = notifications[idx]
+        let updatedAppt = n.appointment.map {
+            AppNotificationAppt(procedure: $0.procedure, date: $0.date, time: $0.time,
+                                status: status, clientName: $0.clientName, clientPhone: $0.clientPhone)
+        }
+        notifications[idx] = AppNotification(id: n.id, type: n.type, title: n.title, body: n.body,
+                                             isRead: true, createdAt: n.createdAt,
+                                             appointmentId: n.appointmentId, appointment: updatedAppt)
+    }
 }
 
 // MARK: - Bell Button
@@ -89,7 +101,7 @@ struct NotificationsSheet: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingAppt: AppNotification? = nil
-    @State private var actionInProgress = false
+    @State private var processingId: Int? = nil
 
     var body: some View {
         NavigationView {
@@ -112,16 +124,18 @@ struct NotificationsSheet: View {
                     ScrollView {
                         LazyVStack(spacing: 10) {
                             ForEach(vm.notifications) { notif in
-                                NotificationRow(notif: notif, theme: theme,
+                                NotificationRow(
+                                    notif: notif, theme: theme,
+                                    isProcessing: processingId == notif.id,
                                     onRead: { Task { await vm.markRead(notif.id) } },
                                     onConfirm: { confirmingAppt = notif },
                                     onCancel: {
                                         Task {
                                             guard let apptId = notif.appointmentId else { return }
-                                            actionInProgress = true
+                                            processingId = notif.id
                                             let ok = await vm.updateAppointmentStatus(apptId: apptId, status: .cancelled)
-                                            if ok { await vm.markRead(notif.id) }
-                                            actionInProgress = false
+                                            if ok { vm.updateLocalApptStatus(notifId: notif.id, status: "cancelled") }
+                                            processingId = nil
                                         }
                                     }
                                 )
@@ -157,17 +171,18 @@ struct NotificationsSheet: View {
                 await vm.markAllRead()
             }
         }
-        .alert("Подтвердить перенос?", isPresented: Binding(
-            get: { confirmingAppt != nil },
-            set: { if !$0 { confirmingAppt = nil } }
-        )) {
+        .alert(confirmingAppt?.type == "client_reschedule" ? "Подтвердить перенос?" : "Подтвердить запись?",
+               isPresented: Binding(
+                get: { confirmingAppt != nil },
+                set: { if !$0 { confirmingAppt = nil } }
+               )) {
             Button("Подтвердить") {
                 guard let notif = confirmingAppt, let apptId = notif.appointmentId else { return }
                 Task {
-                    actionInProgress = true
+                    processingId = notif.id
                     let ok = await vm.updateAppointmentStatus(apptId: apptId, status: .confirmed)
-                    if ok { await vm.markRead(notif.id) }
-                    actionInProgress = false
+                    if ok { vm.updateLocalApptStatus(notifId: notif.id, status: "confirmed") }
+                    processingId = nil
                     confirmingAppt = nil
                 }
             }
@@ -185,6 +200,7 @@ struct NotificationsSheet: View {
 struct NotificationRow: View {
     let notif: AppNotification
     let theme: AppTheme
+    let isProcessing: Bool
     let onRead: () -> Void
     let onConfirm: () -> Void
     let onCancel: () -> Void
@@ -245,28 +261,43 @@ struct NotificationRow: View {
                 }
             }
 
-            // Action buttons for pending reschedule/new booking
-            if let appt = notif.appointment, appt.status == "pending",
+            if let appt = notif.appointment,
                notif.type == "new_booking" || notif.type == "client_reschedule" {
-                HStack(spacing: 8) {
-                    Button(action: onCancel) {
-                        Text("Отменить")
-                            .font(DS.labelSmall)
-                            .foregroundColor(.red)
+                if appt.status == "pending" {
+                    HStack(spacing: 8) {
+                        Button(action: onCancel) {
+                            Group {
+                                if isProcessing {
+                                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .red)).scaleEffect(0.8)
+                                } else {
+                                    Text("Отменить").font(DS.labelSmall).foregroundColor(.red)
+                                }
+                            }
                             .frame(maxWidth: .infinity)
                             .frame(height: 34)
                             .background(Color.red.opacity(0.1))
                             .cornerRadius(DS.r8)
+                        }
+                        .disabled(isProcessing)
+                        Button(action: onConfirm) {
+                            Text("Подтвердить")
+                                .font(DS.labelSmall)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 34)
+                                .background(theme.gradientPrimary)
+                                .cornerRadius(DS.r8)
+                        }
+                        .disabled(isProcessing)
                     }
-                    Button(action: onConfirm) {
-                        Text("Подтвердить")
-                            .font(DS.labelSmall)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 34)
-                            .background(theme.gradientPrimary)
-                            .cornerRadius(DS.r8)
-                    }
+                } else if appt.status == "confirmed" {
+                    Label("Подтверждено", systemImage: "checkmark.circle.fill")
+                        .font(DS.labelSmall)
+                        .foregroundColor(.green)
+                } else if appt.status == "cancelled" {
+                    Label("Отменено", systemImage: "xmark.circle.fill")
+                        .font(DS.labelSmall)
+                        .foregroundColor(.red)
                 }
             }
         }
