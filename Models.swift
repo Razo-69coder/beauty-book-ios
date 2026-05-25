@@ -288,6 +288,36 @@ struct ServiceCreateRequest: Encodable {
     let category: String
 }
 
+// MARK: - Notifications
+
+struct AppNotificationAppt: Decodable {
+    let procedure: String?
+    let date: String?
+    let time: String?
+    let status: String?
+    let clientName: String?
+    let clientPhone: String?
+}
+
+struct AppNotification: Decodable, Identifiable {
+    let id: Int
+    let type: String
+    let title: String
+    let body: String
+    let isRead: Bool
+    let createdAt: String
+    let appointmentId: Int?
+    let appointment: AppNotificationAppt?
+}
+
+struct NotificationsResponse: Decodable {
+    let notifications: [AppNotification]
+}
+
+struct UnreadCountResponse: Decodable {
+    let count: Int
+}
+
 // MARK: - Expenses
 
 struct Expense: Identifiable, Codable {

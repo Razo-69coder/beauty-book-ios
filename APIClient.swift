@@ -87,6 +87,11 @@ enum Endpoint {
     case updateReminderTemplate(type: String, template: String, enabled: Bool)
     // Import
     case importClients([ClientImportItem])
+    // Notifications
+    case notifications
+    case unreadCount
+    case markRead(id: Int)
+    case markAllRead
 }
 
 extension Endpoint {
@@ -134,6 +139,10 @@ extension Endpoint {
         case .statsYearly:              return "/masters/me/stats/yearly"
         case .getReminderTemplates:     return "/reminders/templates"
         case .updateReminderTemplate(let type, _, _): return "/reminders/templates/\(type)"
+        case .notifications:            return "/notifications"
+        case .unreadCount:              return "/notifications/unread-count"
+        case .markRead(let id):         return "/notifications/\(id)/read"
+        case .markAllRead:              return "/notifications/read-all"
         }
     }
 
@@ -153,6 +162,8 @@ extension Endpoint {
         case .trialStatus:      return "GET"
         case .updateAppointmentStatus: return "PATCH"
         case .importClients: return "POST"
+        case .markRead, .markAllRead: return "POST"
+        case .notifications, .unreadCount: return "GET"
         case .updateReminderTemplate: return "PUT"
         default:
             return "GET"

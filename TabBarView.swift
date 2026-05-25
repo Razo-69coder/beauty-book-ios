@@ -5,6 +5,8 @@ struct TabBarView: View {
     @State private var tabOpacity: Double = 0
     @ObservedObject private var themeManager = ThemeManager.shared
     private var theme: AppTheme { themeManager.current }
+    @StateObject private var notifVM = NotificationsViewModel()
+    @State private var showNotifications = false
     
     enum Tab: String, CaseIterable {
         case schedule = "Расписание"
@@ -41,9 +43,20 @@ struct TabBarView: View {
         .task {
             BeautyPushRegistrar.requestPermission()
             await BeautyPushRegistrar.sendSavedTokenIfNeeded()
+            await notifVM.refreshUnread()
         }
         .overlay(alignment: .topLeading) {
             FeedbackButton()
+                .environment(\.theme, theme)
+        }
+        .overlay(alignment: .topTrailing) {
+            NotificationBellButton(vm: notifVM, isPresented: $showNotifications)
+                .environment(\.theme, theme)
+                .padding(.top, 56)
+                .padding(.trailing, 20)
+        }
+        .sheet(isPresented: $showNotifications) {
+            NotificationsSheet(vm: notifVM)
                 .environment(\.theme, theme)
         }
     }
