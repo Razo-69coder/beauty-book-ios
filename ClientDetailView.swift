@@ -4,6 +4,7 @@ import UIKit
 
 struct ClientDetailView: View {
     @State var client: Client
+    var onDelete: (() -> Void)? = nil
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
     @State private var history: [AppointmentHistory] = []
@@ -15,6 +16,8 @@ struct ClientDetailView: View {
     @State private var selectedPhoto: UIImage? = nil
     @State private var isLoading = false
     @State private var showEditSheet = false
+    @State private var showDeleteConfirm = false
+    @State private var isDeleting = false
 
     var body: some View {
         theme.backgroundDeep
@@ -39,13 +42,30 @@ struct ClientDetailView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showEditSheet = true
-                    } label: {
-                        Image(systemName: "pencil")
-                            .foregroundColor(theme.accent)
+                    HStack(spacing: 12) {
+                        Button {
+                            showEditSheet = true
+                        } label: {
+                            Image(systemName: "pencil")
+                                .foregroundColor(theme.accent)
+                        }
+                        Button {
+                            showDeleteConfirm = true
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red.opacity(0.8))
+                        }
+                        .disabled(isDeleting)
                     }
                 }
+            }
+            .confirmationDialog("Удалить клиента?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+                Button("Удалить \(client.name)", role: .destructive) {
+                    Task { await deleteClient() }
+                }
+                Button("Отмена", role: .cancel) {}
+            } message: {
+                Text("Все записи клиента также будут удалены. Это действие нельзя отменить.")
             }
             .sheet(isPresented: $showEditSheet) {
                 ClientEditView(client: client, onSave: { updatedClient in
@@ -55,6 +75,17 @@ struct ClientDetailView: View {
                 .environment(\.theme, theme)
             }
         }
+
+    private func deleteClient() async {
+        isDeleting = true
+        do {
+            let _ = try await APIClient.shared.request(.deleteClient(id: client.id), as: MessageResponse.self)
+            onDelete?()
+            dismiss()
+        } catch {
+            isDeleting = false
+        }
+    }
 
 struct ClientPhotoStorage {
     static func directory(for clientId: Int) -> URL {

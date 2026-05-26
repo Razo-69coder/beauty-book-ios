@@ -284,7 +284,10 @@ struct ClientsListView: View {
             }
             .sheet(item: $vm.selectedClient) { client in
                 NavigationStack {
-                    ClientDetailView(client: client).environment(\.theme, theme)
+                    ClientDetailView(client: client, onDelete: {
+                        vm.selectedClient = nil
+                        Task { await vm.load() }
+                    }).environment(\.theme, theme)
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ClientUpdated"))) { _ in
