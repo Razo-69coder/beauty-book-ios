@@ -87,6 +87,8 @@ enum Endpoint {
     case updateReminderTemplate(type: String, template: String, enabled: Bool)
     // Import
     case importClients([ClientImportItem])
+    // Merge duplicates
+    case mergeDuplicates
     // Notifications
     case notifications
     case unreadCount
@@ -143,6 +145,7 @@ extension Endpoint {
         case .unreadCount:              return "/notifications/unread-count"
         case .markRead(let id):         return "/notifications/\(id)/read"
         case .markAllRead:              return "/notifications/read-all"
+        case .mergeDuplicates:          return "/clients/merge-duplicates"
         }
     }
 
@@ -157,6 +160,7 @@ extension Endpoint {
             return "DELETE"
         case .addBlockedDay, .subscriptionNotify:   return "POST"
         case .createPayment:                        return "POST"
+        case .mergeDuplicates:                      return "POST"
         case .removeBlockedDay: return "DELETE"
         case .telegramLinkToken: return "GET"
         case .trialStatus:      return "GET"

@@ -292,6 +292,11 @@ struct ClientPhotoStorage {
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             BBSectionHeader(title: "История визитов")
+            
+            Text("Все визиты за всё время")
+                .font(DS.caption)
+                .foregroundColor(theme.textMuted)
+                .padding(.horizontal, 4)
 
             ForEach(history) { item in
                 AppointmentHistoryCard(item: item, theme: theme)

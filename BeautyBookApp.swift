@@ -242,6 +242,16 @@ struct SplashView: View {
         subscriptionRequired = false
         withAnimation(DS.springSmooth) { isAuthenticated = true }
         Task { await fetchTrialStatus() }
+        Task { await mergeDuplicates() }
+    }
+
+    private func mergeDuplicates() async {
+        do {
+            let _: MergeDuplicatesResponse = try await APIClient.shared.request(.mergeDuplicates)
+            print("[MERGE] Duplicate clients merged successfully")
+        } catch {
+            print("[MERGE] Failed to merge duplicates: \(error)")
+        }
     }
 
     func logout() {

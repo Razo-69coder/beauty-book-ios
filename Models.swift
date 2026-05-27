@@ -25,6 +25,10 @@ struct MessageResponse: Decodable {
     let message: String?
 }
 
+struct MergeDuplicatesResponse: Decodable {
+    let merged: Int
+}
+
 struct BookingLinkResponse: Decodable {
     let bookingLink: String
 }
