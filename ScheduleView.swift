@@ -4,9 +4,11 @@ import SwiftUI
 final class ScheduleViewModel: ObservableObject {
     @Published var selectedDate: Date = Calendar.current.startOfDay(for: Date())
     @Published var appointments: [Appointment] = []
+    @Published var notes: [PersonalNote] = []
     @Published var isLoading: Bool = false
     @Published var selectedAppointment: Appointment? = nil
     @Published var showNewAppointment: Bool = false
+    @Published var showNewNote: Bool = false
     @Published var preselectedTime: String? = nil
 
     private let api = APIClient.shared
@@ -75,12 +77,22 @@ final class ScheduleViewModel: ObservableObject {
         isLoading = true
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
         let dateStr = f.string(from: selectedDate)
-        if let resp = try? await api.request(.schedule(date: dateStr), as: ScheduleResponse.self) {
-            appointments = resp.appointments.filter { $0.status != .cancelled }.sorted { $0.time < $1.time }
-        } else {
-            appointments = []
-        }
+        async let apptResp = api.request(.schedule(date: dateStr), as: ScheduleResponse.self)
+        async let notesResp = api.request(.getNotes(date: dateStr), as: PersonalNotesResponse.self)
+        appointments = (try? await apptResp)?.appointments.filter { $0.status != .cancelled }.sorted { $0.time < $1.time } ?? []
+        notes = (try? await notesResp)?.notes.sorted { $0.time < $1.time } ?? []
         isLoading = false
+    }
+
+    func deleteNote(_ note: PersonalNote) async {
+        notes.removeAll { $0.id == note.id }
+        let _ = try? await api.request(.deleteNote(id: note.id), as: MessageResponse.self)
+    }
+
+    func positionForTime(_ time: String) -> CGFloat {
+        let parts = time.split(separator: ":")
+        guard let h = Int(parts.first ?? ""), let m = Int(parts.count > 1 ? parts[1] : "0") else { return 0 }
+        return CGFloat(h - 8) * 60 + CGFloat(m) / 60.0 * 60
     }
 
     func cancelAppointment(_ id: Int) async {
@@ -304,8 +316,8 @@ struct ScheduleView: View {
         ScrollView {
             ZStack(alignment: .topLeading) {
                 hoursColumn
-
                 appointmentsLayer
+                notesLayer
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 100)
@@ -372,26 +384,58 @@ struct ScheduleView: View {
         }
     }
 
-    private var fabButton: some View {
-        Button {
-            HapticManager.medium()
-            vm.preselectedTime = nil
-            vm.showNewAppointment = true
-        } label: {
-            ZStack {
-                Circle()
-                    .fill(theme.gradientPrimary)
-                    .frame(width: 52, height: 52)
-                    .shadow(color: theme.accentGlow, radius: 12, x: 0, y: 6)
+    private var notesLayer: some View {
+        GeometryReader { geometry in
+            let hourWidth: CGFloat = geometry.size.width - 52
 
-                Image(systemName: "plus")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(.white)
+            ForEach(vm.notes) { note in
+                NoteBlock(note: note, hourWidth: hourWidth)
+                    .offset(y: vm.positionForTime(note.time))
+                    .frame(height: 36)
+                    .onLongPressGesture {
+                        HapticManager.medium()
+                        Task { await vm.deleteNote(note) }
+                    }
             }
+        }
+    }
+
+    @State private var showFabMenu = false
+
+    private var fabButton: some View {
+        ZStack {
+            Circle()
+                .fill(theme.gradientPrimary)
+                .frame(width: 52, height: 52)
+                .shadow(color: theme.accentGlow, radius: 12, x: 0, y: 6)
+
+            Image(systemName: "plus")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundColor(.white)
+        }
+        .onTapGesture {
+            HapticManager.medium()
+            showFabMenu = true
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         .padding(.trailing, 20)
         .padding(.bottom, 120)
+        .confirmationDialog("Добавить", isPresented: $showFabMenu, titleVisibility: .visible) {
+            Button("Новая запись") {
+                vm.preselectedTime = nil
+                vm.showNewAppointment = true
+            }
+            Button("Личная заметка") {
+                vm.preselectedTime = nil
+                vm.showNewNote = true
+            }
+            Button("Отмена", role: .cancel) {}
+        }
+        .sheet(isPresented: $vm.showNewNote) {
+            NewNoteView(selectedDate: vm.selectedDate, theme: theme) {
+                Task { await vm.loadSchedule() }
+            }
+        }
     }
 }
 
@@ -788,6 +832,195 @@ struct MonthPickerView: View {
             return AnyView(theme.gradientPrimary)
         }
         return AnyView(Color.clear)
+    }
+}
+
+struct NoteBlock: View {
+    let note: PersonalNote
+    let hourWidth: CGFloat
+
+    var body: some View {
+        HStack(spacing: 6) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color(hex: "#4ECDC4"))
+                .frame(width: 3)
+                .padding(.vertical, 4)
+
+            Image(systemName: "pencil.line")
+                .font(.system(size: 10))
+                .foregroundColor(Color(hex: "#4ECDC4"))
+
+            Text(note.text)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.white.opacity(0.9))
+                .lineLimit(1)
+
+            Spacer()
+
+            Text(note.time)
+                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .foregroundColor(.white.opacity(0.5))
+                .padding(.trailing, 6)
+        }
+        .frame(width: hourWidth)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(hex: "#1A3A38"))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(hex: "#4ECDC4").opacity(0.4), lineWidth: 1)
+                )
+        )
+    }
+}
+
+struct NewNoteView: View {
+    let selectedDate: Date
+    let theme: AppTheme
+    let onSaved: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var noteText = ""
+    @State private var selectedHour = 9
+    @State private var selectedMinute = 0
+    @State private var isSaving = false
+
+    private let hours = Array(8...22)
+    private let minutes = [0, 15, 30, 45]
+
+    private var timeString: String {
+        String(format: "%02d:%02d", selectedHour, selectedMinute)
+    }
+
+    private var dateString: String {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: selectedDate)
+    }
+
+    private var dateLabel: String {
+        let f = DateFormatter(); f.dateFormat = "d MMMM"; f.locale = Locale(identifier: "ru_RU")
+        return f.string(from: selectedDate)
+    }
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("ДАТА")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(theme.textMuted)
+                            .padding(.horizontal, 4)
+
+                        HStack {
+                            Image(systemName: "calendar")
+                                .foregroundColor(theme.accent)
+                            Text(dateLabel)
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundColor(theme.textPrimary)
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(theme.backgroundCard)
+                        .cornerRadius(12)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("ВРЕМЯ")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(theme.textMuted)
+                            .padding(.horizontal, 4)
+
+                        HStack(spacing: 0) {
+                            Picker("Час", selection: $selectedHour) {
+                                ForEach(hours, id: \.self) { h in
+                                    Text(String(format: "%02d", h)).tag(h)
+                                }
+                            }
+                            .pickerStyle(.wheel)
+                            .frame(maxWidth: .infinity)
+                            .clipped()
+
+                            Text(":")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(theme.textPrimary)
+
+                            Picker("Минуты", selection: $selectedMinute) {
+                                ForEach(minutes, id: \.self) { m in
+                                    Text(String(format: "%02d", m)).tag(m)
+                                }
+                            }
+                            .pickerStyle(.wheel)
+                            .frame(maxWidth: .infinity)
+                            .clipped()
+                        }
+                        .frame(height: 120)
+                        .background(theme.backgroundCard)
+                        .cornerRadius(12)
+                        .colorScheme(.dark)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("ЗАМЕТКА")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(theme.textMuted)
+                            .padding(.horizontal, 4)
+
+                        TextField("Что нужно сделать?", text: $noteText, axis: .vertical)
+                            .font(.system(size: 15))
+                            .foregroundColor(theme.textPrimary)
+                            .lineLimit(3...6)
+                            .padding(14)
+                            .background(theme.backgroundCard)
+                            .cornerRadius(12)
+                            .tint(theme.accent)
+                    }
+
+                    Button {
+                        guard !noteText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                        isSaving = true
+                        Task {
+                            let req = PersonalNoteCreateRequest(date: dateString, time: timeString, text: noteText)
+                            let _ = try? await APIClient.shared.request(.createNote(req), as: MessageResponse.self)
+                            await MainActor.run {
+                                isSaving = false
+                                onSaved()
+                                dismiss()
+                            }
+                        }
+                    } label: {
+                        if isSaving {
+                            ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                        } else {
+                            Text("Сохранить заметку")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                        }
+                    }
+                    .background(
+                        noteText.trimmingCharacters(in: .whitespaces).isEmpty
+                        ? AnyShapeStyle(Color.gray.opacity(0.3))
+                        : AnyShapeStyle(theme.gradientPrimary)
+                    )
+                    .cornerRadius(16)
+                    .disabled(noteText.trimmingCharacters(in: .whitespaces).isEmpty || isSaving)
+                }
+                .padding(20)
+            }
+            .background(theme.backgroundDeep.ignoresSafeArea())
+            .navigationTitle("Личная заметка")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Отмена") { dismiss() }
+                        .foregroundColor(theme.accent)
+                }
+            }
+        }
     }
 }
 

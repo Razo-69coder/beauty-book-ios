@@ -263,6 +263,25 @@ struct ScheduleResponse: Decodable {
     let appointments: [Appointment]
 }
 
+// MARK: - Personal Notes
+
+struct PersonalNote: Decodable, Identifiable {
+    let id: Int
+    let date: String
+    let time: String
+    let text: String
+}
+
+struct PersonalNotesResponse: Decodable {
+    let notes: [PersonalNote]
+}
+
+struct PersonalNoteCreateRequest: Encodable {
+    let date: String
+    let time: String
+    let text: String
+}
+
 struct SlotsResponse: Decodable {
     let slots: [String]
 }

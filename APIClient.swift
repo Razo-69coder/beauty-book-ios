@@ -94,6 +94,10 @@ enum Endpoint {
     case unreadCount
     case markRead(id: Int)
     case markAllRead
+    // Personal notes
+    case getNotes(date: String)
+    case createNote(PersonalNoteCreateRequest)
+    case deleteNote(id: Int)
 }
 
 extension Endpoint {
@@ -146,6 +150,9 @@ extension Endpoint {
         case .markRead(let id):         return "/notifications/\(id)/read"
         case .markAllRead:              return "/notifications/read-all"
         case .mergeDuplicates:          return "/clients/merge-duplicates"
+        case .getNotes:                 return "/notes"
+        case .createNote:               return "/notes"
+        case .deleteNote(let id):       return "/notes/\(id)"
         }
     }
 
@@ -162,6 +169,8 @@ extension Endpoint {
         case .createPayment:                        return "POST"
         case .mergeDuplicates:                      return "POST"
         case .removeBlockedDay: return "DELETE"
+        case .createNote:       return "POST"
+        case .deleteNote:       return "DELETE"
         case .telegramLinkToken: return "GET"
         case .trialStatus:      return "GET"
         case .updateAppointmentStatus: return "PATCH"
@@ -194,6 +203,7 @@ extension Endpoint {
             return items.isEmpty ? nil : items
         case .schedule(let date): return [URLQueryItem(name: "date", value: date)]
         case .slots(let date):    return [URLQueryItem(name: "date", value: date)]
+        case .getNotes(let date): return [URLQueryItem(name: "date", value: date)]
         case .statsYearly(let year):
             return [URLQueryItem(name: "year", value: "\(year)")]
         default: return nil
@@ -227,6 +237,8 @@ extension Endpoint {
             return try? encoder.encode(ReminderTemplateUpdate(template: template, enabled: enabled))
         case .createPayment(let plan):
             return try? encoder.encode(["plan": plan])
+        case .createNote(let r):
+            return try? encoder.encode(r)
         default: return nil
         }
     }
