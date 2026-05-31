@@ -108,6 +108,16 @@ struct LoginForm: View {
             Button("Забыл пароль?") { vm.switchTo(.forgotPassword) }
                 .font(DS.body).foregroundColor(theme.accent)
 
+            Button {
+                vm.loginEmail = "test@solvobeauty.com"
+                vm.loginPassword = "TestSolvo123!"
+                Task { await vm.login() }
+            } label: {
+                Text("Тестовый вход")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(theme.textMuted.opacity(0.5))
+            }
+
             Divider().background(theme.borderSubtle).padding(.vertical, 4)
 
             HStack(spacing: 6) {
