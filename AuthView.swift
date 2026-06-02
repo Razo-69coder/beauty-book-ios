@@ -122,7 +122,7 @@ struct LoginForm: View {
 
             HStack(spacing: 6) {
                 Text("Нет аккаунта?").font(DS.body).foregroundColor(theme.textSecondary)
-                Button("Зарегистрироваться") { vm.switchTo(.register) }
+                Link("Зарегистрироваться", destination: URL(string: "https://solvobeauty.ru")!)
                     .font(DS.label).foregroundColor(theme.accent)
             }
         }
