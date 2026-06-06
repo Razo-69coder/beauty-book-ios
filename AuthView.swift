@@ -17,7 +17,6 @@ struct AuthView: View {
                     Group {
                         switch vm.screen {
                         case .login:          LoginForm(vm: vm)
-                        case .register:       RegisterForm(vm: vm)
                         case .forgotPassword: ForgotForm(vm: vm)
                         }
                     }
@@ -118,67 +117,6 @@ struct LoginForm: View {
                     .foregroundColor(theme.textMuted.opacity(0.5))
             }
 
-            Divider().background(theme.borderSubtle).padding(.vertical, 4)
-
-            HStack(spacing: 6) {
-                Text("Нет аккаунта?").font(DS.body).foregroundColor(theme.textSecondary)
-                Link("Зарегистрироваться", destination: URL(string: "https://solvobeauty.ru")!)
-                    .font(DS.label).foregroundColor(theme.accent)
-            }
-        }
-    }
-}
-
-// MARK: - Register Form
-
-struct RegisterForm: View {
-    @ObservedObject var vm: AuthViewModel
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Button(action: { vm.switchTo(.login) }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "chevron.left").font(.system(size: 14, weight: .semibold))
-                        Text("Назад").font(DS.body)
-                    }.foregroundColor(theme.textSecondary)
-                }
-                Spacer()
-            }
-
-            VStack(spacing: 8) {
-                Text("Регистрация").font(DS.titleSmall).foregroundColor(theme.textPrimary)
-                Text("Создай аккаунт мастера").font(DS.body).foregroundColor(theme.textSecondary)
-            }.padding(.bottom, 4)
-
-            BBTextField(placeholder: "Имя мастера", text: $vm.regName).environment(\.theme, theme)
-            BBTextField(placeholder: "Номер телефона", text: $vm.regPhone, keyboardType: .phonePad)
-                .onChange(of: vm.regPhone) { newValue in
-                    vm.regPhone = formatRussianPhone(newValue)
-                }
-                .environment(\.theme, theme)
-            BBTextField(placeholder: "Email", text: $vm.regEmail, keyboardType: .emailAddress).environment(\.theme, theme)
-            BBTextField(placeholder: "Пароль (мин. 6 символов)", text: $vm.regPassword, isSecure: true).environment(\.theme, theme)
-            BBTextField(
-                placeholder: "Повтор пароля",
-                text: $vm.regConfirm,
-                isSecure: true,
-                isValid: !vm.passwordsMismatch
-            ).environment(\.theme, theme)
-
-            if vm.passwordsMismatch {
-                HStack {
-                    Text("Пароли не совпадают").font(DS.bodySmall).foregroundColor(theme.statusRed)
-                    Spacer()
-                }
-            }
-
-            if let err = vm.errorMessage { BBErrorBanner(message: err).environment(\.theme, theme) }
-
-            BBPrimaryButton(title: "Создать аккаунт", isLoading: vm.isLoading, isDisabled: !vm.registerValid) {
-                Task { await vm.register() }
-            }.environment(\.theme, theme)
         }
     }
 }

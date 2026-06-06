@@ -235,6 +235,7 @@ final class SettingsViewModel: ObservableObject {
             }
         }
     }
+
 }
 
 struct ProfileFieldRow: View {
@@ -272,22 +273,52 @@ struct SettingsView: View {
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.theme) private var theme
         @State private var showLogoutAlert = false
+        @State private var showDeleteAccountAlert = false
         @State private var showBlockedDays = false
         @State private var showOnboarding = false
         @State private var showReminderTemplates = false
         @State private var copiedManageLink = false
         @State private var pushTestSent = false
         @State private var pushTestLoading = false
+        @State private var selectedTimezoneOffset = 3
+
+        func saveTimezone() async {
+            guard let token = KeychainManager.shared.getToken(),
+                  let url = URL(string: "https://beauty-bot-44ou.onrender.com/api/v1/masters/me/timezone") else { return }
+            var req = URLRequest(url: url)
+            req.httpMethod = "PUT"
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = try? JSONEncoder().encode(["timezone_offset": selectedTimezoneOffset])
+            do {
+                let (_, _) = try await URLSession.shared.data(for: req)
+            } catch {}
+        }
+
+        func deleteAccount() async {
+            guard let token = KeychainManager.shared.getToken(),
+                  let url = URL(string: "https://beauty-bot-44ou.onrender.com/api/v1/masters/me") else { return }
+            var req = URLRequest(url: url)
+            req.httpMethod = "DELETE"
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            do {
+                let (data, response) = try await URLSession.shared.data(for: req)
+                if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
+                    await MainActor.run { appState.logout() }
+                }
+            } catch {}
+        }
 
         var body: some View {
         Color.clear
             .overlay {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
-                        profileHeader
-                        themeSelector
-                        profileSection
-                        bookingLinkSection
+                    profileHeader
+                    themeSelector
+                    profileSection
+                    timezoneSection
+                    bookingLinkSection
                         loyaltySection
                         notificationsSection
                         scheduleSection
@@ -296,6 +327,7 @@ struct SettingsView: View {
                     reminderTemplatesSection
                     aboutSection
                     logoutButton
+                    deleteAccountButton
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 100)
@@ -312,6 +344,14 @@ struct SettingsView: View {
                 }
             } message: {
                 Text("Вы уверены?")
+            }
+            .alert("Удалить аккаунт", isPresented: $showDeleteAccountAlert) {
+                Button("Отмена", role: .cancel) {}
+                Button("Удалить", role: .destructive) {
+                    Task { await deleteAccount() }
+                }
+            } message: {
+                Text("Это действие необратимо. Все ваши данные, клиенты и записи будут удалены навсегда.")
             }
             .sheet(isPresented: $showBlockedDays) {
                 BlockedDaysView()
@@ -475,6 +515,43 @@ struct SettingsView: View {
                 }
             }
             .padding(.horizontal)
+        }
+    }
+
+    // MARK: - Timezone Section
+
+    private var timezoneSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            BBSectionHeader(title: "Часовой пояс")
+
+            BBGlassCard {
+                VStack(spacing: 0) {
+                    HStack {
+                        Image(systemName: "globe")
+                            .foregroundColor(theme.accent)
+                            .frame(width: 24)
+                        Picker("Часовой пояс", selection: $selectedTimezoneOffset) {
+                            Text("Калининград (UTC+2)").tag(2)
+                            Text("Москва (UTC+3)").tag(3)
+                            Text("Самара (UTC+4)").tag(4)
+                            Text("Екатеринбург (UTC+5)").tag(5)
+                            Text("Омск (UTC+6)").tag(6)
+                            Text("Красноярск (UTC+7)").tag(7)
+                            Text("Иркутск (UTC+8)").tag(8)
+                            Text("Якутск (UTC+9)").tag(9)
+                            Text("Владивосток (UTC+10)").tag(10)
+                            Text("Магадан (UTC+11)").tag(11)
+                            Text("Камчатка (UTC+12)").tag(12)
+                        }
+                        .pickerStyle(.menu)
+                        .tint(theme.accent)
+                        .onChange(of: selectedTimezoneOffset) { _ in
+                            Task { await saveTimezone() }
+                        }
+                    }
+                    .padding(16)
+                }
+            }
         }
     }
 
@@ -1139,6 +1216,12 @@ struct SettingsView: View {
     private var logoutButton: some View {
         BBSecondaryButton(title: "Выйти из аккаунта", color: theme.statusRed) {
             showLogoutAlert = true
+        }
+    }
+
+    private var deleteAccountButton: some View {
+        BBSecondaryButton(title: "Удалить аккаунт", color: theme.statusRed) {
+            showDeleteAccountAlert = true
         }
         .padding(.bottom, 40)
     }
