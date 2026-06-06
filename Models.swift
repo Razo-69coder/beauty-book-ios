@@ -25,6 +25,11 @@ struct MessageResponse: Decodable {
     let message: String?
 }
 
+struct ForgotPasswordResponse: Decodable {
+    let ok: Bool
+    let telegramConnected: Bool
+}
+
 struct MergeDuplicatesResponse: Decodable {
     let merged: Int
 }

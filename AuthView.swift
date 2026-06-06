@@ -144,32 +144,77 @@ struct ForgotForm: View {
                 Image(systemName: "lock.rotation").font(.system(size: 28)).foregroundColor(theme.accent)
             }
 
+            if vm.resetStep == 0 {
+                stepEmail
+            } else if vm.resetStep == 1 {
+                stepNoTelegram
+            } else if vm.resetStep == 2 {
+                stepCode
+            } else if vm.resetStep == 3 {
+                stepSuccess
+            }
+        }
+    }
+
+    private var stepEmail: some View {
+        VStack(spacing: 20) {
             VStack(spacing: 8) {
                 Text("Сброс пароля").font(DS.titleSmall).foregroundColor(theme.textPrimary)
-                Text(vm.forgotSent ? "Письмо отправлено!" : "Введи email и мы пришлём ссылку для сброса")
-                    .font(DS.body).foregroundColor(theme.textSecondary).multilineTextAlignment(.center)
+                Text("Введи email и мы отправим код в Telegram").font(DS.body).foregroundColor(theme.textSecondary).multilineTextAlignment(.center)
             }
 
-            if !vm.forgotSent {
-                BBTextField(placeholder: "Email", text: $vm.forgotEmail, keyboardType: .emailAddress).environment(\.theme, theme)
-                if let err = vm.errorMessage { BBErrorBanner(message: err).environment(\.theme, theme) }
-                BBPrimaryButton(title: "Отправить", isLoading: vm.isLoading, isDisabled: !vm.forgotEmail.contains("@")) {
-                    Task { await vm.forgotPassword() }
-                }.environment(\.theme, theme)
-            } else {
-                HStack(spacing: 10) {
-                    Image(systemName: "checkmark.circle.fill").foregroundColor(theme.statusGreen)
-                    if let msg = vm.successMessage {
-                        Text(msg).font(DS.body).foregroundColor(theme.statusGreen)
-                    }
-                }
-                .padding()
-                .background(theme.statusGreen.opacity(0.1))
-                .cornerRadius(DS.r12)
+            BBTextField(placeholder: "Email", text: $vm.forgotEmail, keyboardType: .emailAddress).environment(\.theme, theme)
+            if let err = vm.errorMessage { BBErrorBanner(message: err).environment(\.theme, theme) }
+            BBPrimaryButton(title: "Отправить", isLoading: vm.isLoading, isDisabled: !vm.forgotEmail.contains("@")) {
+                Task { await vm.forgotPassword() }
+            }.environment(\.theme, theme)
+        }
+    }
 
-                BBPrimaryButton(title: "Вернуться к входу") { vm.switchTo(.login) }
-                    .environment(\.theme, theme)
+    private var stepNoTelegram: some View {
+        VStack(spacing: 20) {
+            Text("\u{26A0}\u{FE0F}").font(.system(size: 48))
+
+            Text("Чтобы сбросить пароль, нужно сначала привязать Telegram в настройках приложения. Войдите в аккаунт и перейдите в Настройки → Telegram, чтобы получать код для восстановления пароля.")
+                .font(DS.body).foregroundColor(theme.textSecondary).multilineTextAlignment(.center)
+
+            if let err = vm.errorMessage { BBErrorBanner(message: err).environment(\.theme, theme) }
+
+            BBPrimaryButton(title: "Вернуться к входу") { vm.switchTo(.login) }
+                .environment(\.theme, theme)
+        }
+    }
+
+    private var stepCode: some View {
+        VStack(spacing: 20) {
+            VStack(spacing: 8) {
+                Text("Сброс пароля").font(DS.titleSmall).foregroundColor(theme.textPrimary)
+                Text("Мы отправили код в ваш Telegram").font(DS.body).foregroundColor(theme.textSecondary).multilineTextAlignment(.center)
             }
+
+            BBTextField(placeholder: "Код из Telegram", text: $vm.resetCode, keyboardType: .numberPad).environment(\.theme, theme)
+            BBTextField(placeholder: "Новый пароль", text: $vm.newPassword, isSecure: true).environment(\.theme, theme)
+            BBTextField(placeholder: "Повтор пароля", text: $vm.newPasswordConfirm, isSecure: true).environment(\.theme, theme)
+            if let err = vm.errorMessage { BBErrorBanner(message: err).environment(\.theme, theme) }
+            BBPrimaryButton(title: "Сбросить пароль", isLoading: vm.isLoading, isDisabled: !vm.resetFormValid) {
+                Task { await vm.resetPassword() }
+            }.environment(\.theme, theme)
+        }
+    }
+
+    private var stepSuccess: some View {
+        VStack(spacing: 20) {
+            Text("\u{2705}").font(.system(size: 48))
+
+            Text("Пароль изменён! Теперь можно войти с новым паролем")
+                .font(DS.body).foregroundColor(theme.textSecondary).multilineTextAlignment(.center)
+
+            if let msg = vm.successMessage {
+                Text(msg).font(DS.body).foregroundColor(theme.statusGreen)
+            }
+
+            BBPrimaryButton(title: "Войти") { vm.switchTo(.login) }
+                .environment(\.theme, theme)
         }
     }
 }

@@ -36,6 +36,7 @@ enum Endpoint {
     case login(LoginRequest)
     case register(RegisterRequest)
     case forgotPassword(email: String)
+    case resetPassword(email: String, code: String, newPassword: String)
     // Master
     case me
     case updateSettings(MasterSettingsRequest)
@@ -106,6 +107,7 @@ extension Endpoint {
         case .login:                    return "/auth/login"
         case .register:                 return "/auth/register"
         case .forgotPassword:           return "/auth/forgot-password"
+        case .resetPassword:            return "/auth/reset-password"
         case .me:                       return "/masters/me"
         case .updateSettings:           return "/masters/me"
         case .updatePayment:            return "/masters/me/payment"
@@ -158,7 +160,7 @@ extension Endpoint {
 
     var method: String {
         switch self {
-        case .login, .register, .forgotPassword, .sendFeedback,
+        case .login, .register, .forgotPassword, .resetPassword, .sendFeedback,
              .createClient, .createAppointment, .createService, .markDone:
             return "POST"
         case .updateSettings, .updatePayment, .updateProfile, .updateClient, .updateBookingLink, .updateLoyaltySettings, .updateAppointment, .updateService:
@@ -185,7 +187,7 @@ extension Endpoint {
 
     var requiresAuth: Bool {
         switch self {
-        case .login, .register, .forgotPassword: return false
+        case .login, .register, .forgotPassword, .resetPassword: return false
         default: return true
         }
     }
@@ -216,6 +218,7 @@ extension Endpoint {
         case .login(let r):               return try? encoder.encode(r)
         case .register(let r):            return try? encoder.encode(r)
         case .forgotPassword(let email):  return try? encoder.encode(["email": email])
+        case .resetPassword(let email, let code, let newPassword): return try? encoder.encode(["email": email, "code": code, "new_password": newPassword])
         case .sendFeedback(let text):    return try? encoder.encode(["text": text])
         case .updateSettings(let r):      return try? encoder.encode(r)
         case .updatePayment(let r):       return try? encoder.encode(r)
