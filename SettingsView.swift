@@ -53,6 +53,7 @@ final class SettingsViewModel: ObservableObject {
         didSet { UserDefaults.standard.set(returnReminderEnabled, forKey: "return_reminder_enabled") }
     }
     @Published var isTelegramConnected = false
+    @Published var timezoneOffset = 3
 
     @Published var returnReminderDays: Int {
         didSet { UserDefaults.standard.set(returnReminderDays, forKey: "return_reminder_days") }
@@ -128,7 +129,7 @@ final class SettingsViewModel: ObservableObject {
             if let d = m.birthdayDiscountPercent, d > 0 { birthdayDiscount = d }
             if let t = m.loyaltyDiscountType { loyaltyDiscountType = t }
             if let r = m.loyaltyDiscountRub, r > 0 { loyaltyDiscountRub = r }
-            selectedTimezoneOffset = m.timezoneOffset ?? 3
+            timezoneOffset = m.timezoneOffset ?? 3
         } else {
             masterName = ""
             email = ""
@@ -281,8 +282,6 @@ struct SettingsView: View {
         @State private var copiedManageLink = false
         @State private var pushTestSent = false
         @State private var pushTestLoading = false
-        @State private var selectedTimezoneOffset = 3
-
         func saveTimezone() async {
             guard let token = KeychainManager.shared.getToken(),
                   let url = URL(string: "https://beauty-bot-44ou.onrender.com/api/v1/masters/me/timezone") else { return }
@@ -290,7 +289,7 @@ struct SettingsView: View {
             req.httpMethod = "PUT"
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            req.httpBody = try? JSONEncoder().encode(["timezone_offset": selectedTimezoneOffset])
+            req.httpBody = try? JSONEncoder().encode(["timezone_offset": vm.timezoneOffset])
             do {
                 let (_, _) = try await URLSession.shared.data(for: req)
             } catch {}
@@ -531,7 +530,7 @@ struct SettingsView: View {
                         Image(systemName: "globe")
                             .foregroundColor(theme.accent)
                             .frame(width: 24)
-                        Picker("Часовой пояс", selection: $selectedTimezoneOffset) {
+                        Picker("Часовой пояс", selection: $vm.timezoneOffset) {
                             Text("Калининград (UTC+2)").tag(2)
                             Text("Москва (UTC+3)").tag(3)
                             Text("Самара (UTC+4)").tag(4)
@@ -546,7 +545,7 @@ struct SettingsView: View {
                         }
                         .pickerStyle(.menu)
                         .tint(theme.accent)
-                        .onChange(of: selectedTimezoneOffset) { _ in
+                        .onChange(of: vm.timezoneOffset) { _ in
                             Task { await saveTimezone() }
                         }
                     }
