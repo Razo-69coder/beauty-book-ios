@@ -128,6 +128,7 @@ final class SettingsViewModel: ObservableObject {
             if let d = m.birthdayDiscountPercent, d > 0 { birthdayDiscount = d }
             if let t = m.loyaltyDiscountType { loyaltyDiscountType = t }
             if let r = m.loyaltyDiscountRub, r > 0 { loyaltyDiscountRub = r }
+            selectedTimezoneOffset = m.timezoneOffset ?? 3
         } else {
             masterName = ""
             email = ""

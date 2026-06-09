@@ -65,6 +65,7 @@ struct MasterProfile: Decodable, Identifiable {
     let loyaltyDiscountPercent: Int?
     let loyaltyDiscountType: String?
     let loyaltyDiscountRub: Int?
+    let timezoneOffset: Int?
 }
 
 struct MasterSettingsRequest: Encodable {
