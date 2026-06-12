@@ -127,13 +127,6 @@ struct BeautyBookApp: App {
                             .environment(\.theme, themeManager.current)
                             .interactiveDismissDisabled()
                         }
-                        .fullScreenCover(isPresented: $appState.subscriptionRequired) {
-                            SubscriptionView()
-                                .environmentObject(appState)
-                                .environmentObject(themeManager)
-                                .environment(\.theme, themeManager.current)
-                                .interactiveDismissDisabled()
-                        }
                 } else {
                     AuthView()
                         .environmentObject(appState)
@@ -289,7 +282,7 @@ struct SplashView: View {
                 }
             }
             if !resp.isTrial && !resp.isActive {
-                requireSubscription()
+                logout()
             }
         } catch {
             print("[TRIAL] Failed to fetch: \(error)")

@@ -1195,6 +1195,25 @@ struct SettingsView: View {
 
                     Divider().background(theme.borderSubtle)
 
+                    Link(destination: URL(string: "https://solvobeauty.vercel.app/privacy.html")!) {
+                        HStack {
+                            Image(systemName: "hand.raised")
+                                .font(.system(size: 16))
+                                .foregroundColor(theme.accent)
+                                .frame(width: 32)
+                            Text("Политика конфиденциальности")
+                                .font(DS.body)
+                                .foregroundColor(theme.textPrimary)
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 12))
+                                .foregroundColor(theme.textMuted)
+                        }
+                        .padding(.vertical, 12)
+                    }
+
+                    Divider().background(theme.borderSubtle)
+
                     HStack {
                         Image(systemName: "info.circle")
                             .font(.system(size: 16))
