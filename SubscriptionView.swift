@@ -42,8 +42,8 @@ struct SubscriptionView: View {
                     }
                     .padding(.horizontal, 40)
 
-                    Link(destination: URL(string: "https://solvobeauty.vercel.app/account.html")!) {
-                        Text("Управлять подпиской")
+                    Link(destination: URL(string: "https://t.me/razo0220")!) {
+                        Text("Написать в поддержку")
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(theme.gradientPrimary)
@@ -52,7 +52,7 @@ struct SubscriptionView: View {
                     }
                     .padding(.horizontal, 24)
 
-                    Text("Откроется в браузере")
+                    Text("Telegram @razo0220")
                         .font(DS.caption)
                         .foregroundColor(theme.textSecondary.opacity(0.5))
 
