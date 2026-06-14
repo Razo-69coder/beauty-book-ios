@@ -97,7 +97,7 @@ struct BeautyBookApp: App {
                         .environmentObject(appState)
                         .environmentObject(themeManager)
                         .environment(\.theme, themeManager.current)
-                        .preferredColorScheme(.dark)
+                        .preferredColorScheme(themeManager.current == .platinum ? .light : .dark)
                         .transition(.opacity)
                         .fullScreenCover(
                             isPresented: Binding<Bool>(
@@ -132,7 +132,7 @@ struct BeautyBookApp: App {
                         .environmentObject(appState)
                         .environmentObject(themeManager)
                         .environment(\.theme, themeManager.current)
-                        .preferredColorScheme(.dark)
+                        .preferredColorScheme(themeManager.current == .platinum ? .light : .dark)
                         .transition(.opacity)
                 }
             }

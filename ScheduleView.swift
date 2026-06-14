@@ -957,7 +957,7 @@ struct NewNoteView: View {
                         .frame(height: 120)
                         .background(theme.backgroundCard)
                         .cornerRadius(12)
-                        .colorScheme(.dark)
+                        .colorScheme(theme == .platinum ? .light : .dark)
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
