@@ -319,6 +319,7 @@ struct BBTextField: View {
     var keyboardType: UIKeyboardType = .default
     var isSecure: Bool = false
     var isValid: Bool = true
+    var contentType: UITextContentType? = nil
 
     @Environment(\.theme) private var theme
     @FocusState private var focused: Bool
@@ -330,13 +331,19 @@ struct BBTextField: View {
                     .foregroundColor(theme.textMuted)
                     .font(DS.body)
                     .padding(.horizontal, 16)
+                    .allowsHitTesting(false)
             }
             Group {
                 if isSecure {
                     SecureField("", text: $text)
+                        .textContentType(.password)
+                        .autocorrectionDisabled()
                 } else {
                     TextField("", text: $text)
                         .keyboardType(keyboardType)
+                        .textContentType(contentType)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
                 }
             }
             .font(DS.bodyLarge)

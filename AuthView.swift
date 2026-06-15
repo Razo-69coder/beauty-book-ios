@@ -93,7 +93,7 @@ struct LoginForm: View {
                 Text("Войди в свой аккаунт").font(DS.body).foregroundColor(theme.textSecondary)
             }.padding(.bottom, 4)
 
-            BBTextField(placeholder: "Email", text: $vm.loginEmail, keyboardType: .emailAddress)
+            BBTextField(placeholder: "Email", text: $vm.loginEmail, keyboardType: .emailAddress, contentType: .emailAddress)
                 .environment(\.theme, theme)
             BBTextField(placeholder: "Пароль", text: $vm.loginPassword, isSecure: true)
                 .environment(\.theme, theme)
@@ -106,16 +106,6 @@ struct LoginForm: View {
 
             Button("Забыл пароль?") { vm.switchTo(.forgotPassword) }
                 .font(DS.body).foregroundColor(theme.accent)
-
-            Button {
-                vm.loginEmail = "test@solvobeauty.com"
-                vm.loginPassword = "TestSolvo123!"
-                Task { await vm.login() }
-            } label: {
-                Text("Тестовый вход")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(theme.textMuted.opacity(0.5))
-            }
 
         }
     }
