@@ -132,7 +132,7 @@ struct BeautyBookApp: App {
                         .environmentObject(appState)
                         .environmentObject(themeManager)
                         .environment(\.theme, themeManager.current)
-                        .preferredColorScheme(themeManager.current == .platinum ? .light : .dark)
+                        .preferredColorScheme(.dark)
                         .transition(.opacity)
                 }
             }
