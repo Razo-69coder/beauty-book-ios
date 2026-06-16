@@ -336,7 +336,7 @@ struct BBTextField: View {
             Group {
                 if isSecure {
                     SecureField("", text: $text)
-                        .textContentType(.password)
+                        .textContentType(UITextContentType(rawValue: ""))
                         .autocorrectionDisabled()
                 } else {
                     TextField("", text: $text)
