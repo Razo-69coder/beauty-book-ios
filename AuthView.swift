@@ -95,7 +95,7 @@ struct LoginForm: View {
 
             BBTextField(placeholder: "Email", text: $vm.loginEmail, keyboardType: .emailAddress, contentType: .emailAddress)
                 .environment(\.theme, theme)
-            BBTextField(placeholder: "Пароль", text: $vm.loginPassword, isSecure: true)
+            BBTextField(placeholder: "Пароль", text: $vm.loginPassword, isSecure: true, showPasswordToggle: true)
                 .environment(\.theme, theme)
 
             if let err = vm.errorMessage { BBErrorBanner(message: err).environment(\.theme, theme) }

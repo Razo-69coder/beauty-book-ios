@@ -320,9 +320,11 @@ struct BBTextField: View {
     var isSecure: Bool = false
     var isValid: Bool = true
     var contentType: UITextContentType? = nil
+    var showPasswordToggle: Bool = false
 
     @Environment(\.theme) private var theme
     @FocusState private var focused: Bool
+    @State private var isRevealed = false
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -334,22 +336,35 @@ struct BBTextField: View {
                     .allowsHitTesting(false)
             }
             Group {
-                if isSecure {
+                if isSecure && !isRevealed {
                     SecureField("", text: $text)
                         .textContentType(UITextContentType(rawValue: ""))
                         .autocorrectionDisabled()
                 } else {
                     TextField("", text: $text)
                         .keyboardType(keyboardType)
-                        .textContentType(contentType)
+                        .textContentType(isSecure ? UITextContentType(rawValue: "") : contentType)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                 }
             }
             .font(DS.bodyLarge)
             .foregroundColor(theme.textPrimary)
-            .padding(.horizontal, 16)
+            .padding(.leading, 16)
+            .padding(.trailing, (isSecure && showPasswordToggle) ? 48 : 16)
             .focused($focused)
+
+            if isSecure && showPasswordToggle {
+                HStack {
+                    Spacer()
+                    Button(action: { isRevealed.toggle() }) {
+                        Image(systemName: isRevealed ? "eye.slash" : "eye")
+                            .font(.system(size: 16))
+                            .foregroundColor(theme.textMuted)
+                            .frame(width: 44, height: 44)
+                    }
+                }
+            }
         }
         .frame(height: 56)
         .background(theme.backgroundInput)

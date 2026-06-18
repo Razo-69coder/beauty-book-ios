@@ -64,8 +64,15 @@ final class EditAppointmentViewModel: ObservableObject {
     func loadSlots() async {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
         let dateStr = f.string(from: selectedDate)
+        let isOriginalDate = dateStr == initialAppointment.appointmentDate
         if let resp = try? await api.request(.slots(date: dateStr), as: SlotsResponse.self) {
-            availableSlots = resp.slots
+            var slots = resp.slots
+            // Текущее время этой записи всегда доступно на исходной дате
+            if isOriginalDate && !slots.contains(initialAppointment.time) {
+                slots.append(initialAppointment.time)
+                slots.sort()
+            }
+            availableSlots = slots
         } else {
             availableSlots = stride(from: 9 * 60, to: 20 * 60, by: 60).map { m in
                 String(format: "%02d:%02d", m / 60, m % 60)

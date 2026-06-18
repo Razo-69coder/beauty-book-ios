@@ -21,16 +21,22 @@ final class AuthViewModel: ObservableObject {
     var onSuccess: ((MasterProfile, String) -> Void)?
     private let api = APIClient.shared
 
-    var loginValid: Bool    { loginEmail.contains("@") && loginPassword.count >= 6 && !isLoading }
+    var loginValid: Bool {
+        loginEmail.trimmingCharacters(in: .whitespaces).contains("@") &&
+        loginPassword.trimmingCharacters(in: .whitespaces).count >= 6 &&
+        !isLoading
+    }
     var resetFormValid: Bool {
         resetCode.count >= 6 && newPassword.count >= 6 && newPassword == newPasswordConfirm && !isLoading
     }
 
     func login() async {
-        guard loginValid else { return }
+        let trimmedEmail = loginEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPassword = loginPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedEmail.contains("@") && trimmedPassword.count >= 6 && !isLoading else { return }
         isLoading = true; errorMessage = nil
         do {
-            let resp = try await api.request(.login(LoginRequest(email: loginEmail, password: loginPassword)), as: AuthTokenResponse.self)
+            let resp = try await api.request(.login(LoginRequest(email: trimmedEmail, password: trimmedPassword)), as: AuthTokenResponse.self)
             onSuccess?(resp.master, resp.token)
         } catch let e as NetworkError { errorMessage = e.errorDescription
         } catch { errorMessage = "Ошибка входа. Проверь данные." }
