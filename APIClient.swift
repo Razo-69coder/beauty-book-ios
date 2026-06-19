@@ -281,11 +281,6 @@ final class APIClient: ObservableObject {
             throw NetworkError.unauthorized
         case 403:
             let body = try? JSONDecoder().decode([String: String].self, from: data)
-            if body?["detail"] == "subscription_required" {
-                await MainActor.run {
-                    NotificationCenter.default.post(name: .subscriptionRequired, object: nil)
-                }
-            }
             let msg = body?["detail"] ?? "Доступ запрещён"
             throw NetworkError.serverError(http.statusCode, msg)
         default:

@@ -3,7 +3,6 @@ import SwiftUI
 struct ProWelcomeView: View {
     var onFinish: () -> Void
     @Environment(\.theme) var theme
-    let trialEndDate: Date
 
     var body: some View {
         ZStack {

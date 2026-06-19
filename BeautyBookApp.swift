@@ -120,8 +120,7 @@ struct BeautyBookApp: App {
                             ProWelcomeView(
                                 onFinish: {
                                     showProWelcome = false
-                                },
-                                trialEndDate: appState.trialEndDate ?? Date().addingTimeInterval(30 * 86400)
+                                }
                             )
                             .environmentObject(themeManager)
                             .environment(\.theme, themeManager.current)
@@ -213,28 +212,18 @@ struct SplashView: View {
 @MainActor final class AppState: ObservableObject {
     @Published var isAuthenticated: Bool = KeychainManager.shared.isAuthenticated
     @Published var currentMaster: MasterProfile? = nil
-    @Published var subscriptionRequired: Bool = false
-    @Published var trialEndDate: Date? = nil
 
     init() {
         NotificationCenter.default.addObserver(
             forName: .tokenExpired, object: nil, queue: .main
         ) { [weak self] _ in Task { @MainActor in self?.logout() } }
-        NotificationCenter.default.addObserver(
-            forName: .subscriptionRequired, object: nil, queue: .main
-        ) { [weak self] _ in Task { @MainActor in self?.requireSubscription() } }
-        NotificationCenter.default.addObserver(
-            forName: .subscriptionActivated, object: nil, queue: .main
-        ) { [weak self] _ in Task { @MainActor in self?.activateSubscription() } }
     }
 
     func login(master: MasterProfile, token: String) {
         KeychainManager.shared.saveToken(token)
         KeychainManager.shared.saveMasterId(master.id)
         currentMaster = master
-        subscriptionRequired = false
         withAnimation(DS.springSmooth) { isAuthenticated = true }
-        Task { await fetchTrialStatus() }
         Task { await mergeDuplicates() }
     }
 
@@ -250,48 +239,10 @@ struct SplashView: View {
     func logout() {
         KeychainManager.shared.deleteToken()
         currentMaster = nil
-        trialEndDate = nil
         withAnimation(DS.springSmooth) { isAuthenticated = false }
-    }
-
-    func requireSubscription() {
-        withAnimation(DS.springSmooth) { subscriptionRequired = true }
-    }
-
-    func activateSubscription() {
-        withAnimation(DS.springSmooth) { subscriptionRequired = false }
-    }
-
-    func fetchTrialStatus() async {
-        do {
-            struct TrialResp: Decodable {
-                let trialEndDate: String?
-                let daysLeft: Int
-                let isTrial: Bool
-                let isActive: Bool
-            }
-            let resp = try await APIClient.shared.request(.trialStatus, as: TrialResp.self)
-            if let dateStr = resp.trialEndDate {
-                let f = ISO8601DateFormatter()
-                f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-                if let date = f.date(from: dateStr) {
-                    trialEndDate = date
-                } else {
-                    f.formatOptions = [.withInternetDateTime]
-                    trialEndDate = f.date(from: dateStr)
-                }
-            }
-            if !resp.isTrial && !resp.isActive {
-                logout()
-            }
-        } catch {
-            print("[TRIAL] Failed to fetch: \(error)")
-        }
     }
 }
 
 extension Notification.Name {
     static let tokenExpired = Notification.Name("tokenExpired")
-    static let subscriptionRequired = Notification.Name("subscriptionRequired")
-    static let subscriptionActivated = Notification.Name("subscriptionActivated")
 }
