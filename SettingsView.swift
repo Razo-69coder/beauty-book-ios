@@ -1225,6 +1225,10 @@ struct SettingsView: View {
                         Spacer()
                     }
                     .padding(.vertical, 12)
+
+                    Divider().background(theme.borderSubtle)
+
+                    IAPSubscriptionRow(theme: theme)
                 }
             }
         }
@@ -1304,6 +1308,76 @@ struct StepperRow: View {
                         .foregroundColor(value >= range.upperBound ? theme.textMuted : theme.accent)
                 }
             }
+        }
+    }
+}
+
+// MARK: - IAP Subscription Row
+
+struct IAPSubscriptionRow: View {
+    let theme: AppTheme
+    @StateObject private var iap = SubscriptionManager.shared
+    @State private var showSuccess = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button(action: {
+                Task {
+                    await iap.purchase()
+                    if iap.isPurchased { showSuccess = true }
+                }
+            }) {
+                HStack {
+                    Image(systemName: iap.isPurchased ? "checkmark.seal.fill" : "star.circle")
+                        .font(.system(size: 16))
+                        .foregroundColor(iap.isPurchased ? theme.statusGreen : theme.accent)
+                        .frame(width: 32)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(iap.isPurchased ? "Подписка активна" : "Подписка Pro")
+                            .font(DS.body)
+                            .foregroundColor(theme.textPrimary)
+                        if let product = iap.product, !iap.isPurchased {
+                            Text(product.displayPrice + "/мес")
+                                .font(DS.bodySmall)
+                                .foregroundColor(theme.textMuted)
+                        }
+                    }
+                    Spacer()
+                    if iap.isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
+                            .scaleEffect(0.8)
+                    } else if !iap.isPurchased {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12))
+                            .foregroundColor(theme.textMuted)
+                    }
+                }
+                .padding(.vertical, 12)
+            }
+            .disabled(iap.isLoading || iap.isPurchased)
+
+            if let err = iap.errorMessage {
+                Text(err)
+                    .font(DS.bodySmall)
+                    .foregroundColor(theme.statusRed)
+                    .padding(.bottom, 8)
+            }
+
+            if !iap.isPurchased {
+                Button("Восстановить покупку") {
+                    Task { await iap.restorePurchases() }
+                }
+                .font(DS.caption)
+                .foregroundColor(theme.textMuted)
+                .padding(.bottom, 8)
+            }
+        }
+        .task { await iap.loadProduct() }
+        .alert("Подписка оформлена!", isPresented: $showSuccess) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Спасибо! Подписка Pro активирована.")
         }
     }
 }
