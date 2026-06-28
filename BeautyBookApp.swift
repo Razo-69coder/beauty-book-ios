@@ -83,7 +83,6 @@ struct BeautyBookApp: App {
     @StateObject private var appState         = AppState()
     @StateObject private var themeManager    = ThemeManager.shared
     @State private var showSplash           = true
-    @State private var showProWelcome       = false
     @AppStorage("onboarding_completed") private var onboardingCompleted = false
 
     var body: some Scene {
@@ -107,21 +106,7 @@ struct BeautyBookApp: App {
                         ) {
                             OnboardingView(onFinish: {
                                 onboardingCompleted = true
-                                let seen = UserDefaults.standard.bool(forKey: "hasSeenProWelcome")
-                                if !seen {
-                                    showProWelcome = true
-                                }
                             }, isPreview: false)
-                            .environmentObject(themeManager)
-                            .environment(\.theme, themeManager.current)
-                            .interactiveDismissDisabled()
-                        }
-                        .fullScreenCover(isPresented: $showProWelcome) {
-                            ProWelcomeView(
-                                onFinish: {
-                                    showProWelcome = false
-                                }
-                            )
                             .environmentObject(themeManager)
                             .environment(\.theme, themeManager.current)
                             .interactiveDismissDisabled()
