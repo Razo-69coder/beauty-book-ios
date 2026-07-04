@@ -75,12 +75,7 @@ enum Endpoint {
     case sendFeedback(String)
     // Loyalty
     case updateLoyaltySettings(LoyaltySettingsRequest)
-    // Subscription
-    case subscriptionNotify
-    case subscriptionStatus
     case telegramLinkToken
-    case createPayment(plan: String)
-    case trialStatus
     // Status
     case updateAppointmentStatus(id: Int, status: String)
     case statsYearly(year: Int)
@@ -137,11 +132,7 @@ extension Endpoint {
         case .removeBlockedDay(let date): return "/schedule/blocked-days/\(date)"
         case .sendFeedback:              return "/feedback"
         case .updateLoyaltySettings:     return "/loyalty-settings"
-        case .subscriptionNotify:        return "/subscription/notify"
-        case .subscriptionStatus:       return "/subscription/status"
         case .telegramLinkToken:        return "/telegram-link-token"
-        case .createPayment:            return "/payment/create"
-        case .trialStatus:              return "/masters/me/trial"
         case .updateAppointmentStatus(let id, _): return "/appointments/\(id)/status"
         case .importClients:             return "/clients/import"
         case .statsYearly:              return "/masters/me/stats/yearly"
@@ -167,14 +158,12 @@ extension Endpoint {
             return "PUT"
         case .deleteClient, .cancelAppointment, .deleteService:
             return "DELETE"
-        case .addBlockedDay, .subscriptionNotify:   return "POST"
-        case .createPayment:                        return "POST"
-        case .mergeDuplicates:                      return "POST"
+        case .addBlockedDay:   return "POST"
+        case .mergeDuplicates: return "POST"
         case .removeBlockedDay: return "DELETE"
         case .createNote:       return "POST"
         case .deleteNote:       return "DELETE"
         case .telegramLinkToken: return "GET"
-        case .trialStatus:      return "GET"
         case .updateAppointmentStatus: return "PATCH"
         case .importClients: return "POST"
         case .markRead, .markAllRead: return "POST"
@@ -238,8 +227,6 @@ extension Endpoint {
             return try? encoder.encode(ClientImportRequest(clients: items))
         case .updateReminderTemplate(_, let template, let enabled):
             return try? encoder.encode(ReminderTemplateUpdate(template: template, enabled: enabled))
-        case .createPayment(let plan):
-            return try? encoder.encode(["plan": plan])
         case .createNote(let r):
             return try? encoder.encode(r)
         default: return nil
