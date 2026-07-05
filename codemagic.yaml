@@ -5,7 +5,7 @@ workflows:
       xcode: latest
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.beautybook.app.53C33F97M2
+        bundle_identifier: com.solvobeauty.app
     scripts:
       - name: Install XcodeGen
         script: |
@@ -79,7 +79,7 @@ workflows:
               <string>manual</string>
               <key>provisioningProfiles</key>
               <dict>
-                  <key>com.beautybook.app.53C33F97M2</key>
+                  <key>com.solvobeauty.app</key>
                   <string>$PROFILE_UUID</string>
               </dict>
           </dict>
