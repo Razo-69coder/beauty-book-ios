@@ -68,6 +68,9 @@ struct TabBarView: View {
         .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
             Task { await notifVM.refreshUnread() }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openNotificationsSheet)) { _ in
+            showNotifications = true
+        }
     }
     
     private var customTabBar: some View {

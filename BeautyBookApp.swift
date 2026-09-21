@@ -35,6 +35,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     ) {
         completionHandler([.banner, .sound, .badge])
     }
+
+    // Тап по пушу (из шторки/лок-скрина/в фоне) — открыть список уведомлений
+    // независимо от того, на какой вкладке было приложение
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        NotificationCenter.default.post(name: .openNotificationsSheet, object: nil)
+        completionHandler()
+    }
 }
 
 struct BeautyPushRegistrar {
@@ -230,4 +241,5 @@ struct SplashView: View {
 
 extension Notification.Name {
     static let tokenExpired = Notification.Name("tokenExpired")
+    static let openNotificationsSheet = Notification.Name("openNotificationsSheet")
 }
