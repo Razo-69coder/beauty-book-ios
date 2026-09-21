@@ -31,7 +31,8 @@ enum MockData {
         loyaltyDiscountPercent: 10,
         loyaltyDiscountType: nil,
         loyaltyDiscountRub: nil,
-        timezoneOffset: nil
+        timezoneOffset: nil,
+        hasData: nil
     )
 
     // MARK: - Services
