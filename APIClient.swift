@@ -264,8 +264,17 @@ final class APIClient: ObservableObject {
             do { return try decoder.decode(T.self, from: data) }
             catch { throw NetworkError.decodingError(error) }
         case 401:
-            NotificationCenter.default.post(name: .tokenExpired, object: nil)
-            throw NetworkError.unauthorized
+            switch endpoint {
+            case .login, .register, .forgotPassword, .resetPassword:
+                // Не залогинен ещё — 401 здесь значит "неверный email/пароль",
+                // а не "токен истёк". Показываем реальное сообщение сервера.
+                let body = try? JSONDecoder().decode([String: String].self, from: data)
+                let msg = body?["detail"] ?? "Неверный email или пароль"
+                throw NetworkError.serverError(http.statusCode, msg)
+            default:
+                NotificationCenter.default.post(name: .tokenExpired, object: nil)
+                throw NetworkError.unauthorized
+            }
         case 403:
             let body = try? JSONDecoder().decode([String: String].self, from: data)
             let msg = body?["detail"] ?? "Доступ запрещён"
