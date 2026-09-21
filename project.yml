@@ -54,7 +54,7 @@ targets:
         CFBundleDisplayName: Solvo Beauty
         CFBundleIdentifier: com.solvobeauty.app
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
-        CFBundleShortVersionString: "1.0.0"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundlePackageType: APPL
         CFBundleExecutable: SolvoBeauty
         CFBundleIconName: AppIcon
