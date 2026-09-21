@@ -90,7 +90,15 @@ struct NotificationBellButton: View {
                     .offset(x: 8, y: -8)
                 }
             }
+            // Увеличенная и явная тач-зона (Apple HIG: минимум 44x44),
+            // иначе на вкладках с плотным контентом рядом (Расписание,
+            // Клиенты и т.д.) палец промахивается мимо крошечной иконки
+            // и тап "съедает" скролл/контент под кнопкой.
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .zIndex(10)
     }
 }
 
