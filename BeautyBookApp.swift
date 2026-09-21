@@ -219,6 +219,12 @@ struct SplashView: View {
         KeychainManager.shared.saveToken(token)
         KeychainManager.shared.saveMasterId(master.id)
         currentMaster = master
+        // У аккаунта уже есть клиенты/записи — значит онбординг он уже проходил
+        // раньше (на другом билде/после переустановки). Не мучаем повторным
+        // показом слайдов после каждого обновления приложения.
+        if master.hasData == true {
+            UserDefaults.standard.set(true, forKey: "onboarding_completed")
+        }
         withAnimation(DS.springSmooth) { isAuthenticated = true }
         Task { await mergeDuplicates() }
     }
