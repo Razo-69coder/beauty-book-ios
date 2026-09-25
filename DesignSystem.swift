@@ -188,6 +188,35 @@ func ruPlural(_ n: Int, _ one: String, _ few: String, _ many: String) -> String 
     return many
 }
 
+// MARK: - Общие хелперы (деньги и инициалы)
+
+/// «10 100 ₽» — пробел-разделитель тысяч и неразрывный пробел перед знаком ₽.
+func rubText(_ value: Int) -> String {
+    let isNegative: Bool = value < 0
+    let digits: String = String(abs(value))
+    let chars: [Character] = Array(digits)
+    var grouped: String = ""
+    for (index, ch) in chars.enumerated() {
+        if index > 0 && (chars.count - index) % 3 == 0 {
+            grouped.append(" ")
+        }
+        grouped.append(ch)
+    }
+    let sign: String = isNegative ? "−" : ""
+    return sign + grouped + "\u{00A0}₽"
+}
+
+/// Первые буквы первых двух слов имени: «Анна Петрова» → «АП». Пустое имя → «?».
+func clInitials(_ name: String) -> String {
+    let words: [Substring] = name.split(separator: " ")
+    guard let firstChar: Character = words.first?.first else { return "?" }
+    var result: String = String(firstChar).uppercased()
+    if words.count > 1, let secondChar: Character = words[1].first {
+        result += String(secondChar).uppercased()
+    }
+    return result
+}
+
 // MARK: - Design Tokens
 
 enum DS {
