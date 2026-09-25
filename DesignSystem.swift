@@ -176,6 +176,18 @@ extension EnvironmentValues {
     }
 }
 
+func ruPlural(_ n: Int, _ one: String, _ few: String, _ many: String) -> String {
+    let n10 = n % 10
+    let n100 = n % 100
+    if n10 == 1 && n100 != 11 {
+        return one
+    }
+    if (2...4).contains(n10) && !(12...14).contains(n100) {
+        return few
+    }
+    return many
+}
+
 // MARK: - Design Tokens
 
 enum DS {

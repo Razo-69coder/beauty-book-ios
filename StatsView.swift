@@ -235,9 +235,13 @@ struct StatsView: View {
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Аналитика")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundColor(theme.textPrimary)
+            HStack {
+                Text("Аналитика")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(theme.textPrimary)
+                Spacer()
+                HeaderBellButton()
+            }
 
             Picker("", selection: $vm.selectedPeriod) {
                 ForEach(StatsViewModel.Period.allCases, id: \.self) { p in
@@ -662,4 +666,5 @@ struct AddExpenseSheet: View {
 #Preview {
     StatsView()
         .environment(\.theme, .pink)
+        .environmentObject(NotificationsViewModel())
 }

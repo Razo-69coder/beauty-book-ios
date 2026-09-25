@@ -218,6 +218,7 @@ struct ScheduleView: View {
                         .foregroundColor(theme.textPrimary)
                 }
                 Spacer()
+                HeaderBellButton()
             }
         }
         .padding(.horizontal, 20)
@@ -1027,4 +1028,5 @@ struct NewNoteView: View {
 #Preview {
     ScheduleView()
         .environment(\.theme, .pink)
+        .environmentObject(NotificationsViewModel())
 }

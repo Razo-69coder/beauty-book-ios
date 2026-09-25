@@ -32,6 +32,7 @@ struct TabBarView: View {
             AppBackground(theme: theme).ignoresSafeArea()
 
             TabContent(selectedTab: selectedTab)
+                .environmentObject(notifVM)
                 .opacity(tabOpacity)
 
             customTabBar
@@ -49,12 +50,6 @@ struct TabBarView: View {
         .overlay(alignment: .topLeading) {
             FeedbackButton()
                 .environment(\.theme, theme)
-        }
-        .overlay(alignment: .topTrailing) {
-            NotificationBellButton(vm: notifVM, isPresented: $showNotifications)
-                .environment(\.theme, theme)
-                .padding(.top, 56)
-                .padding(.trailing, 20)
         }
         .sheet(isPresented: $showNotifications) {
             NotificationsSheet(vm: notifVM)

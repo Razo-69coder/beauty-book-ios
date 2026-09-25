@@ -369,6 +369,12 @@ struct SettingsView: View {
 
     private var profileHeader: some View {
         VStack(spacing: 12) {
+            HStack {
+                Spacer()
+                HeaderBellButton()
+            }
+            .padding(.horizontal, 16)
+
             ZStack {
                 Circle()
                     .fill(theme.gradientPrimary)
@@ -551,6 +557,7 @@ struct SettingsView: View {
                     }
                     .padding(16)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
@@ -944,70 +951,73 @@ struct SettingsView: View {
             BBSectionHeader(title: "Интервал записи")
 
             BBGlassCard {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Мин. шаг онлайн-записи")
-                            .font(DS.body).foregroundColor(theme.textPrimary)
-                        Text("Время на одну процедуру")
-                            .font(DS.bodySmall).foregroundColor(theme.textMuted)
-                    }
-                    Spacer()
-                    Menu {
-                        ForEach([30, 45, 60, 90, 120], id: \.self) { mins in
-                            Button(vm.slotDurationLabel(mins)) {
-                                vm.slotDuration = mins
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Мин. шаг онлайн-записи")
+                                .font(DS.body).foregroundColor(theme.textPrimary)
+                            Text("Время на одну процедуру")
+                                .font(DS.bodySmall).foregroundColor(theme.textMuted)
+                        }
+                        Spacer()
+                        Menu {
+                            ForEach([30, 45, 60, 90, 120], id: \.self) { mins in
+                                Button(vm.slotDurationLabel(mins)) {
+                                    vm.slotDuration = mins
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(vm.slotDurationLabel(vm.slotDuration))
+                                    .font(DS.body)
+                                    .foregroundColor(theme.accent)
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(theme.textMuted)
                             }
                         }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(vm.slotDurationLabel(vm.slotDuration))
-                                .font(DS.body)
-                                .foregroundColor(theme.accent)
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 10))
+                    }
+                    .padding(.bottom, 12)
+
+                    Divider().background(theme.borderSubtle)
+
+                    NavigationLink(destination: CustomScheduleView().environment(\.theme, theme)) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Моё расписание")
+                                    .font(DS.body)
+                                    .foregroundColor(theme.textPrimary)
+                                Text("Задать конкретные слоты на каждый день")
+                                    .font(DS.bodySmall)
+                                    .foregroundColor(theme.textMuted)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12))
                                 .foregroundColor(theme.textMuted)
                         }
+                        .padding(.vertical, 12)
                     }
-                }
 
-                Divider().background(theme.borderSubtle)
+                    Divider().background(theme.borderSubtle)
 
-                NavigationLink(destination: CustomScheduleView().environment(\.theme, theme)) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Моё расписание")
-                                .font(DS.body)
-                                .foregroundColor(theme.textPrimary)
-                            Text("Задать конкретные слоты на каждый день")
-                                .font(DS.bodySmall)
+                    Button(action: { showBlockedDays = true }) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Нерабочие дни")
+                                    .font(DS.body)
+                                    .foregroundColor(theme.textPrimary)
+                                Text("Даты, когда клиенты не могут записаться")
+                                    .font(DS.bodySmall)
+                                    .foregroundColor(theme.textMuted)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12))
                                 .foregroundColor(theme.textMuted)
                         }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12))
-                            .foregroundColor(theme.textMuted)
+                        .padding(.vertical, 12)
                     }
-                    .padding(16)
-                }
-
-                Divider().background(theme.borderSubtle)
-
-                Button(action: { showBlockedDays = true }) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Нерабочие дни")
-                                .font(DS.body)
-                                .foregroundColor(theme.textPrimary)
-                            Text("Даты, когда клиенты не могут записаться")
-                                .font(DS.bodySmall)
-                                .foregroundColor(theme.textMuted)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12))
-                            .foregroundColor(theme.textMuted)
-                    }
-                    .padding(16)
                 }
             }
             .environment(\.theme, theme)
@@ -1314,5 +1324,6 @@ struct StepperRow: View {
     SettingsView()
         .environmentObject(AppState())
         .environmentObject(ThemeManager.shared)
+        .environmentObject(NotificationsViewModel())
         .environment(\.theme, .pink)
 }

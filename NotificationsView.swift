@@ -102,6 +102,47 @@ struct NotificationBellButton: View {
     }
 }
 
+struct HeaderBellButton: View {
+    @EnvironmentObject var vm: NotificationsViewModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Button {
+            HapticManager.light()
+            NotificationCenter.default.post(name: .openNotificationsSheet, object: nil)
+        } label: {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: "bell")
+                    .font(.system(size: 18))
+                    .foregroundColor(theme.textPrimary)
+
+                if vm.unreadCount > 0 {
+                    Text(vm.unreadCount > 99 ? "99+" : "\(vm.unreadCount)")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 4)
+                        .frame(minWidth: 18, minHeight: 18, maxHeight: 18)
+                        .background(theme.accent, in: Capsule())
+                        .overlay(
+                            Capsule()
+                                .stroke(theme.backgroundDeep, lineWidth: 2)
+                        )
+                        .offset(x: 8, y: -8)
+                }
+            }
+            .frame(width: 44, height: 44)
+            .background(theme.backgroundCard, in: Circle())
+            .overlay(
+                Circle()
+                    .stroke(theme.borderSubtle, lineWidth: 1)
+            )
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Уведомления")
+    }
+}
+
 // MARK: - Notifications Sheet
 
 struct NotificationsSheet: View {

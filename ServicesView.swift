@@ -33,19 +33,22 @@ struct ServicesView: View {
                     Text("Услуги")
                         .font(DS.titleLarge)
                         .foregroundColor(theme.textPrimary)
-                    Text("\(viewModel.total) услуг")
+                    Text("\(viewModel.total) \(ruPlural(viewModel.total, "услуга", "услуги", "услуг"))")
                         .font(DS.body)
                         .foregroundColor(theme.textMuted)
                 }
                 Spacer()
-                Button {
-                    Task { await viewModel.loadServices() }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(theme.accent)
-                        .rotationEffect(.degrees(viewModel.isLoading ? 360 : 0))
-                        .animation(viewModel.isLoading ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: viewModel.isLoading)
+                HStack(spacing: 12) {
+                    Button {
+                        Task { await viewModel.loadServices() }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(theme.accent)
+                            .rotationEffect(.degrees(viewModel.isLoading ? 360 : 0))
+                            .animation(viewModel.isLoading ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: viewModel.isLoading)
+                    }
+                    HeaderBellButton()
                 }
             }
         }
@@ -524,5 +527,6 @@ struct EditServiceSheet: View {
     NavigationView {
         ServicesView()
             .environment(\.theme, .pink)
+            .environmentObject(NotificationsViewModel())
     }
 }

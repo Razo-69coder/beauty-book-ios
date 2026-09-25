@@ -305,7 +305,7 @@ struct ClientsListView: View {
                     Text("Клиентская база")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundColor(theme.textPrimary)
-                    Text("\(vm.clients.count) клиентов")
+                    Text("\(vm.clients.count) \(ruPlural(vm.clients.count, "клиент", "клиента", "клиентов"))")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(theme.textMuted)
                 }
@@ -325,6 +325,7 @@ struct ClientsListView: View {
                             .font(.system(size: 22))
                             .foregroundColor(theme.accent)
                     }
+                    HeaderBellButton()
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -698,5 +699,7 @@ struct AddClientSheet: View {
 }
 
 #Preview {
-    ClientsListView().environment(\.theme, .pink)
+    ClientsListView()
+        .environment(\.theme, .pink)
+        .environmentObject(NotificationsViewModel())
 }
