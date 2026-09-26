@@ -147,7 +147,7 @@ final class SettingsViewModel: ObservableObject {
 
     var loyaltySummary: String {
         guard loyaltyEnabled else { return "выключены" }
-        let size = loyaltyDiscountType == "rub" ? "\(rubText(loyaltyDiscountRub)) ₽" : "\(loyaltyDiscount)%"
+        let size = loyaltyDiscountType == "rub" ? rubText(loyaltyDiscountRub) : "\(loyaltyDiscount)%"
         return "каждый \(loyaltyThreshold)-й · \(size)"
     }
 
@@ -1596,7 +1596,7 @@ struct SELoyaltyPage: View {
                     SENumberPills(
                         values: SELoyalty.rubs,
                         selected: vm.loyaltyDiscountRub,
-                        label: { "\(rubText($0)) ₽" }
+                        label: { rubText($0) }
                     ) { value in
                         vm.loyaltyDiscountRub = value
                         vm.scheduleSave(.loyalty)
@@ -1650,7 +1650,7 @@ struct SELoyaltyPage: View {
     @ViewBuilder
     private var previewText: some View {
         if vm.loyaltyEnabled {
-            loyaltyPreviewText
+            loyaltyPreviewText()
         } else {
             Text("Скидка за визиты выключена.")
                 .foregroundColor(theme.textSecondary)
@@ -1663,12 +1663,12 @@ struct SELoyaltyPage: View {
         let part2: Text = Text("\(vm.loyaltyThreshold)")
             .foregroundColor(theme.accent)
             .fontWeight(.semibold)
-        let part3: Text = Text("-й раз на маникюр за \(rubText(examplePrice)) ₽. Цена в записи сама станет ")
+        let part3: Text = Text("-й раз на маникюр за \(rubText(examplePrice)). Цена в записи сама станет ")
             .foregroundColor(theme.textSecondary)
         let part4: Text = Text("\(rubText(max(0, examplePrice - discountAmount)))")
             .foregroundColor(theme.accent)
             .fontWeight(.semibold)
-        let part5: Text = Text(" ₽.")
+        let part5: Text = Text(".")
             .foregroundColor(theme.textSecondary)
         return part1 + part2 + part3 + part4 + part5
     }
