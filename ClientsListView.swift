@@ -276,7 +276,8 @@ fileprivate extension Client {
             components.month = month
             components.day = day
             // 29 февраля в невисокопосный год отмечаем 1 марта
-            if month == 2 && day == 29 && !calendar.isLeapYear(candidateYear) {
+            let isLeap: Bool = (candidateYear % 4 == 0 && candidateYear % 100 != 0) || candidateYear % 400 == 0
+            if month == 2 && day == 29 && !isLeap {
                 components.month = 3
                 components.day = 1
             }
@@ -757,6 +758,13 @@ struct CLRow: View {
 
 // MARK: - Буква-разделитель в списке
 
+struct CLLetterGroup: Identifiable {
+    let letter: String
+    let clients: [Client]
+
+    var id: String { letter }
+}
+
 struct CLLetterHeader: View {
     let letter: String
     let theme: AppTheme
@@ -1024,7 +1032,7 @@ struct ClientsListView: View {
 
     private var clientsList: some View {
         LazyVStack(spacing: 0) {
-            ForEach(Array(letterGroups.enumerated()), id: \.element.letter) { groupIndex, group in
+            ForEach(Array(letterGroups.enumerated()), id: \.element.id) { groupIndex, group in
                 CLLetterHeader(letter: group.letter, theme: theme)
                 ForEach(Array(group.clients.enumerated()), id: \.element.id) { rowIndex, client in
                     rowView(client, index: groupIndex + rowIndex)
@@ -1056,21 +1064,21 @@ struct ClientsListView: View {
     }
 
     /// Группы по первой букве имени, сортировка по алфавиту
-    private var letterGroups: [(letter: String, clients: [Client])] {
+    private var letterGroups: [CLLetterGroup] {
         let sorted: [Client] = vm.filteredClients.sorted { lhs, rhs in
             lhs.name.compare(rhs.name, options: [.caseInsensitive], locale: Locale(identifier: "ru_RU")) == .orderedAscending
         }
-        var groups: [(letter: String, clients: [Client])] = []
+        var order: [String] = []
+        var clientsByLetter: [String: [Client]] = [:]
         for client in sorted {
             let letter: String = String(client.name.trimmingCharacters(in: .whitespaces).prefix(1)).uppercased()
             let key: String = letter.isEmpty ? "#" : letter
-            if let last = groups.last, last.letter == key {
-                groups[groups.count - 1].clients.append(client)
-            } else {
-                groups.append((letter: key, clients: [client]))
+            if clientsByLetter[key] == nil {
+                order.append(key)
             }
+            clientsByLetter[key, default: []].append(client)
         }
-        return groups
+        return order.map { CLLetterGroup(letter: $0, clients: clientsByLetter[$0] ?? []) }
     }
 
     // MARK: - Пустые состояния

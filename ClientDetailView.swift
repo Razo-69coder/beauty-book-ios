@@ -57,7 +57,8 @@ private enum CLDetailFormat {
             components.month = month
             components.day = day
             // 29 февраля в невисокопосный год отмечаем 1 марта
-            if month == 2 && day == 29 && !calendar.isLeapYear(candidateYear) {
+            let isLeap: Bool = (candidateYear % 4 == 0 && candidateYear % 100 != 0) || candidateYear % 400 == 0
+            if month == 2 && day == 29 && !isLeap {
                 components.month = 3
                 components.day = 1
             }
@@ -1092,13 +1093,20 @@ struct ClientDetailView: View {
 
     /// Подтягиваем свежие источник, аллергии и заметку из карточки
     private func mergeDetail(_ detail: ClientDetail) -> Client {
-        var updated: Client = client
-        updated.source = detail.source
-        updated.allergies = detail.allergies
-        if let notes: String = detail.notes, !notes.isEmpty {
-            updated.notes = notes
-        }
-        return updated
+        let freshNotes: String? = (detail.notes?.isEmpty == false) ? detail.notes : client.notes
+        return Client(
+            id: client.id,
+            name: client.name,
+            phone: client.phone,
+            notes: freshNotes,
+            lastVisit: client.lastVisit,
+            username: client.username,
+            telegramId: client.telegramId,
+            appointmentsCount: client.appointmentsCount,
+            birthday: client.birthday,
+            source: detail.source,
+            allergies: detail.allergies
+        )
     }
 
     private func loadProfile() async {
