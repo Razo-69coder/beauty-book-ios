@@ -66,6 +66,11 @@ struct TabBarView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openNotificationsSheet)) { _ in
             showNotifications = true
         }
+        .onReceive(NotificationCenter.default.publisher(for: .stOpenClientsAway)) { _ in
+            withAnimation(DS.springSnappy) {
+                selectedTab = .clients
+            }
+        }
     }
     
     private var customTabBar: some View {

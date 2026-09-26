@@ -806,6 +806,13 @@ struct ClientsListView: View {
                     .environment(\.theme, theme)
                 }
         }
+        .onAppear {
+            // Переход из «Статистики»: сразу показываем «Давно не были»
+            if STPendingClientsFilter.away {
+                STPendingClientsFilter.away = false
+                vm.filter = .away
+            }
+        }
     }
 
     private var rootContent: some View {
