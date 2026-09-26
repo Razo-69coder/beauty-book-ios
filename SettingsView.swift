@@ -371,7 +371,7 @@ final class SettingsViewModel: ObservableObject {
             let domain = botUsername.isEmpty ? "Beauty6699_bot" : botUsername
             let deepLink = "https://t.me/\(domain)?start=master_\(token)"
             if let url = URL(string: deepLink) {
-                UIApplication.shared.open(url)
+                await UIApplication.shared.open(url)
             }
         } catch {
             errorMessage = "Не удалось создать ссылку"

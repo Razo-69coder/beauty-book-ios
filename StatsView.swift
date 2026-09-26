@@ -234,7 +234,7 @@ enum STPeriodMath {
     static func comparisonLabel(period: StatsViewModel.Period, range: STDateRange) -> String {
         switch period {
         case .week: return "прошлой неделе"
-        case .month: return monthDative(calendar.component(.month, from: range.start))
+        case .month: return STFormat.monthDative(calendar.component(.month, from: range.start))
         case .year: return "\(calendar.component(.year, from: range.start)) году"
         }
     }
@@ -243,7 +243,7 @@ enum STPeriodMath {
     static func expensesTitle(period: StatsViewModel.Period, range: STDateRange) -> String {
         switch period {
         case .week: return weekLabel(range)
-        case .month: return monthNominativeLower(calendar.component(.month, from: range.start))
+        case .month: return STFormat.monthNominativeLower(calendar.component(.month, from: range.start))
         case .year: return "\(calendar.component(.year, from: range.start))"
         }
     }
@@ -254,14 +254,14 @@ enum STPeriodMath {
         let startDay: Int = calendar.component(.day, from: range.start)
         let endDay: Int = calendar.component(.day, from: range.end)
         if startMonth == endMonth {
-            return "\(startDay)–\(endDay) \(monthGenitive(startMonth))"
+            return "\(startDay)–\(endDay) \(STFormat.monthGenitive(startMonth))"
         }
         return "\(STFormat.dayWithMonth(range.start)) – \(STFormat.dayWithMonth(range.end))"
     }
 
     private static func monthLabel(_ range: STDateRange) -> String {
         let year: Int = calendar.component(.year, from: range.start)
-        return "\(monthNominative(calendar.component(.month, from: range.start))) \(year)"
+        return "\(STFormat.monthNominative(calendar.component(.month, from: range.start))) \(year)"
     }
 
     private static func yearLabel(_ range: STDateRange) -> String {
