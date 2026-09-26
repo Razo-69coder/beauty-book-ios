@@ -1238,6 +1238,8 @@ final class ServicesViewModel: ObservableObject {
             byName[service.name.lowercased()] = service.id
         }
 
+        let byNameSnapshot = byName
+
         var days: [String] = []
         for offset in 0..<30 {
             if let date: Date = calendar.date(byAdding: .day, value: -offset, to: Date()) {
@@ -1255,7 +1257,7 @@ final class ServicesViewModel: ObservableObject {
                         .schedule(date: key),
                         as: ScheduleResponse.self
                     ) else { return [:] }
-                    return svCountByService(response.appointments, byName: byName)
+                    return svCountByService(response.appointments, byName: byNameSnapshot)
                 }
             }
 

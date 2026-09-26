@@ -615,8 +615,8 @@ struct NewAppointmentView: View {
     @State private var appeared = false
     @State private var pricePulsed = false
     @State private var nameShake: CGFloat = 0
-    @State private var nameFieldFocused = false
-    @State private var phoneFieldFocused = false
+    @FocusState private var nameFieldFocused: Bool
+    @FocusState private var phoneFieldFocused: Bool
 
     private var timeColumns: [GridItem] {
         [GridItem(.adaptive(minimum: 68, maximum: 110), spacing: 8)]

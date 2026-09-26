@@ -961,7 +961,7 @@ struct ScheduleView: View {
         while let presentedViewController = presenter.presentedViewController {
             presenter = presentedViewController
         }
-        presenter.present(activityViewController, animated: true, completionHandler: nil)
+        presenter.present(activityViewController, animated: true, completion: nil)
     }
 }
 
@@ -1031,7 +1031,7 @@ struct EmptyDayCard: View {
         .transaction { transaction in
             if reduceMotion {
                 transaction.animation = nil
-                transaction.disallowsAnimations = true
+                transaction.disablesAnimations = true
             }
         }
         .onAppear {

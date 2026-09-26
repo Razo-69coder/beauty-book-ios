@@ -1794,12 +1794,12 @@ struct StatsView: View {
             VStack(spacing: DS.s16) {
                 header
                     .stReveal(0)
-                STSegment(period: vm.period, onPick: vm.setPeriod)
+                STSegment(period: vm.period, onPick: { vm.setPeriod($0) })
                 STPeriodNav(
                     title: vm.periodLabel,
                     canGoBack: vm.canGoBack,
                     canGoForward: vm.canGoForward,
-                    onShift: vm.shiftPeriod
+                    onShift: { vm.shiftPeriod(by: $0) }
                 )
                 STHeroCard(
                     earned: vm.earned,
@@ -1870,7 +1870,7 @@ struct StatsView: View {
     @ViewBuilder
     private var awayHint: some View {
         if vm.awayCount > 0 {
-            STAwayHint(count: vm.awayCount, action: vm.openAwayClients)
+            STAwayHint(count: vm.awayCount, action: { vm.openAwayClients() })
                 .stReveal(4)
         }
     }
