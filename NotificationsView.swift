@@ -143,252 +143,805 @@ struct HeaderBellButton: View {
     }
 }
 
+// MARK: - Фильтры
+
+/// Фильтры шторки уведомлений. Типы приходят с сервера: new_booking, client_reschedule, client_cancel, broadcast.
+enum NTFilter: String, CaseIterable {
+    case all
+    case bookings
+    case pending
+
+    var title: String {
+        switch self {
+        case .all: return "Все"
+        case .bookings: return "Записи"
+        case .pending: return "Ждут ответа"
+        }
+    }
+
+    /// Пустое состояние именно для этого фильтра.
+    var emptyKind: NTEmptyKind {
+        switch self {
+        case .all: return .silent
+        case .bookings: return .plain
+        case .pending: return .done
+        }
+    }
+
+    func matches(_ notif: AppNotification) -> Bool {
+        switch self {
+        case .all:
+            return true
+        case .bookings:
+            return notif.type == "new_booking"
+                || notif.type == "client_reschedule"
+                || notif.type == "client_cancel"
+        case .pending:
+            return NTFormat.isActionable(notif)
+        }
+    }
+}
+
+/// Виды пустых состояний шторки
+enum NTEmptyKind {
+    /// Уведомлений нет вообще
+    case silent
+    /// Под выбранный фильтр ничего не подошло
+    case plain
+    /// Все записи обработаны
+    case done
+}
+
+// MARK: - Форматирование дат и текстов
+
+enum NTFormat {
+    /// Разбор createdAt: ISO8601 (с дробной частью и без) и запасной "yyyy-MM-dd HH:mm:ss"
+    static func date(from raw: String) -> Date? {
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = iso.date(from: raw) { return date }
+        iso.formatOptions = [.withInternetDateTime]
+        if let date = iso.date(from: raw) { return date }
+        let fallback = DateFormatter()
+        fallback.locale = Locale(identifier: "en_US_POSIX")
+        fallback.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return fallback.date(from: raw)
+    }
+
+    /// Заголовок группы: «Сегодня», «Вчера», «24 сентября», «24 сентября 2025»
+    static func groupTitle(for date: Date, calendar: Calendar = .current) -> String {
+        if calendar.isDateInToday(date) { return "Сегодня" }
+        if calendar.isDateInYesterday(date) { return "Вчера" }
+        let sameYear = calendar.component(.year, from: date) == calendar.component(.year, from: Date())
+        return sameYear ? dayMonth.string(from: date) : dayMonthYear.string(from: date)
+    }
+
+    /// Время под текстом: «8 мин назад», «2 ч назад» для сегодня, иначе «18:00»
+    static func timeAgo(for date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
+        if calendar.isDate(date, inSameDayAs: now) {
+            let seconds = Int(now.timeIntervalSince(date))
+            if seconds < 60 { return "только что" }
+            if seconds < 3600 { return "\(seconds / 60) мин назад" }
+            return "\(seconds / 3600) ч назад"
+        }
+        return clock.string(from: date)
+    }
+
+    /// Дата записи из строки "yyyy-MM-dd" → «Пт, 26 сентября»
+    static func appointmentDay(_ raw: String?) -> String {
+        guard let raw, let date = appointmentDate(raw) else { return raw ?? "" }
+        return capitalizeFirst(weekdayDayMonth.string(from: date))
+    }
+
+    /// Разбор даты записи "yyyy-MM-dd"
+    static func appointmentDate(_ raw: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: raw)
+    }
+
+    /// Запись ждёт ответа мастера: онлайн-запись или перенос со статусом pending
+    static func isActionable(_ notif: AppNotification) -> Bool {
+        guard notif.type == "new_booking" || notif.type == "client_reschedule" else { return false }
+        return notif.appointment?.status == "pending"
+    }
+
+    /// Первая буква заглавная: «пт, 26 сентября» → «Пт, 26 сентября»
+    static func capitalizeFirst(_ value: String) -> String {
+        guard let first = value.first else { return value }
+        return String(first).uppercased() + String(value.dropFirst())
+    }
+
+    private static let weekdayDayMonth: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ru_RU")
+        f.dateFormat = "EEE, d MMMM"
+        return f
+    }()
+
+    private static let dayMonth: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ru_RU")
+        f.dateFormat = "d MMMM"
+        return f
+    }()
+
+    private static let dayMonthYear: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ru_RU")
+        f.dateFormat = "d MMMM yyyy"
+        return f
+    }()
+
+    private static let clock: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ru_RU")
+        f.dateFormat = "HH:mm"
+        return f
+    }()
+}
+
+// MARK: - Группа уведомлений
+
+/// Группа одного дня: заголовок + строки с порядковым номером для staggered-появления
+struct NTGroup: Identifiable {
+    let id: String
+    let title: String
+    let items: [NTItem]
+}
+
+/// Строка уведомления внутри группы
+struct NTItem: Identifiable {
+    let index: Int
+    let notif: AppNotification
+
+    var id: Int { notif.id }
+}
+
 // MARK: - Notifications Sheet
 
 struct NotificationsSheet: View {
     @ObservedObject var vm: NotificationsViewModel
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
-    @State private var confirmingAppt: AppNotification? = nil
-    @State private var processingId: Int? = nil
-    @State private var showPendingOnly = false
 
-    private var displayedNotifications: [AppNotification] {
-        guard showPendingOnly else { return vm.notifications }
-        return vm.notifications.filter {
-            ($0.type == "new_booking" || $0.type == "client_reschedule")
-            && $0.appointment?.status == "pending"
+    @State private var filter: NTFilter = .all
+    @State private var processingId: Int? = nil
+    @State private var errorId: Int? = nil
+    @State private var rejectTarget: AppNotification? = nil
+
+    // MARK: Тело
+
+    var body: some View {
+        ZStack {
+            theme.backgroundDeep.ignoresSafeArea()
+            VStack(spacing: 0) {
+                header
+                filtersRow
+                content
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .presentationCornerRadius(28)
+        // Больше не помечаем всё прочитанным при открытии: точки непрочитанных
+        // должны быть видны, пока мастер их не прочитает.
+        .onAppear {
+            Task { await vm.load() }
+        }
+        .confirmationDialog(
+            "Отклонить запись?",
+            isPresented: Binding(
+                get: { rejectTarget != nil },
+                set: { if !$0 { rejectTarget = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Отклонить", role: .destructive) {
+                guard let target = rejectTarget else { return }
+                rejectTarget = nil
+                reject(target)
+            }
+            Button("Отмена", role: .cancel) { rejectTarget = nil }
+        } message: {
+            if let appt = rejectTarget?.appointment {
+                Text("\(appt.clientName ?? "") · \(NTFormat.appointmentDay(appt.date)) в \(appt.time ?? "")")
+            }
         }
     }
 
-    var body: some View {
-        NavigationView {
-            ZStack {
-                theme.backgroundDeep.ignoresSafeArea()
+    // MARK: Шапка
 
-                if vm.isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
-                } else if vm.notifications.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "bell.slash")
-                            .font(.system(size: 48))
-                            .foregroundColor(theme.textMuted)
-                        Text("Нет уведомлений")
-                            .font(DS.body)
-                            .foregroundColor(theme.textMuted)
+    private var header: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text("Уведомления")
+                .font(DS.titleSmall.weight(.bold))
+                .foregroundColor(theme.textPrimary)
+            Spacer()
+            if vm.unreadCount > 0 {
+                Button {
+                    Task {
+                        await vm.markAllRead()
+                        HapticManager.success()
                     }
-                } else if displayedNotifications.isEmpty && showPendingOnly {
-                    VStack(spacing: 12) {
-                        Image(systemName: "checkmark.circle")
-                            .font(.system(size: 48))
-                            .foregroundColor(theme.textMuted)
-                        Text("Все записи обработаны")
-                            .font(DS.body)
-                            .foregroundColor(theme.textMuted)
+                } label: {
+                    Text("Прочитать все")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(theme.accent)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(CLPressStyle())
+            }
+            closeButton
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .padding(.bottom, 12)
+    }
+
+    private var closeButton: some View {
+        Button {
+            HapticManager.light()
+            dismiss()
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(theme.textSecondary)
+                .frame(width: 44, height: 44)
+                .background(theme.backgroundInput, in: Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(CLPressStyle())
+        .accessibilityLabel("Закрыть")
+    }
+
+    // MARK: Фильтры
+
+    private var filtersRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(NTFilter.allCases, id: \.self) { item in
+                    NTFilterChip(
+                        title: item.title,
+                        count: chipCount(for: item),
+                        isSelected: filter == item
+                    ) {
+                        selectFilter(item)
                     }
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 10) {
-                            ForEach(displayedNotifications) { notif in
-                                NotificationRow(
-                                    notif: notif, theme: theme,
-                                    isProcessing: processingId == notif.id,
-                                    onRead: { Task { await vm.markRead(notif.id) } },
-                                    onConfirm: { confirmingAppt = notif },
-                                    onCancel: {
-                                        Task {
-                                            guard let apptId = notif.appointmentId else { return }
-                                            processingId = notif.id
-                                            let ok = await vm.updateAppointmentStatus(apptId: apptId, status: .cancelled)
-                                            if ok { vm.updateLocalApptStatus(notifId: notif.id, status: "cancelled") }
-                                            processingId = nil
-                                        }
-                                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 14)
+        }
+    }
+
+    /// Счётчик показываем только у «Ждут ответа» и только когда он больше нуля
+    private func chipCount(for item: NTFilter) -> Int? {
+        guard item == .pending else { return nil }
+        let value = vm.notifications.filter { item.matches($0) }.count
+        return value > 0 ? value : nil
+    }
+
+    private func selectFilter(_ item: NTFilter) {
+        guard filter != item else { return }
+        HapticManager.selection()
+        withAnimation(DS.springSnappy) {
+            filter = item
+        }
+    }
+
+    // MARK: Содержимое
+
+    @ViewBuilder
+    private var content: some View {
+        if visibleNotifications.isEmpty {
+            emptyState
+        } else {
+            list
+        }
+    }
+
+    @ViewBuilder
+    private var emptyState: some View {
+        if vm.isLoading && vm.notifications.isEmpty {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            NTEmptyState(kind: filter.emptyKind)
+        }
+    }
+
+    private var list: some View {
+        ScrollView(showsIndicators: false) {
+            LazyVStack(alignment: .leading, spacing: 18) {
+                ForEach(groups) { group in
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(group.title.uppercased())
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(theme.textMuted)
+                        ForEach(group.items) { item in
+                            NTStaggeredRow(index: item.index) {
+                                NTRow(
+                                    notif: item.notif,
+                                    isProcessing: processingId == item.id,
+                                    errorText: errorId == item.id ? "Не получилось, попробуй ещё раз" : nil,
+                                    onTap: { tap(item.notif) },
+                                    onConfirm: { confirm(item.notif) },
+                                    onReject: { rejectTarget = item.notif }
                                 )
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .padding(.bottom, 32)
                     }
                 }
             }
-            .navigationTitle("Уведомления")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Закрыть") { dismiss() }
-                        .foregroundColor(theme.accent)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 12) {
-                        Button(action: { showPendingOnly.toggle() }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: showPendingOnly ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                                if showPendingOnly {
-                                    Text("Ждут решения")
-                                        .font(.system(size: 12, weight: .medium))
-                                }
-                            }
-                            .foregroundColor(showPendingOnly ? theme.accent : theme.textMuted)
-                        }
-                        if vm.unreadCount > 0 && !showPendingOnly {
-                            Button("Все прочитаны") {
-                                Task { await vm.markAllRead() }
-                            }
-                            .font(.system(size: 13))
-                            .foregroundColor(theme.accent)
-                        }
-                    }
-                }
+            .padding(.horizontal, 20)
+            .padding(.top, 2)
+            .padding(.bottom, 32)
+        }
+        .refreshable {
+            await vm.load()
+            await vm.refreshUnread()
+        }
+        .animation(DS.springSmooth, value: vm.unreadCount)
+    }
+
+    // MARK: Группировка по дням
+
+    private var visibleNotifications: [AppNotification] {
+        vm.notifications
+            .filter { filter.matches($0) }
+            .sorted { lhs, rhs in
+                let left = NTFormat.date(from: lhs.createdAt) ?? Date.distantPast
+                let right = NTFormat.date(from: rhs.createdAt) ?? Date.distantPast
+                return left > right
+            }
+    }
+
+    private var groups: [NTGroup] {
+        var titles: [String] = []
+        var buckets: [[NTItem]] = []
+        var counter = 0
+        for notif in visibleNotifications {
+            let date = NTFormat.date(from: notif.createdAt) ?? Date()
+            let title = NTFormat.groupTitle(for: date)
+            let item = NTItem(index: counter, notif: notif)
+            counter += 1
+            if let last = titles.indices.last, titles[last] == title {
+                buckets[last].append(item)
+            } else {
+                titles.append(title)
+                buckets.append([item])
             }
         }
-        .onAppear {
-            Task {
-                await vm.load()
-                await vm.markAllRead()
-            }
+        var result: [NTGroup] = []
+        for (position, bucket) in buckets.enumerated() {
+            let title = titles[position]
+            result.append(NTGroup(id: "\(position)-\(title)", title: title, items: bucket))
         }
-        .alert(confirmingAppt?.type == "client_reschedule" ? "Подтвердить перенос?" : "Подтвердить запись?",
-               isPresented: Binding(
-                get: { confirmingAppt != nil },
-                set: { if !$0 { confirmingAppt = nil } }
-               )) {
-            Button("Подтвердить") {
-                guard let notif = confirmingAppt, let apptId = notif.appointmentId else { return }
-                Task {
-                    processingId = notif.id
-                    let ok = await vm.updateAppointmentStatus(apptId: apptId, status: .confirmed)
-                    if ok { vm.updateLocalApptStatus(notifId: notif.id, status: "confirmed") }
-                    processingId = nil
-                    confirmingAppt = nil
-                }
+        return result
+    }
+
+    // MARK: Действия
+
+    /// Нажатие на саму карточку: отмечаем прочитанным, если ещё не прочитано
+    private func tap(_ notif: AppNotification) {
+        guard !notif.isRead else { return }
+        HapticManager.selection()
+        Task { await vm.markRead(notif.id) }
+    }
+
+    /// Подтверждение записи без alert: спиннер → запрос → плашка «✓ Подтверждено»
+    private func confirm(_ notif: AppNotification) {
+        guard let apptId = notif.appointmentId else { return }
+        processingId = notif.id
+        errorId = nil
+        Task {
+            let ok = await vm.updateAppointmentStatus(apptId: apptId, status: .confirmed)
+            if ok {
+                vm.updateLocalApptStatus(notifId: notif.id, status: "confirmed")
+                if !notif.isRead { await vm.markRead(notif.id) }
+                HapticManager.success()
+            } else {
+                errorId = notif.id
+                HapticManager.error()
             }
-            Button("Отмена", role: .cancel) { confirmingAppt = nil }
-        } message: {
-            if let a = confirmingAppt?.appointment {
-                Text("\(a.clientName ?? "") · \(a.date ?? "") в \(a.time ?? "")")
+            processingId = nil
+        }
+    }
+
+    /// Отклонение записи после подтверждения в диалоге
+    private func reject(_ notif: AppNotification) {
+        guard let apptId = notif.appointmentId else { return }
+        processingId = notif.id
+        errorId = nil
+        Task {
+            let ok = await vm.updateAppointmentStatus(apptId: apptId, status: .cancelled)
+            if ok {
+                vm.updateLocalApptStatus(notifId: notif.id, status: "cancelled")
+                if !notif.isRead { await vm.markRead(notif.id) }
+            } else {
+                errorId = notif.id
+                HapticManager.error()
             }
+            processingId = nil
         }
     }
 }
 
-// MARK: - Notification Row
+// MARK: - Строка уведомления
 
-struct NotificationRow: View {
+struct NTRow: View {
     let notif: AppNotification
-    let theme: AppTheme
     let isProcessing: Bool
-    let onRead: () -> Void
+    let errorText: String?
+    let onTap: () -> Void
     let onConfirm: () -> Void
-    let onCancel: () -> Void
+    let onReject: () -> Void
 
-    private var iconAndColor: (String, Color) {
-        switch notif.type {
-        case "new_booking":     return ("calendar.badge.plus", Color(hex: "#FF69B4"))
-        case "client_cancel":   return ("xmark.circle.fill", .red)
-        case "client_reschedule": return ("arrow.triangle.2.circlepath", Color(hex: "#9370DB"))
-        case "broadcast":       return ("sparkles", Color(hex: "#9370DB"))
-        default:                return ("bell.fill", Color(hex: "#FF69B4"))
-        }
-    }
+    @Environment(\.theme) private var theme
 
-    private var timeAgo: String {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = f.date(from: notif.createdAt) ?? {
-            let f2 = DateFormatter(); f2.dateFormat = "yyyy-MM-dd HH:mm:ss"
-            return f2.date(from: notif.createdAt)
-        }() else { return "" }
-        let diff = Int(Date().timeIntervalSince(date))
-        if diff < 60 { return "только что" }
-        if diff < 3600 { return "\(diff/60) мин назад" }
-        if diff < 86400 { return "\(diff/3600) ч назад" }
-        return "\(diff/86400) дн назад"
-    }
+    /// Запись из уведомления, если сервер её прислал
+    private var appt: AppNotificationAppt? { notif.appointment }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(iconAndColor.1.opacity(0.15))
-                        .frame(width: 40, height: 40)
-                    Image(systemName: iconAndColor.0)
-                        .font(.system(size: 16))
-                        .foregroundColor(iconAndColor.1)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(notif.title)
-                            .font(DS.label)
-                            .foregroundColor(theme.textPrimary)
-                        Spacer()
-                        Text(timeAgo)
-                            .font(.system(size: 11))
-                            .foregroundColor(theme.textMuted)
-                        if !notif.isRead {
-                            Circle().fill(Color.red).frame(width: 8, height: 8)
-                        }
-                    }
-                    Text(notif.body)
-                        .font(DS.bodySmall)
-                        .foregroundColor(theme.textMuted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            Button(action: onTap) {
+                headerContent
             }
-
-            if let appt = notif.appointment,
-               notif.type == "new_booking" || notif.type == "client_reschedule" {
-                if appt.status == "pending" {
-                    HStack(spacing: 8) {
-                        Button(action: onCancel) {
-                            Group {
-                                if isProcessing {
-                                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .red)).scaleEffect(0.8)
-                                } else {
-                                    Text("Отменить").font(DS.labelSmall).foregroundColor(.red)
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 34)
-                            .background(Color.red.opacity(0.1))
-                            .cornerRadius(DS.r8)
-                        }
-                        .disabled(isProcessing)
-                        Button(action: onConfirm) {
-                            Text("Подтвердить")
-                                .font(DS.labelSmall)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 34)
-                                .background(theme.gradientPrimary)
-                                .cornerRadius(DS.r8)
-                        }
-                        .disabled(isProcessing)
-                    }
-                } else if appt.status == "confirmed" {
-                    Label("Подтверждено", systemImage: "checkmark.circle.fill")
-                        .font(DS.labelSmall)
-                        .foregroundColor(.green)
-                } else if appt.status == "cancelled" {
-                    Label("Отменено", systemImage: "xmark.circle.fill")
-                        .font(DS.labelSmall)
-                        .foregroundColor(.red)
-                }
+            .buttonStyle(CLPressStyle())
+            if let appt, notif.type == "new_booking" || notif.type == "client_reschedule" {
+                actionArea(for: appt)
+            }
+            if let errorText {
+                Text(errorText)
+                    .font(.system(size: 12))
+                    .foregroundColor(theme.statusRed)
             }
         }
         .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(notif.isRead ? theme.backgroundCard : theme.backgroundCard.opacity(1.0))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(notif.isRead ? theme.borderSubtle : theme.accent.opacity(0.3), lineWidth: 1)
-                )
+            RoundedRectangle(cornerRadius: 18)
+                .fill(notif.isRead ? theme.backgroundCard : theme.accent.opacity(0.07))
         )
-        .onTapGesture { if !notif.isRead { onRead() } }
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(notif.isRead ? theme.borderSubtle : theme.accent.opacity(0.25), lineWidth: 1)
+        )
+        .animation(DS.springSnappy, value: appt?.status)
+    }
+
+    // MARK: Шапка строки
+
+    private var headerContent: some View {
+        HStack(alignment: .top, spacing: 12) {
+            iconBubble
+            VStack(alignment: .leading, spacing: 4) {
+                if let appt {
+                    Text(appt.clientName ?? notif.title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(theme.textPrimary)
+                    Text(actionSentence(for: appt))
+                        .font(.system(size: 14))
+                        .foregroundColor(theme.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text(notif.title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(theme.textPrimary)
+                    Text(notif.body)
+                        .font(.system(size: 14))
+                        .foregroundColor(theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text(timeText)
+                    .font(.system(size: 12))
+                    .foregroundColor(theme.textMuted)
+                    .padding(.top, 2)
+            }
+            Spacer(minLength: 0)
+            if !notif.isRead {
+                Circle()
+                    .fill(theme.accent)
+                    .frame(width: 8, height: 8)
+                    .padding(.top, 4)
+            }
+        }
+        .contentShape(Rectangle())
+    }
+
+    private var iconBubble: some View {
+        ZStack {
+            Circle()
+                .fill(iconColor.opacity(0.15))
+                .frame(width: 40, height: 40)
+            Image(systemName: iconName)
+                .font(.system(size: 16))
+                .foregroundColor(iconColor)
+        }
+    }
+
+    private var iconName: String {
+        switch notif.type {
+        case "new_booking": return "calendar.badge.plus"
+        case "client_reschedule": return "arrow.triangle.2.circlepath"
+        case "client_cancel": return "xmark"
+        case "broadcast": return "sparkles"
+        default: return "bell.fill"
+        }
+    }
+
+    private var iconColor: Color {
+        switch notif.type {
+        case "new_booking": return theme.statusYellow
+        case "client_cancel": return theme.statusRed
+        case "client_reschedule": return theme.accent
+        case "broadcast": return theme.accent
+        default: return theme.accent
+        }
+    }
+
+    // MARK: Тексты
+
+    /// Фраза по типу уведомления: записалась / перенесла / отменила
+    private func actionSentence(for appt: AppNotificationAppt) -> String {
+        let day = NTFormat.appointmentDay(appt.date)
+        let time = appt.time ?? ""
+        let when = time.isEmpty ? day : "\(day), \(time)"
+        let procedure = (appt.procedure ?? "").trimmingCharacters(in: .whitespaces)
+        let tail = procedure.isEmpty ? "" : " \(procedure)."
+        switch notif.type {
+        case "new_booking":
+            return "записалась онлайн на \(when).\(tail)"
+        case "client_reschedule":
+            return "перенесла запись на \(when).\(tail)"
+        case "client_cancel":
+            return "отменила запись на \(when). Окно снова свободно для онлайн-записи."
+        default:
+            return notif.body
+        }
+    }
+
+    private var timeText: String {
+        guard let date = NTFormat.date(from: notif.createdAt) else { return "" }
+        return NTFormat.timeAgo(for: date)
+    }
+
+    // MARK: Действия с записью
+
+    @ViewBuilder
+    private func actionArea(for appt: AppNotificationAppt) -> some View {
+        if appt.status == "pending" {
+            actionButtons
+        } else if appt.status == "confirmed" {
+            NTStatusBadge(title: "Подтверждено", icon: "checkmark", color: theme.statusGreen)
+        } else if appt.status == "cancelled" {
+            NTStatusBadge(title: "Отклонено", icon: nil, color: theme.textMuted)
+        }
+    }
+
+    private var actionButtons: some View {
+        HStack(spacing: 8) {
+            confirmButton
+            rejectButton
+        }
+    }
+
+    private var confirmButton: some View {
+        Button(action: onConfirm) {
+            ZStack {
+                if isProcessing {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.9)
+                } else {
+                    Text("Подтвердить")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 40)
+            .background(theme.gradientPrimary, in: RoundedRectangle(cornerRadius: 12))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(CLPressStyle(scale: 0.97))
+        .disabled(isProcessing)
+    }
+
+    private var rejectButton: some View {
+        Button(action: onReject) {
+            Text("Отклонить")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(theme.statusRed)
+                .frame(maxWidth: .infinity)
+                .frame(height: 40)
+                .background(theme.statusRed.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(CLPressStyle(scale: 0.97))
+        .disabled(isProcessing)
+    }
+}
+
+// MARK: - Плашка статуса записи
+
+struct NTStatusBadge: View {
+    let title: String
+    let icon: String?
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if let icon {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .bold))
+            }
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+        }
+        .foregroundColor(color)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(color.opacity(0.15), in: Capsule())
+        .transition(.scale(scale: 0.9).combined(with: .opacity))
+    }
+}
+
+// MARK: - Чип-фильтр
+
+struct NTFilterChip: View {
+    let title: String
+    let count: Int?
+    let isSelected: Bool
+    let action: () -> Void
+
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(.system(size: 13.5, weight: .semibold))
+                    .lineLimit(1)
+                if let count {
+                    Text("\(count)")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(isSelected ? .white : theme.textSecondary)
+                        .frame(minWidth: 20)
+                        .frame(height: 20)
+                        .background(
+                            Circle().fill(isSelected ? Color.white.opacity(0.25) : theme.backgroundInput)
+                        )
+                }
+            }
+            .foregroundColor(isSelected ? .white : theme.textSecondary)
+            .padding(.horizontal, 14)
+            .frame(height: 36)
+            .background(
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(isSelected ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(theme.backgroundCard))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(isSelected ? Color.clear : theme.borderSubtle, lineWidth: 1)
+            )
+            // +8 по вертикали: визуально чип 36 pt, а палец попадает в 44 pt
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(CLPressStyle(scale: 0.94))
+    }
+}
+
+// MARK: - Пустое состояние
+
+struct NTEmptyState: View {
+    let kind: NTEmptyKind
+
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(spacing: 12) {
+            iconBubble
+            Text(title)
+                .font(DS.titleSmall.weight(.semibold))
+                .foregroundColor(theme.textPrimary)
+            Text(subtitle)
+                .font(DS.body)
+                .foregroundColor(theme.textSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var iconBubble: some View {
+        ZStack {
+            Circle()
+                .fill(iconColor.opacity(0.14))
+                .frame(width: 64, height: 64)
+            Image(systemName: iconName)
+                .font(.system(size: 26))
+                .foregroundColor(iconColor)
+        }
+    }
+
+    private var iconName: String {
+        switch kind {
+        case .silent: return "bell"
+        case .plain: return "line.3.horizontal.decrease"
+        case .done: return "checkmark.circle"
+        }
+    }
+
+    private var iconColor: Color {
+        switch kind {
+        case .silent: return theme.accent
+        case .plain: return theme.textMuted
+        case .done: return theme.statusGreen
+        }
+    }
+
+    private var title: String {
+        switch kind {
+        case .silent: return "Пока тихо"
+        case .plain: return "Здесь пока пусто"
+        case .done: return "Все записи обработаны"
+        }
+    }
+
+    private var subtitle: String {
+        switch kind {
+        case .silent: return "Здесь появятся онлайн-записи, переносы и отмены."
+        case .plain: return "Попробуй другой фильтр."
+        case .done: return "Новые записи появятся здесь."
+        }
+    }
+}
+
+// MARK: - Появление строк по очереди
+
+struct NTStaggeredRow<Content: View>: View {
+    let index: Int
+    private let content: () -> Content
+
+    init(index: Int, @ViewBuilder content: @escaping () -> Content) {
+        self.index = index
+        self.content = content
+    }
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var appeared = false
+
+    var body: some View {
+        content()
+            .opacity(appeared ? 1 : 0)
+            .offset(y: verticalOffset)
+            .animation(animation, value: appeared)
+            .onAppear {
+                guard !appeared else { return }
+                guard !reduceMotion else {
+                    appeared = true
+                    return
+                }
+                let delay = min(Double(index) * 0.04, 0.3)
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    appeared = true
+                }
+            }
+    }
+
+    private var verticalOffset: CGFloat {
+        if appeared || reduceMotion { return 0 }
+        return 10
+    }
+
+    private var animation: Animation {
+        if reduceMotion { return .easeOut(duration: 0.2) }
+        return DS.springSmooth.delay(min(Double(index) * 0.04, 0.3))
     }
 }
