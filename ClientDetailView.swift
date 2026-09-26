@@ -1122,7 +1122,8 @@ struct ClientDetailView: View {
 
     private func loadBookingLink() async {
         guard let resp: BookingLinkResponse = try? await APIClient.shared.request(.getBookingLink, as: BookingLinkResponse.self) else { return }
-        bookingLink = resp.bookingLink
+        let slug = resp.bookingLink.trimmingCharacters(in: .whitespacesAndNewlines)
+        bookingLink = slug.isEmpty ? "" : "https://beauty-bot-44ou.onrender.com/book/\(slug)"
     }
 
     private func deleteClient() async {
