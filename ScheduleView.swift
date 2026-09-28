@@ -8,6 +8,9 @@ fileprivate struct ScheduleFreeWindow: Identifiable {
     var id: Int { startMinute }
 }
 
+// Личная заметка занимает в сетке ровно 30 минут
+private let snNoteDurationMinutes = 30
+
 private func minutes(from time: String) -> Int? {
     let parts = time.split(separator: ":")
     guard let hour = Int(parts.first ?? ""),
@@ -361,14 +364,25 @@ final class ScheduleViewModel: ObservableObject {
     }
 
     private func mergedBusyIntervals(from start: Int, to end: Int) -> [(start: Int, end: Int)] {
-        let intervals: [(start: Int, end: Int)] = appointments.compactMap { appointment in
+        let appointmentIntervals: [(start: Int, end: Int)] = appointments.compactMap { appointment in
             guard let appointmentStart = minutes(from: appointment.time) else { return nil }
             let intervalStart = max(start, appointmentStart)
             let intervalEnd = min(end, appointmentStart + max(appointment.duration ?? 60, 0))
             guard intervalEnd > intervalStart else { return nil }
             return (intervalStart, intervalEnd)
         }
-        .sorted { $0.start < $1.start }
+
+        // Заметки тоже заняты: 30 минут от времени заметки
+        let noteIntervals: [(start: Int, end: Int)] = notes.compactMap { note in
+            guard let noteStart = minutes(from: note.time) else { return nil }
+            let intervalStart = max(start, noteStart)
+            let intervalEnd = min(end, noteStart + snNoteDurationMinutes)
+            guard intervalEnd > intervalStart else { return nil }
+            return (intervalStart, intervalEnd)
+        }
+
+        let intervals = (appointmentIntervals + noteIntervals)
+            .sorted { $0.start < $1.start }
 
         var merged: [(start: Int, end: Int)] = []
         for interval in intervals {
@@ -392,9 +406,20 @@ struct ScheduleView: View {
     @State private var pickerMonth = Date()
     @State private var showFabMenu = false
     @State private var isFabPressed = false
+    // Тап по половине часа: хранит выбранное время для диалога
+    @State private var snTappedTime: String?
+    // Заметка, ожидающая подтверждения удаления
+    @State private var snNotePendingDeletion: PersonalNote?
+    // Время, с которым открывается NewNoteView
+    @State private var snNoteTime: String?
 
     private let timelineHourHeight: CGFloat = 64
     private let timelineGutter: CGFloat = 58
+
+    // Высота блока заметки — половина часа, но не меньше 30pt
+    private var snNoteHeight: CGFloat {
+        max(timelineHourHeight / 2, 30)
+    }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -463,6 +488,37 @@ struct ScheduleView: View {
                 Task { await vm.loadSelectedDayData() }
             })
             .environment(\.theme, theme)
+        }
+        .confirmationDialog(
+            snTappedTime ?? "Выберите время",
+            isPresented: Binding(
+                get: { snTappedTime != nil },
+                set: { isPresented in
+                    if !isPresented { snTappedTime = nil }
+                }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Записать клиента") { snStartAppointment() }
+            Button("Личное дело") { snStartNote() }
+            Button("Отмена", role: .cancel) { snTappedTime = nil }
+        } message: {
+            Text("Что запланировать на это время?")
+        }
+        .confirmationDialog(
+            snNoteDeleteTitle,
+            isPresented: Binding(
+                get: { snNotePendingDeletion != nil },
+                set: { isPresented in
+                    if !isPresented { snNotePendingDeletion = nil }
+                }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Удалить заметку", role: .destructive) { snDeletePendingNote() }
+            Button("Отмена", role: .cancel) { snNotePendingDeletion = nil }
+        } message: {
+            Text("Заметка исчезнет из расписания.")
         }
         .task {
             await vm.loadInitialData()
@@ -700,19 +756,15 @@ struct ScheduleView: View {
             .padding(.top, 12)
             Spacer(minLength: 0)
         } else {
-            if vm.appointments.isEmpty && vm.notes.isEmpty {
-                EmptyDayCard(
-                    theme: theme,
-                    isDayOff: false,
-                    bookingLink: vm.bookingLink,
-                    onShare: shareBookingLink,
-                    onCreate: openManualAppointment
-                )
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-            }
+            // Обычный день: сразу сетка, без карточки «День свободен»
             timelineView
         }
+    }
+
+    // Заголовок диалога удаления — текст заметки
+    private var snNoteDeleteTitle: String {
+        let text = snNotePendingDeletion?.text.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return text.isEmpty ? "Удалить заметку?" : text
     }
 
     private var timelineView: some View {
@@ -732,6 +784,7 @@ struct ScheduleView: View {
                                     y: vm.positionForTime(dateStringForClock(context.date))
                                 )
                                 .id("schedule-now-line")
+                                .allowsHitTesting(false)
                             currentTimeLayer(at: context.date)
                         }
                     }
@@ -766,14 +819,28 @@ struct ScheduleView: View {
                         .frame(height: 1)
                 }
                 .frame(height: timelineHourHeight, alignment: .topLeading)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    HapticManager.selection()
-                    vm.selectSlot(hour: hour)
+                // Строка часа делится на две зоны нажатия: верхняя HH:00, нижняя HH:30
+                .overlay(alignment: .topLeading) {
+                    VStack(spacing: 0) {
+                        snSlotTapZone(time: String(format: "%02d:00", hour))
+                        snSlotTapZone(time: String(format: "%02d:30", hour))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
             }
         }
         .padding(.leading, 4)
+    }
+
+    // Зона нажатия половины часа — визуально пустая, только для тапа
+    private func snSlotTapZone(time: String) -> some View {
+        Color.clear
+            .frame(height: timelineHourHeight / 2)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                HapticManager.selection()
+                snTappedTime = time
+            }
     }
 
     private func appointmentsLayer(at date: Date) -> some View {
@@ -832,18 +899,57 @@ struct ScheduleView: View {
 
     private var notesLayer: some View {
         GeometryReader { geometry in
-            let hourWidth: CGFloat = geometry.size.width - 52
+            let hourWidth: CGFloat = max(geometry.size.width, 0)
 
             ForEach(vm.notes) { note in
-                NoteBlock(note: note, hourWidth: hourWidth)
-                    .offset(y: vm.positionForTime(note.time))
-                    .frame(height: 36)
-                    .onLongPressGesture {
-                        HapticManager.medium()
-                        Task { await vm.deleteNote(note) }
-                    }
+                SNNoteBlock(
+                    note: note,
+                    theme: theme,
+                    hourWidth: hourWidth,
+                    height: snNoteHeight
+                ) {
+                    snRequestNoteDeletion(note)
+                }
+                .offset(y: vm.positionForTime(note.time))
+                .transition(reduceMotion
+                    ? .opacity
+                    : .opacity.combined(with: .offset(y: 8)))
+                .animation(
+                    reduceMotion ? .none : DS.springSmooth,
+                    value: vm.notes.map(\.id)
+                )
+                .zIndex(3)
             }
         }
+        .padding(.leading, timelineGutter)
+    }
+
+    // Тап или долгое нажатие на заметку — только диалог подтверждения
+    private func snRequestNoteDeletion(_ note: PersonalNote) {
+        HapticManager.medium()
+        snNotePendingDeletion = note
+    }
+
+    private func snDeletePendingNote() {
+        guard let note = snNotePendingDeletion else { return }
+        snNotePendingDeletion = nil
+        HapticManager.success()
+        Task { await vm.deleteNote(note) }
+    }
+
+    // Тап по половине часа: «Записать клиента» или «Личное дело»
+    private func snStartAppointment() {
+        guard let time = snTappedTime else { return }
+        snTappedTime = nil
+        vm.preselectedTime = time
+        vm.showNewAppointment = true
+    }
+
+    private func snStartNote() {
+        guard let time = snTappedTime else { return }
+        snTappedTime = nil
+        snNoteTime = time
+        vm.showNewNote = true
     }
 
     private func currentTimeLayer(at date: Date) -> some View {
@@ -874,6 +980,7 @@ struct ScheduleView: View {
         .frame(height: timelineHourHeight)
         .offset(y: vm.positionForTime(dateStringForClock(date)))
         .zIndex(4)
+        .allowsHitTesting(false)
     }
 
     private func dateStringForClock(_ date: Date) -> String {
@@ -927,12 +1034,13 @@ struct ScheduleView: View {
             }
             Button("Личная заметка") {
                 vm.preselectedTime = nil
+                snNoteTime = nil
                 vm.showNewNote = true
             }
             Button("Отмена", role: .cancel) {}
         }
         .sheet(isPresented: $vm.showNewNote) {
-            NewNoteView(selectedDate: vm.selectedDate, theme: theme) {
+            NewNoteView(preselectedTime: snNoteTime, selectedDate: vm.selectedDate, theme: theme) {
                 Task { await vm.loadSchedule() }
             }
         }
@@ -1052,44 +1160,57 @@ fileprivate struct FreeTimeBlock: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHighlighted = false
 
+    private var snFreeLabel: String {
+        let start = timeString(fromMinutes: window.startMinute)
+        let end = timeString(fromMinutes: window.endMinute)
+        return "Свободно \(start)–\(end)"
+    }
+
     var body: some View {
-        Button {
-            isHighlighted = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                isHighlighted = false
-            }
-            action()
-        } label: {
+        ZStack(alignment: .topLeading) {
+            // Пунктирная область окна не перехватывает тапы — они уходят в зоны часов
+            RoundedRectangle(cornerRadius: 16)
+                .fill(isHighlighted ? theme.accent.opacity(0.1) : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(
+                            theme.borderSubtle,
+                            style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
+                        )
+                )
+                .allowsHitTesting(false)
+
             HStack(spacing: 8) {
-                Text("Свободно \(timeString(fromMinutes: window.startMinute))–\(timeString(fromMinutes: window.endMinute))")
+                Text(snFreeLabel)
                     .font(.system(size: 13))
                     .foregroundColor(theme.textSecondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
+                    .allowsHitTesting(false)
 
                 Spacer(minLength: 4)
+                    .allowsHitTesting(false)
 
-                Text("+ Записать")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(theme.accent)
-                    .lineLimit(1)
+                Button {
+                    isHighlighted = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                        isHighlighted = false
+                    }
+                    action()
+                } label: {
+                    Text("+ Записать")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(theme.accent)
+                        .lineLimit(1)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 10)
-            .frame(width: hourWidth, height: height, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isHighlighted ? theme.accent.opacity(0.1) : Color.clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(
-                        theme.borderSubtle,
-                        style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
-                    )
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 16))
+            .frame(width: hourWidth, height: 44, alignment: .leading)
         }
-        .buttonStyle(.plain)
+        .frame(width: hourWidth, height: height, alignment: .topLeading)
         .animation(reduceMotion ? .none : DS.springMicro, value: isHighlighted)
     }
 }
@@ -1714,42 +1835,75 @@ struct MonthPickerView: View {
     }
 }
 
-struct NoteBlock: View {
+struct SNNoteBlock: View {
     let note: PersonalNote
+    let theme: AppTheme
     let hourWidth: CGFloat
+    let height: CGFloat
+    let onOpen: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isPressed = false
+
+    // Бирюзовый = личное, отличается от записей (у записей — акцент темы)
+    private var snNoteTint: Color { Color(hex: "#4ECDC4") }
 
     var body: some View {
-        HStack(spacing: 6) {
+        ZStack(alignment: .leading) {
             RoundedRectangle(cornerRadius: 2)
-                .fill(Color(hex: "#4ECDC4"))
+                .fill(snNoteTint)
                 .frame(width: 3)
-                .padding(.vertical, 4)
+                .padding(.vertical, 6)
 
-            Image(systemName: "pencil.line")
-                .font(.system(size: 10))
-                .foregroundColor(Color(hex: "#4ECDC4"))
+            HStack(spacing: 7) {
+                Image(systemName: "pencil.line")
+                    .font(.system(size: 12))
+                    .foregroundColor(snNoteTint)
 
-            Text(note.text)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.white.opacity(0.9))
-                .lineLimit(1)
+                Text(note.text)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(theme.textPrimary)
+                    .lineLimit(1)
 
-            Spacer()
+                Spacer(minLength: 6)
 
-            Text(note.time)
-                .font(.system(size: 10, weight: .medium, design: .monospaced))
-                .foregroundColor(.white.opacity(0.5))
-                .padding(.trailing, 6)
+                Text(note.time)
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundColor(theme.textMuted)
+            }
+            .padding(.leading, 12)
+            .padding(.trailing, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(width: hourWidth)
+        .frame(width: hourWidth, height: height)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(hex: "#1A3A38"))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(hex: "#4ECDC4").opacity(0.4), lineWidth: 1)
-                )
+            RoundedRectangle(cornerRadius: 14)
+                .fill(theme.backgroundCard)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(snNoteTint.opacity(0.45), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .onTapGesture(perform: onOpen)
+        .onLongPressGesture(minimumDuration: 0.45, perform: onOpen)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    withAnimation(reduceMotion ? nil : DS.springSnappy) {
+                        isPressed = true
+                    }
+                }
+                .onEnded { _ in
+                    withAnimation(reduceMotion ? nil : DS.springSnappy) {
+                        isPressed = false
+                    }
+                }
+        )
+        .scaleEffect(isPressed ? 0.985 : 1)
+        .animation(reduceMotion ? .none : DS.springSnappy, value: isPressed)
+        .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -1757,6 +1911,7 @@ struct NewNoteView: View {
     let selectedDate: Date
     let theme: AppTheme
     let onSaved: () -> Void
+    let preselectedTime: String?
 
     @Environment(\.dismiss) private var dismiss
     @State private var noteText = ""
@@ -1766,6 +1921,39 @@ struct NewNoteView: View {
 
     private let hours = Array(8...22)
     private let minutes = [0, 15, 30, 45]
+
+    init(
+        preselectedTime: String? = nil,
+        selectedDate: Date,
+        theme: AppTheme,
+        onSaved: @escaping () -> Void
+    ) {
+        self.preselectedTime = preselectedTime
+        self.selectedDate = selectedDate
+        self.theme = theme
+        self.onSaved = onSaved
+        let resolved = NewNoteView.snResolvedTime(preselectedTime)
+        _selectedHour = State(initialValue: resolved.hour)
+        _selectedMinute = State(initialValue: resolved.minute)
+    }
+
+    // Разбор "HH:mm": час должен быть 8...22, минуты округляются вниз до 0/15/30/45
+    private static func snResolvedTime(_ time: String?) -> (hour: Int, minute: Int) {
+        guard let time = time, !time.isEmpty else { return (9, 0) }
+        let parts = time.split(separator: ":")
+        guard let hour = Int(parts.first ?? ""),
+              let minute = parts.count > 1 ? Int(parts[1]) : 0,
+              (8...22).contains(hour) else { return (9, 0) }
+
+        let roundedMinute: Int
+        switch minute {
+        case ..<15: roundedMinute = 0
+        case ..<30: roundedMinute = 15
+        case ..<45: roundedMinute = 30
+        default: roundedMinute = 45
+        }
+        return (hour, roundedMinute)
+    }
 
     private var timeString: String {
         String(format: "%02d:%02d", selectedHour, selectedMinute)
