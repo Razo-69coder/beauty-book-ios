@@ -431,6 +431,7 @@ struct ScheduleView: View {
                 summaryCard
                 dayContent
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
             fabButton
                 .padding(.trailing, 20)
@@ -745,16 +746,21 @@ struct ScheduleView: View {
     @ViewBuilder
     private var loadedDayContent: some View {
         if vm.isBlocked(vm.selectedDate) {
-            EmptyDayCard(
-                theme: theme,
-                isDayOff: true,
-                bookingLink: vm.bookingLink,
-                onShare: shareBookingLink,
-                onCreate: openManualAppointment
-            )
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            Spacer(minLength: 0)
+            // Выходной: карточка сверху, остальное место — распорка
+            VStack(spacing: 0) {
+                EmptyDayCard(
+                    theme: theme,
+                    isDayOff: true,
+                    bookingLink: vm.bookingLink,
+                    onShare: shareBookingLink,
+                    onCreate: openManualAppointment
+                )
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         } else {
             // Обычный день: сразу сетка, без карточки «День свободен»
             timelineView
