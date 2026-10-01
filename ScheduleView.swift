@@ -1229,9 +1229,6 @@ struct AppointmentBlock: View {
     let isPast: Bool
     let onOpen: () -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isPressed = false
-
     private var isMuted: Bool {
         isPast || appointment.status == .completed || appointment.status == .cancelled
     }
@@ -1262,87 +1259,73 @@ struct AppointmentBlock: View {
     }
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(stripeColor)
-                .frame(width: 4)
-                .padding(.vertical, 9)
+        Button(action: onOpen) {
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(stripeColor)
+                    .frame(width: 4)
+                    .padding(.vertical, 9)
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .center, spacing: 8) {
-                    HStack(spacing: 5) {
-                        if isMuted && appointment.status != .noShow {
-                            Text("✓")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundColor(theme.textSecondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .center, spacing: 8) {
+                        HStack(spacing: 5) {
+                            if isMuted && appointment.status != .noShow {
+                                Text("✓")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(theme.textSecondary)
+                            }
+
+                            Text(appointment.clientName ?? "Клиент")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(theme.textPrimary)
+                                .lineLimit(1)
+
+                            if appointment.status == .noShow {
+                                statusBadge(text: "не пришла", color: theme.statusRed)
+                            } else if appointment.status == .pending {
+                                statusBadge(text: "ждёт подтверждения", color: theme.statusYellow)
+                            }
                         }
+                        .layoutPriority(1)
 
-                        Text(appointment.clientName ?? "Клиент")
-                            .font(.system(size: 15, weight: .semibold))
+                        Spacer(minLength: 4)
+
+                        Text(formattedRubles(appointment.price))
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(theme.textPrimary)
                             .lineLimit(1)
-
-                        if appointment.status == .noShow {
-                            statusBadge(text: "не пришла", color: theme.statusRed)
-                        } else if appointment.status == .pending {
-                            statusBadge(text: "ждёт подтверждения", color: theme.statusYellow)
-                        }
                     }
-                    .layoutPriority(1)
 
-                    Spacer(minLength: 4)
+                    HStack(spacing: 0) {
+                        Text("\(appointment.time)–\(appointmentEndTime(appointment))")
+                            .font(.system(size: 12.5, weight: .medium))
+                            .foregroundColor(theme.textPrimary)
+                        Text(" · ")
+                            .font(.system(size: 12.5, weight: .medium))
+                            .foregroundColor(theme.textSecondary)
+                        Text(appointment.procedure)
+                            .font(.system(size: 12.5))
+                            .foregroundColor(theme.textSecondary)
+                            .lineLimit(1)
+                    }
 
-                    Text(formattedRubles(appointment.price))
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(theme.textPrimary)
-                        .lineLimit(1)
                 }
-
-                HStack(spacing: 0) {
-                    Text("\(appointment.time)–\(appointmentEndTime(appointment))")
-                        .font(.system(size: 12.5, weight: .medium))
-                        .foregroundColor(theme.textPrimary)
-                    Text(" · ")
-                        .font(.system(size: 12.5, weight: .medium))
-                        .foregroundColor(theme.textSecondary)
-                    Text(appointment.procedure)
-                        .font(.system(size: 12.5))
-                        .foregroundColor(theme.textSecondary)
-                        .lineLimit(1)
-                }
-
+                .padding(.leading, 14)
+                .padding(.trailing, 12)
+                .padding(.vertical, 9)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            .padding(.leading, 14)
-            .padding(.trailing, 12)
-            .padding(.vertical, 9)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .frame(width: hourWidth, height: height)
+            .background(RoundedRectangle(cornerRadius: 16).fill(backgroundColor))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(borderColor, style: borderStyle)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .contentShape(RoundedRectangle(cornerRadius: 16))
         }
-        .frame(width: hourWidth, height: height)
-        .background(RoundedRectangle(cornerRadius: 16).fill(backgroundColor))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(borderColor, style: borderStyle)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .contentShape(RoundedRectangle(cornerRadius: 16))
-        .onTapGesture(perform: onOpen)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    withAnimation(reduceMotion ? nil : DS.springSnappy) {
-                        isPressed = true
-                    }
-                }
-                .onEnded { _ in
-                    withAnimation(reduceMotion ? nil : DS.springSnappy) {
-                        isPressed = false
-                    }
-                }
-        )
-        .scaleEffect(isPressed ? 0.985 : 1)
+        .buttonStyle(CLPressStyle(scale: 0.98))
         .opacity(isMuted ? 0.62 : 1)
-        .animation(reduceMotion ? .none : DS.springSnappy, value: isPressed)
-        .accessibilityAddTraits(.isButton)
     }
 
     private func statusBadge(text: String, color: Color) -> some View {
@@ -1645,7 +1628,6 @@ struct DateCapsule: View {
     let action: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isPressed = false
 
     private var dayName: String {
         let formatter = DateFormatter()
@@ -1670,49 +1652,35 @@ struct DateCapsule: View {
     }
 
     var body: some View {
-        VStack(spacing: 3) {
-            Text(dayName)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(isSelected ? .white : theme.textMuted)
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Text(dayName)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(isSelected ? .white : theme.textMuted)
 
-            Text(dayNumber)
-                .font(.system(size: 19, weight: .semibold, design: .rounded))
-                .foregroundColor(numberColor)
+                Text(dayNumber)
+                    .font(.system(size: 19, weight: .semibold, design: .rounded))
+                    .foregroundColor(numberColor)
 
-            HStack(spacing: 3) {
-                ForEach(0..<pointCount, id: \.self) { _ in
-                    Circle()
-                        .fill(isSelected ? .white : theme.accent)
-                        .frame(width: 4, height: 4)
+                HStack(spacing: 3) {
+                    ForEach(0..<pointCount, id: \.self) { _ in
+                        Circle()
+                            .fill(isSelected ? .white : theme.accent)
+                            .frame(width: 4, height: 4)
+                    }
                 }
+                .frame(height: 4)
             }
-            .frame(height: 4)
+            .frame(width: 46, height: 66)
+            .background(
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(isSelected ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(Color.clear))
+            )
+            .shadow(color: isSelected ? theme.accentGlow : .clear, radius: 10, y: 4)
+            .contentShape(RoundedRectangle(cornerRadius: 18))
         }
-        .frame(width: 46, height: 66)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(isSelected ? AnyShapeStyle(theme.gradientPrimary) : AnyShapeStyle(Color.clear))
-        )
-        .shadow(color: isSelected ? theme.accentGlow : .clear, radius: 10, y: 4)
-        .contentShape(RoundedRectangle(cornerRadius: 18))
-        .onTapGesture(perform: action)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    withAnimation(reduceMotion ? nil : DS.springSnappy) {
-                        isPressed = true
-                    }
-                }
-                .onEnded { _ in
-                    withAnimation(reduceMotion ? nil : DS.springSnappy) {
-                        isPressed = false
-                    }
-                }
-        )
-        .scaleEffect(isPressed ? 0.95 : 1)
+        .buttonStyle(CLPressStyle(scale: 0.95))
         .animation(reduceMotion ? .none : DS.springSnappy, value: isSelected)
-        .animation(reduceMotion ? .none : DS.springSnappy, value: isPressed)
-        .accessibilityAddTraits(.isButton)
     }
 
     private var numberColor: Color {
@@ -1848,68 +1816,54 @@ struct SNNoteBlock: View {
     let height: CGFloat
     let onOpen: () -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isPressed = false
-
     // Бирюзовый = личное, отличается от записей (у записей — акцент темы)
     private var snNoteTint: Color { Color(hex: "#4ECDC4") }
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(snNoteTint)
-                .frame(width: 3)
-                .padding(.vertical, 6)
+        Button(action: onOpen) {
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(snNoteTint)
+                    .frame(width: 3)
+                    .padding(.vertical, 6)
 
-            HStack(spacing: 7) {
-                Image(systemName: "pencil.line")
-                    .font(.system(size: 12))
-                    .foregroundColor(snNoteTint)
+                HStack(spacing: 7) {
+                    Image(systemName: "pencil.line")
+                        .font(.system(size: 12))
+                        .foregroundColor(snNoteTint)
 
-                Text(note.text)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(theme.textPrimary)
-                    .lineLimit(1)
+                    Text(note.text)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(theme.textPrimary)
+                        .lineLimit(1)
 
-                Spacer(minLength: 6)
+                    Spacer(minLength: 6)
 
-                Text(note.time)
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundColor(theme.textMuted)
+                    Text(note.time)
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundColor(theme.textMuted)
+                }
+                .padding(.leading, 12)
+                .padding(.trailing, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.leading, 12)
-            .padding(.trailing, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(width: hourWidth, height: height)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(theme.backgroundCard)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(snNoteTint.opacity(0.45), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .contentShape(RoundedRectangle(cornerRadius: 14))
         }
-        .frame(width: hourWidth, height: height)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(theme.backgroundCard)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(snNoteTint.opacity(0.45), lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .contentShape(RoundedRectangle(cornerRadius: 14))
-        .onTapGesture(perform: onOpen)
-        .onLongPressGesture(minimumDuration: 0.45, perform: onOpen)
+        .buttonStyle(CLPressStyle(scale: 0.985))
         .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    withAnimation(reduceMotion ? nil : DS.springSnappy) {
-                        isPressed = true
-                    }
-                }
-                .onEnded { _ in
-                    withAnimation(reduceMotion ? nil : DS.springSnappy) {
-                        isPressed = false
-                    }
-                }
+            LongPressGesture(minimumDuration: 0.45)
+                .onEnded { _ in onOpen() }
         )
-        .scaleEffect(isPressed ? 0.985 : 1)
-        .animation(reduceMotion ? .none : DS.springSnappy, value: isPressed)
-        .accessibilityAddTraits(.isButton)
     }
 }
 
