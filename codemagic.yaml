@@ -99,6 +99,7 @@ workflows:
           xcrun altool --upload-app \
             --type ios \
             --file "$IPA" \
+            --apple-id "6787732588" \
             --apiKey "VK5U33NHSR" \
             --apiIssuer "28f09b58-6de2-42ee-9c2c-116ba4d3f74b"
 
