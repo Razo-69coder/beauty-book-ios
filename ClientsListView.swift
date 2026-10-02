@@ -179,28 +179,31 @@ struct ContactsPickerSheet: View {
 enum CLClientFilter: String, CaseIterable {
     case all
     case away
+    case noTelegram
     case soon
     case birthday
     case new
 
     var title: String {
         switch self {
-        case .all:      return "Все"
-        case .away:     return "Давно не были"
-        case .soon:     return "Скоро скидка"
-        case .birthday: return "День рождения"
-        case .new:      return "Новые"
+        case .all:        return "Все"
+        case .away:       return "Давно не были"
+        case .noTelegram: return "Без Telegram"
+        case .soon:       return "Скоро скидка"
+        case .birthday:   return "День рождения"
+        case .new:        return "Новые"
         }
     }
 
     /// Подсказка для пустого состояния по фильтру
     var emptyText: String {
         switch self {
-        case .all:      return "Список клиентов пуст."
-        case .away:     return "Все клиенты приходили за последние 5 недель."
-        case .soon:     return "Ни у кого нет скидки на ближайших визитах."
-        case .birthday: return "В ближайшие 2 недели дней рождения нет."
-        case .new:      return "Новых клиентов пока нет."
+        case .all:        return "Список клиентов пуст."
+        case .away:       return "Все клиенты приходили за последние 5 недель."
+        case .noTelegram: return "У всех клиенток подключён Telegram — напоминания приходят 🎉"
+        case .soon:       return "Ни у кого нет скидки на ближайших визитах."
+        case .birthday:   return "В ближайшие 2 недели дней рождения нет."
+        case .new:        return "Новых клиентов пока нет."
         }
     }
 }
@@ -238,6 +241,23 @@ private enum CLListFormat {
         let percent: Int = me.loyaltyDiscountPercent ?? 0
         return percent > 0 ? "\(percent)%" : "скидка"
     }
+}
+
+// MARK: - Ссылка для подключения Telegram
+
+/// Ссылка бота для подключения Telegram по номеру телефона.
+/// Принимает 11 цифр с восьмёркой на начале и 10 цифр без кода страны.
+func clTelegramConnectLink(phone: String) -> String? {
+    let digits: String = phone.filter { $0.isNumber }
+    let normalized: String
+    if digits.count == 11, digits.hasPrefix("8") {
+        normalized = "7" + String(digits.dropFirst())
+    } else if digits.count == 10 {
+        normalized = "7" + digits
+    } else {
+        return nil
+    }
+    return "https://t.me/Beauty6699_bot?start=PHONE_\(normalized)"
 }
 
 // MARK: - Расчёты по клиентке
@@ -351,6 +371,8 @@ final class ClientsViewModel: ObservableObject {
         case .away:
             guard let days: Int = client.clDaysAway else { return false }
             return days > 35
+        case .noTelegram:
+            return client.telegramId == nil
         case .soon:
             return isSoonDiscount(client)
         case .birthday:
@@ -852,6 +874,9 @@ struct ClientsListView: View {
                     headerSection
                     searchBar
                     filtersRow
+                    if vm.filter == .noTelegram, !vm.filteredClients.isEmpty {
+                        noTelegramBanner
+                    }
                     listContent
                 }
             }
@@ -1010,6 +1035,25 @@ struct ClientsListView: View {
             vm.filter = filter
         }
         scrollResetToken += 1
+    }
+
+    // MARK: - Подсказка под фильтром «Без Telegram»
+
+    private var noTelegramBanner: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "paperplane.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(Color(hex: "#2AABEE"))
+            Text("Этим клиенткам не приходят напоминания о записи. Откройте клиентку и нажмите «Подключить Telegram» — ей придёт ссылка, и напоминания включатся.")
+                .font(.system(size: 14))
+                .foregroundColor(theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(theme.backgroundCard, in: RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal, 20)
+        .padding(.bottom, 10)
     }
 
     // MARK: - Список

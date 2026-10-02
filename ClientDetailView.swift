@@ -556,16 +556,45 @@ struct ClientDetailView: View {
     }
 
     private var heroTags: some View {
-        HStack(spacing: 6) {
-            if let source: String = client.source, !source.isEmpty {
-                CLTag(text: source, color: theme.textSecondary)
+        VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                if let source: String = client.source, !source.isEmpty {
+                    CLTag(text: source, color: theme.textSecondary)
+                }
+                if client.telegramId != nil {
+                    CLTag(text: "Telegram подключён", color: theme.statusGreen)
+                } else {
+                    CLTag(text: "Без Telegram: напоминания не придут", color: theme.statusYellow)
+                }
             }
-            if client.telegramId != nil {
-                CLTag(text: "Telegram подключён", color: theme.statusGreen)
-            } else {
-                CLTag(text: "Без Telegram: напоминания не придут", color: theme.statusYellow)
+            if client.telegramId == nil, let link: String = clTelegramConnectLink(phone: client.phone) {
+                telegramConnectButton(link: link)
             }
         }
+    }
+
+    /// Капсула для отправки ссылки бота в SMS
+    private func telegramConnectButton(link: String) -> some View {
+        Button {
+            sendTelegramLink(link)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "paperplane.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(Color(hex: "#2AABEE"))
+                Text("Подключить Telegram")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color(hex: "#2AABEE"))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(minHeight: 44)
+            .padding(.horizontal, 16)
+            .background(Color(hex: "#2AABEE").opacity(0.12), in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(CLPressStyle())
+        .accessibilityLabel("Подключить Telegram")
     }
 
     // MARK: - Быстрые кнопки
@@ -642,6 +671,17 @@ struct ClientDetailView: View {
         if !bookingLink.isEmpty {
             text += "\nЗаписаться онлайн: \(bookingLink)"
         }
+        let encoded: String = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text
+        guard let url: URL = URL(string: "sms:\(phoneDigits)&body=\(encoded)") else { return }
+        HapticManager.light()
+        openURL(url)
+    }
+
+    /// Отправляет ссылку бота в SMS, чтобы клиентка сама подключила Telegram
+    private func sendTelegramLink(_ link: String) {
+        guard !phoneDigits.isEmpty else { return }
+        let firstName: String = client.name.split(separator: " ").first.map(String.init) ?? client.name
+        let text: String = "Здравствуйте, \(firstName)! Чтобы получать напоминания о записи в Telegram, нажмите на ссылку и затем «Старт»: \(link)"
         let encoded: String = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text
         guard let url: URL = URL(string: "sms:\(phoneDigits)&body=\(encoded)") else { return }
         HapticManager.light()
