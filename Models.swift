@@ -487,6 +487,8 @@ struct ClientImportItem: Encodable {
     let name: String
     let phone: String
     let notes: String
+    /// Дата рождения в формате "MM-DD". Пустая строка — сервер оставит поле пустым.
+    var birthday: String = ""
 }
 
 struct ClientImportRequest: Encodable {
@@ -496,6 +498,24 @@ struct ClientImportRequest: Encodable {
 struct ClientImportResponse: Decodable {
     let imported: Int
     let skipped: Int
+}
+
+/// Строка предпросмотра из файла Excel/CSV — то, что сервер разобрал
+struct CIFileRow: Decodable, Identifiable, Hashable {
+    let name: String
+    let phone: String
+    let birthday: String?
+    let notes: String?
+    /// true — такая клиентка уже есть у мастера
+    let exists: Bool?
+    var id: String { phone }
+}
+
+/// Ответ на загрузку файла: сервер ничего не сохраняет, только разбирает
+struct CIFileParseResponse: Decodable {
+    let clients: [CIFileRow]
+    let invalid: Int?
+    let totalRows: Int?
 }
 
 // MARK: - Keychain Manager

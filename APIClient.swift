@@ -572,3 +572,74 @@ extension APIClient {
         return data
     }
 }
+
+// MARK: - Импорт клиентов из файла
+
+extension APIClient {
+    /// Граница multipart-формы для одного файла
+    private static let CIMaxFileSize: Int = 5 * 1024 * 1024
+
+    /// Загружает .xlsx или .csv на разбор. Сервер ничего не сохраняет —
+    /// отдаёт предпросмотр строк. Сохранение делает importClients.
+    func CIUploadClientsFile(data: Data, filename: String) async throws -> CIFileParseResponse {
+        guard let url = URL(string: APIConfig.baseURL + "/clients/import-file") else {
+            throw NetworkError.invalidURL
+        }
+
+        let boundary: String = UUID().uuidString
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 60
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        if let token: String = KeychainManager.shared.getToken() {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        req.httpBody = CIMultipartBody(boundary: boundary, filename: filename, data: data)
+
+        let (responseData, response): (Data, URLResponse)
+        do {
+            (responseData, response) = try await session.data(for: req)
+        } catch let urlError as URLError {
+            guard !Task.isCancelled, OFFIsOffline(urlError.code) else { throw urlError }
+            isOffline = true
+            throw NetworkError.noConnection
+        }
+
+        guard let http: HTTPURLResponse = response as? HTTPURLResponse else {
+            throw NetworkError.noData
+        }
+
+        if 200...299 ~= http.statusCode {
+            isOffline = false
+            do { return try decoder.decode(CIFileParseResponse.self, from: responseData) }
+            catch { throw NetworkError.decodingError(error) }
+        }
+        if http.statusCode == 401 {
+            NotificationCenter.default.post(name: .tokenExpired, object: nil)
+            throw NetworkError.unauthorized
+        }
+        let detail: String = (try? decoder.decode(APIErrorResponse.self, from: responseData))?.detail
+            ?? "Ошибка сервера"
+        throw NetworkError.serverError(http.statusCode, detail)
+    }
+
+    /// Больше 5 МБ сервер не примет — проверяем на устройстве, без запроса
+    static func CIFileIsTooLarge(byteCount: Int) -> Bool {
+        return byteCount > CIMaxFileSize
+    }
+}
+
+/// Тело multipart-запроса: одно поле file с байтами файла
+private func CIMultipartBody(boundary: String, filename: String, data: Data) -> Data {
+    var body: Data = Data()
+    let crlf: String = "\r\n"
+
+    let head: String = "--\(boundary)\(crlf)"
+        + "Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\(crlf)"
+        + "Content-Type: application/octet-stream\(crlf)\(crlf)"
+    body.append(Data(head.utf8))
+    body.append(data)
+    body.append(Data("\(crlf)--\(boundary)--\(crlf)".utf8))
+    return body
+}
