@@ -38,30 +38,37 @@ workflows:
           echo "Setting build number: $BUILD_NUM"
           agvtool new-version -all $BUILD_NUM
 
+      - name: Find provisioning profiles
+        script: |
+          # Приложение и виджет подписываются каждый своим профилем — ищем их по Bundle ID
+          find_profile() {
+            for P in ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision; do
+              security cms -D -i "$P" > /tmp/profile.plist 2>/dev/null || continue
+              APPID=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" /tmp/profile.plist 2>/dev/null)
+              if [ "$APPID" = "53C33F97M2.$1" ]; then
+                /usr/libexec/PlistBuddy -c "Print :UUID" /tmp/profile.plist
+                return
+              fi
+            done
+          }
+          APP_UUID=$(find_profile com.solvobeauty.app)
+          WIDGET_UUID=$(find_profile com.solvobeauty.app.widget)
+          echo "App profile: $APP_UUID"
+          echo "Widget profile: $WIDGET_UUID"
+          if [ -z "$APP_UUID" ] || [ -z "$WIDGET_UUID" ]; then
+            echo "ОШИБКА: нет профиля для приложения или виджета. Установлены:"
+            ls ~/Library/MobileDevice/Provisioning\ Profiles/
+            exit 1
+          fi
+          echo "APP_UUID=$APP_UUID" >> $CM_ENV
+          echo "WIDGET_UUID=$WIDGET_UUID" >> $CM_ENV
+
       - name: Build for App Store
         script: |
-          PROFILE_PATH=$(find ~/Library/MobileDevice/Provisioning\ Profiles/ -name "*.mobileprovision" 2>/dev/null | head -1)
-          PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" 2>/dev/null | grep -A1 "<key>UUID</key>" | tail -1 | sed 's/.*<string>//;s/<\/string>//')
-          echo "Using profile UUID: $PROFILE_UUID"
-          xcodebuild \
-            -project SolvoBeauty.xcodeproj \
-            -scheme SolvoBeauty \
-            -configuration Release \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            -archivePath ./build/BeautyBook.xcarchive \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            CODE_SIGNING_REQUIRED=YES \
-            CODE_SIGNING_ALLOWED=YES \
-            PROVISIONING_PROFILE="$PROFILE_UUID" \
-            DEVELOPMENT_TEAM=53C33F97M2 \
-            archive
+          xcodebuild             -project SolvoBeauty.xcodeproj             -scheme SolvoBeauty             -configuration Release             -sdk iphoneos             -destination 'generic/platform=iOS'             -archivePath ./build/BeautyBook.xcarchive             CODE_SIGN_STYLE=Manual             CODE_SIGN_IDENTITY="Apple Distribution"             CODE_SIGNING_REQUIRED=YES             CODE_SIGNING_ALLOWED=YES             APP_PROFILE_UUID="$APP_UUID"             WIDGET_PROFILE_UUID="$WIDGET_UUID"             DEVELOPMENT_TEAM=53C33F97M2             archive
 
       - name: Export IPA
         script: |
-          PROFILE_PATH=$(find ~/Library/MobileDevice/Provisioning\ Profiles/ -name "*.mobileprovision" 2>/dev/null | head -1)
-          PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" 2>/dev/null | grep -A1 "<key>UUID</key>" | tail -1 | sed 's/.*<string>//;s/<\/string>//')
           cat > ./export_options_runtime.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -80,16 +87,14 @@ workflows:
               <key>provisioningProfiles</key>
               <dict>
                   <key>com.solvobeauty.app</key>
-                  <string>$PROFILE_UUID</string>
+                  <string>$APP_UUID</string>
+                  <key>com.solvobeauty.app.widget</key>
+                  <string>$WIDGET_UUID</string>
               </dict>
           </dict>
           </plist>
           EOF
-          xcodebuild \
-            -exportArchive \
-            -archivePath ./build/BeautyBook.xcarchive \
-            -exportOptionsPlist ./export_options_runtime.plist \
-            -exportPath ./build/ipa
+          xcodebuild             -exportArchive             -archivePath ./build/BeautyBook.xcarchive             -exportOptionsPlist ./export_options_runtime.plist             -exportPath ./build/ipa
 
       - name: Upload to TestFlight
         script: |

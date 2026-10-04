@@ -29,6 +29,7 @@ targets:
           - "commit.ps1"
           - "push*.ps1"
           - ".git"
+          - "SolvoWidget"
     resources:
       - path: .
         includes:
@@ -43,6 +44,8 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         CODE_SIGN_ENTITLEMENTS: BeautyBook.entitlements
+        # Профиль подставляет Codemagic (APP_PROFILE_UUID) — у приложения и виджета разные профили
+        PROVISIONING_PROFILE: "$(APP_PROFILE_UUID)"
         INFOPLIST_KEY_UIRequiresFullScreen: YES
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -68,4 +71,37 @@ targets:
         NSPhotoLibraryUsageDescription: "Solvo Beauty использует галерею для фото работ клиента"
         NSPhotoLibraryAddUsageDescription: "Solvo Beauty сохраняет фото работ"
         NSCalendarsWriteOnlyAccessUsageDescription: "Solvo Beauty добавляет ваши записи в Календарь iPhone"
-    dependencies: []
+        NSSupportsLiveActivities: true
+    dependencies:
+      - target: SolvoBeautyWidget
+
+  # Виджет «Сегодня» + Live Activity (экран блокировки)
+  SolvoBeautyWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: SolvoWidget
+      - path: SolvoShared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.solvobeauty.app.widget
+        PROVISIONING_PROFILE: "$(WIDGET_PROFILE_UUID)"
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: YES
+    info:
+      path: SolvoWidget/Info.plist
+      properties:
+        CFBundleName: SolvoBeautyWidget
+        CFBundleDisplayName: Solvo Beauty
+        CFBundleIdentifier: com.solvobeauty.app.widget
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundlePackageType: XPC!
+        CFBundleExecutable: SolvoBeautyWidget
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: SolvoWidget/SolvoWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.solvobeauty.app
