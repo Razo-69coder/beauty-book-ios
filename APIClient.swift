@@ -111,6 +111,10 @@ enum Endpoint {
     case usePass(id: Int)
     case undoPass(id: Int)
     case deletePass(id: Int)
+    // Wallet
+    case walletSettings
+    case updateWalletSettings(WSSettingsUpdate)
+    case clientWalletLink(clientId: Int)
 }
 
 extension Endpoint {
@@ -176,6 +180,9 @@ extension Endpoint {
         case .usePass(let id):          return "/passes/\(id)/use"
         case .undoPass(let id):         return "/passes/\(id)/undo"
         case .deletePass(let id):       return "/passes/\(id)"
+        case .walletSettings:            return "/wallet-settings"
+        case .updateWalletSettings:      return "/wallet-settings"
+        case .clientWalletLink(let clientId): return "/clients/\(clientId)/wallet-link"
         }
     }
 
@@ -232,6 +239,8 @@ extension Endpoint {
         case .createPass, .usePass, .undoPass: return "POST"
         case .removeWaitlistEntry, .deletePass: return "DELETE"
         case .clientPasses: return "GET"
+        case .walletSettings, .clientWalletLink: return "GET"
+        case .updateWalletSettings: return "PUT"
         default:
             return "GET"
         }
@@ -307,6 +316,8 @@ extension Endpoint {
         case .createNote(let r):
             return try? encoder.encode(r)
         case .createPass(_, let r):
+            return try? encoder.encode(r)
+        case .updateWalletSettings(let r):
             return try? encoder.encode(r)
         default: return nil
         }
@@ -642,4 +653,23 @@ private func CIMultipartBody(boundary: String, filename: String, data: Data) -> 
     body.append(data)
     body.append(Data("\(crlf)--\(boundary)--\(crlf)".utf8))
     return body
+}
+
+// MARK: - Карта в Wallet
+
+extension APIClient {
+    /// Настройки карты: палитра, что показывать, адрес и правила
+    func walletSettings() async throws -> WSSettings {
+        return try await request(.walletSettings, as: WSSettings.self)
+    }
+
+    /// Сохраняет настройки. Карты у клиенток сервер обновит сам.
+    func updateWalletSettings(_ update: WSSettingsUpdate) async throws {
+        let _: MessageResponse = try await request(.updateWalletSettings(update), as: MessageResponse.self)
+    }
+
+    /// Ссылка на карту конкретной клиентки — её и отправляем в «Поделиться»
+    func clientWalletLink(clientId: Int) async throws -> WSLinkResponse {
+        return try await request(.clientWalletLink(clientId: clientId), as: WSLinkResponse.self)
+    }
 }

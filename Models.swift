@@ -636,3 +636,49 @@ struct PassCreateRequest: Encodable {
     let total: Int
     let price: Int
 }
+
+// MARK: - Карта в Wallet
+
+/// Палитра карты, которую нарисовал сервер для одного из шести вариантов
+struct WSColor: Decodable, Hashable, Identifiable {
+    let key: String
+    let name: String
+    let bg: String
+    let fg: String
+    let label: String
+    let strip: String
+    let d1: String
+    let d2: String
+
+    var id: String { key }
+}
+
+/// Настройки карты. Всё, кроме цвета и переключателей, сервер может не прислать.
+struct WSSettings: Decodable {
+    var color: String
+    var showPrice: Bool
+    var showStamps: Bool
+    var rules: String
+    var address: String
+    let masterName: String?
+    let colors: [WSColor]
+    let loyaltyEnabled: Bool?
+    let loyaltyThreshold: Int?
+    let loyaltyGift: String?
+    let cardsIssued: Int?
+    let walletAvailable: Bool?
+}
+
+/// Тело сохранения — ровно те пять полей, что принимает сервер
+struct WSSettingsUpdate: Encodable, Equatable {
+    let color: String
+    let showPrice: Bool
+    let showStamps: Bool
+    let rules: String
+    let address: String
+}
+
+/// Ссылка на .pkpass для конкретной клиентки
+struct WSLinkResponse: Decodable {
+    let url: String
+}

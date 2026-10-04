@@ -325,6 +325,9 @@ struct ClientDetailView: View {
     @State private var passPendingDeletion: ClientPass? = nil
     @State private var passToast: String? = nil
 
+    // Карта в Apple Wallet
+    @State private var isWalletLoading = false
+
     // MARK: - Тело экрана
 
     var body: some View {
@@ -463,6 +466,8 @@ struct ClientDetailView: View {
         items.append(CLDetailBlock(index: next, view: AnyView(heroSection)))
         next += 1
         items.append(CLDetailBlock(index: next, view: AnyView(quickActions)))
+        next += 1
+        items.append(CLDetailBlock(index: next, view: AnyView(walletButton)))
         next += 1
 
         if let allergies: String = client.allergies, !allergies.isEmpty {
@@ -750,6 +755,79 @@ struct ClientDetailView: View {
         guard let url: URL = URL(string: "sms:\(phoneDigits)&body=\(encoded)") else { return }
         HapticManager.light()
         openURL(url)
+    }
+
+    // MARK: - Карта в Wallet
+
+    /// Вторичная кнопка во всю ширину под быстрыми действиями
+    private var walletButton: some View {
+        Button {
+            sendWalletPass()
+        } label: {
+            HStack(spacing: 10) {
+                if isWalletLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: theme.accent))
+                } else {
+                    Image(systemName: "wallet.pass")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(theme.accent)
+                }
+                Text(isWalletLoading ? "Готовим карту…" : "Отправить карту Apple Wallet")
+                    .font(DS.body)
+                    .foregroundColor(theme.accent)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
+            .background(theme.backgroundInput, in: RoundedRectangle(cornerRadius: 16))
+            .contentShape(RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(CLPressStyle())
+        .disabled(isWalletLoading)
+    }
+
+    /// Просим у сервера ссылку на карту этой клиентки и открываем «Поделиться»
+    private func sendWalletPass() {
+        guard !isWalletLoading else { return }
+        isWalletLoading = true
+        HapticManager.medium()
+        Task {
+            do {
+                let link: WSLinkResponse = try await APIClient.shared.clientWalletLink(clientId: client.id)
+                let url: String = link.url.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !url.isEmpty else {
+                    throw NetworkError.serverError(0, "Сервер не вернул ссылку на карту")
+                }
+                let text: String = "Ваша карта записи в Apple Wallet: \(url)\nОткройте ссылку на iPhone и нажмите «Добавить»."
+                isWalletLoading = false
+                presentWalletShare(text: text)
+            } catch {
+                isWalletLoading = false
+                HapticManager.error()
+                showPassToast(bcErrorText(error))
+            }
+        }
+    }
+
+    /// Системное «Поделиться» — так же, как ссылка на запись в расписании
+    private func presentWalletShare(text: String) {
+        let activityViewController = UIActivityViewController(
+            activityItems: [text],
+            applicationActivities: nil
+        )
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }),
+            let rootViewController = scene.windows
+                .first(where: { $0.isKeyWindow })?
+                .rootViewController else { return }
+
+        var presenter = rootViewController
+        while let presentedViewController = presenter.presentedViewController {
+            presenter = presentedViewController
+        }
+        presenter.present(activityViewController, animated: true, completion: nil)
     }
 
     // MARK: - Плашки сверху

@@ -1991,6 +1991,10 @@ struct SettingsView: View {
                     SELoyaltyPage(vm: vm)
                 }
                 SEDivider()
+                SERow(icon: "wallet.pass.fill", tint: Color(hex: "#111111"), title: "Карта в Wallet") {
+                    WSWalletSettingsView()
+                }
+                SEDivider()
                 SERow(
                     icon: "creditcard.fill",
                     tint: Color(hex: "#5B8CFF"),
