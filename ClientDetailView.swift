@@ -317,6 +317,14 @@ struct ClientDetailView: View {
     @State private var showNavTitle = false
     @State private var appeared = false
 
+    // Абонементы
+    @State private var passes: [ClientPass] = []
+    @State private var isPassLoading = false
+    @State private var showNewPassSheet = false
+    @State private var passPendingUse: ClientPass? = nil
+    @State private var passPendingDeletion: ClientPass? = nil
+    @State private var passToast: String? = nil
+
     // MARK: - Тело экрана
 
     var body: some View {
@@ -347,6 +355,60 @@ struct ClientDetailView: View {
             }
             .fullScreenCover(isPresented: photoCoverBinding) {
                 photoViewer
+            }
+            .sheet(isPresented: $showNewPassSheet) {
+                PSNewPassSheet(clientId: client.id, theme: theme) { created in
+                    passes.insert(created, at: 0)
+                    HapticManager.success()
+                    showPassToast("Абонемент создан")
+                }
+                .presentationDetents([.medium])
+                .presentationCornerRadius(28)
+                .presentationDragIndicator(.visible)
+                .environment(\.theme, theme)
+            }
+            .overlay(alignment: .bottom) { passToastLayer }
+            .confirmationDialog(
+                "Списать 1 сеанс?",
+                isPresented: Binding(
+                    get: { passPendingUse != nil },
+                    set: { if !$0 { passPendingUse = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Списать") {
+                    guard let pass: ClientPass = passPendingUse else { return }
+                    passPendingUse = nil
+                    Task { await usePass(pass) }
+                }
+                Button("Отмена", role: .cancel) {
+                    passPendingUse = nil
+                }
+            } message: {
+                if let pass: ClientPass = passPendingUse {
+                    Text("\(pass.name): осталось \(pass.remaining) из \(pass.total).")
+                }
+            }
+            .confirmationDialog(
+                "Удалить абонемент?",
+                isPresented: Binding(
+                    get: { passPendingDeletion != nil },
+                    set: { if !$0 { passPendingDeletion = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Удалить", role: .destructive) {
+                    guard let pass: ClientPass = passPendingDeletion else { return }
+                    passPendingDeletion = nil
+                    Task { await deletePass(pass) }
+                }
+                Button("Отмена", role: .cancel) {
+                    passPendingDeletion = nil
+                }
+            } message: {
+                if let pass: ClientPass = passPendingDeletion {
+                    Text("«\(pass.name)» исчезнет из карточки клиентки.")
+                }
             }
             .alert("Удалить клиента?", isPresented: $showDeleteConfirm) {
                 Button("Отмена", role: .cancel) {}
@@ -419,6 +481,8 @@ struct ClientDetailView: View {
             items.append(CLDetailBlock(index: next, view: AnyView(loyaltyCard)))
             next += 1
         }
+        items.append(CLDetailBlock(index: next, view: AnyView(passesSection)))
+        next += 1
         items.append(CLDetailBlock(index: next, view: AnyView(infoCard)))
         next += 1
         items.append(CLDetailBlock(index: next, view: AnyView(historySection)))
@@ -840,6 +904,138 @@ struct ClientDetailView: View {
         }
     }
 
+    // MARK: - Абонементы
+
+    private var activePasses: [ClientPass] {
+        passes.filter { $0.remaining > 0 }
+    }
+
+    private var finishedPasses: [ClientPass] {
+        passes.filter { $0.remaining <= 0 }
+    }
+
+    private var passesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                sectionLabel("Абонементы")
+                Spacer(minLength: 8)
+                Button {
+                    HapticManager.light()
+                    showNewPassSheet = true
+                } label: {
+                    Text("+ Новый абонемент")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(theme.accent)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+
+            if passes.isEmpty && !isPassLoading {
+                Text("Абонементов нет")
+                    .font(.system(size: 14))
+                    .foregroundColor(theme.textMuted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(theme.backgroundCard, in: RoundedRectangle(cornerRadius: 18))
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(activePasses) { pass in
+                        PSPassCard(
+                            pass: pass,
+                            theme: theme,
+                            onUse: { passPendingUse = pass },
+                            onUndo: { Task { await undoPass(pass) } },
+                            onDelete: { passPendingDeletion = pass }
+                        )
+                    }
+                    ForEach(finishedPasses) { pass in
+                        PSPassCard(
+                            pass: pass,
+                            theme: theme,
+                            onUse: nil,
+                            onUndo: { Task { await undoPass(pass) } },
+                            onDelete: { passPendingDeletion = pass }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /// Плашка внизу экрана: «Списано. Осталось N»
+    @ViewBuilder
+    private var passToastLayer: some View {
+        if let text: String = passToast {
+            Text(text)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(theme.textPrimary)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+                .background(theme.backgroundCard, in: Capsule())
+                .overlay(Capsule().stroke(theme.borderSubtle, lineWidth: 1))
+                .padding(.bottom, 26)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    private func showPassToast(_ text: String) {
+        withAnimation(reduceMotion ? nil : DS.springSmooth) { passToast = text }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation(reduceMotion ? nil : DS.springSmooth) { passToast = nil }
+        }
+    }
+
+    private func loadPasses() async {
+        isPassLoading = true
+        if let resp: ClientPassesResponse = try? await APIClient.shared.request(
+            .clientPasses(clientId: client.id),
+            as: ClientPassesResponse.self
+        ) {
+            passes = resp.passes
+        } else {
+            passes = []
+        }
+        isPassLoading = false
+    }
+
+    /// Списать сеанс: сервер возвращает обновлённый абонемент
+    private func usePass(_ pass: ClientPass) async {
+        guard let updated: ClientPass = try? await APIClient.shared.request(
+            .usePass(id: pass.id),
+            as: ClientPass.self
+        ) else { return }
+        replacePass(updated)
+        HapticManager.success()
+        showPassToast("Списано. Осталось \(updated.remaining)")
+    }
+
+    /// Вернуть сеанс: сервер возвращает обновлённый абонемент
+    private func undoPass(_ pass: ClientPass) async {
+        guard let updated: ClientPass = try? await APIClient.shared.request(
+            .undoPass(id: pass.id),
+            as: ClientPass.self
+        ) else { return }
+        replacePass(updated)
+        HapticManager.medium()
+    }
+
+    private func deletePass(_ pass: ClientPass) async {
+        let removed: MessageResponse? = try? await APIClient.shared.request(
+            .deletePass(id: pass.id),
+            as: MessageResponse.self
+        )
+        guard let ok: MessageResponse = removed, ok.ok else { return }
+        passes.removeAll { $0.id == pass.id }
+        HapticManager.success()
+    }
+
+    private func replacePass(_ updated: ClientPass) {
+        guard let index: Int = passes.firstIndex(where: { $0.id == updated.id }) else { return }
+        passes[index] = updated
+    }
+
     // MARK: - Информация
 
     private var infoCard: some View {
@@ -1116,6 +1312,7 @@ struct ClientDetailView: View {
         await loadHistory()
         await loadProfile()
         await loadBookingLink()
+        await loadPasses()
     }
 
     private func loadHistory() async {
@@ -1174,6 +1371,253 @@ struct ClientDetailView: View {
             dismiss()
         } catch {
             isDeleting = false
+        }
+    }
+}
+
+// MARK: - Абонементы: карточка и прогресс
+
+/// Одна ячейка сегментированной шкалы абонемента
+struct PSPassSegment: View {
+    let isUsed: Bool
+    let theme: AppTheme
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 4)
+            .fill(isUsed ? theme.borderSubtle : theme.accent)
+            .frame(maxWidth: .infinity)
+            .frame(height: 8)
+    }
+}
+
+/// Прогресс абонемента: деления до 12, иначе обычная полоска
+struct PSPassProgress: View {
+    let total: Int
+    let used: Int
+    let theme: AppTheme
+
+    var body: some View {
+        if total > 12 {
+            bar
+        } else {
+            HStack(spacing: 5) {
+                ForEach(0..<max(total, 1), id: \.self) { index in
+                    PSPassSegment(isUsed: index < used, theme: theme)
+                }
+            }
+        }
+    }
+
+    private var bar: some View {
+        ProgressView(
+            value: Double(min(max(used, 0), max(total, 1))),
+            total: Double(max(total, 1))
+        )
+        .progressViewStyle(LinearProgressViewStyle(tint: theme.accent))
+        .frame(height: 8)
+    }
+}
+
+/// Карточка абонемента: название, прогресс, остаток, списание и меню
+struct PSPassCard: View {
+    let pass: ClientPass
+    let theme: AppTheme
+    var onUse: (() -> Void)? = nil
+    var onUndo: (() -> Void)? = nil
+    var onDelete: (() -> Void)? = nil
+
+    private var isFinished: Bool { pass.remaining <= 0 }
+    private var hasMenuItems: Bool { (onUndo != nil && pass.used > 0) || onDelete != nil }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(pass.name)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(theme.textPrimary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 6)
+                if isFinished {
+                    Text("Закончился")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(theme.textMuted)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(theme.borderSubtle, in: Capsule())
+                }
+                if hasMenuItems {
+                    menuButton
+                }
+            }
+
+            PSPassProgress(total: pass.total, used: pass.used, theme: theme)
+
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("Осталось \(pass.remaining) из \(pass.total)")
+                    .font(.system(size: 13))
+                    .foregroundColor(theme.textSecondary)
+                Spacer(minLength: 6)
+                if let price: Int = pass.price, price > 0 {
+                    Text(rubText(price))
+                        .font(.system(size: 13))
+                        .foregroundColor(theme.textMuted)
+                }
+            }
+
+            if let onUse {
+                Button {
+                    onUse()
+                } label: {
+                    Text("Списать сеанс")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(isFinished ? theme.textMuted : theme.accent)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 46)
+                        .background(theme.backgroundInput, in: RoundedRectangle(cornerRadius: 14))
+                        .contentShape(RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(CLPressStyle(scale: 0.98))
+                .disabled(isFinished)
+            }
+        }
+        .padding(16)
+        .background(theme.backgroundCard, in: RoundedRectangle(cornerRadius: 18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(theme.borderSubtle, lineWidth: 1)
+        )
+        .opacity(isFinished ? 0.62 : 1)
+    }
+
+    private var menuButton: some View {
+        Menu {
+            if let onUndo, pass.used > 0 {
+                Button {
+                    onUndo()
+                } label: {
+                    Label("Вернуть сеанс", systemImage: "arrow.uturn.backward")
+                }
+            }
+            if let onDelete {
+                Button(role: .destructive) {
+                    onDelete()
+                } label: {
+                    Label("Удалить абонемент", systemImage: "trash")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(theme.accent)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+    }
+}
+
+/// Лист создания абонемента: название, число сеансов, стоимость
+struct PSNewPassSheet: View {
+    let clientId: Int
+    let theme: AppTheme
+    let onCreated: (ClientPass) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var name: String = ""
+    @State private var total: Int = 5
+    @State private var priceText: String = ""
+    @State private var isSaving: Bool = false
+    @State private var errorText: String? = nil
+
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var priceValue: Int {
+        let digits: String = priceText.filter { $0.isNumber }
+        return Int(digits) ?? 0
+    }
+
+    private var canSave: Bool {
+        !trimmedName.isEmpty && total > 0 && !isSaving
+    }
+
+    var body: some View {
+        ZStack {
+            theme.backgroundDeep.ignoresSafeArea()
+
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        fieldLabel("Название")
+                        BBTextField(placeholder: "Например, 5 маникюров", text: $name)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        fieldLabel("Сеансов")
+                        Stepper(value: $total, in: 1...30) {
+                            HStack {
+                                Text("В абонементе")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(theme.textSecondary)
+                                Spacer(minLength: 8)
+                                Text("\(total)")
+                                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                                    .foregroundColor(theme.accent)
+                                    .contentTransition(.numericText())
+                            }
+                            .frame(minHeight: 44)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(theme.backgroundInput, in: RoundedRectangle(cornerRadius: 16))
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        fieldLabel("Стоимость, ₽")
+                        BBTextField(placeholder: "0", text: $priceText, keyboardType: .numberPad)
+                    }
+
+                    if let errorText {
+                        BBErrorBanner(message: errorText)
+                    }
+
+                    BBPrimaryButton(title: "Создать", isDisabled: !canSave) {
+                        createPass()
+                    }
+                    .environment(\.theme, theme)
+                }
+                .padding(20)
+            }
+        }
+    }
+
+    private func fieldLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundColor(theme.textMuted)
+    }
+
+    private func createPass() {
+        guard canSave else { return }
+        isSaving = true
+        errorText = nil
+        let request = PassCreateRequest(name: trimmedName, total: total, price: priceValue)
+        Task { @MainActor in
+            do {
+                let created: ClientPass = try await APIClient.shared.request(
+                    .createPass(clientId: clientId, request),
+                    as: ClientPass.self
+                )
+                isSaving = false
+                onCreated(created)
+                dismiss()
+            } catch {
+                isSaving = false
+                HapticManager.error()
+                errorText = bcErrorText(error)
+            }
         }
     }
 }

@@ -669,6 +669,7 @@ struct NTRow: View {
         case "client_reschedule": return "arrow.triangle.2.circlepath"
         case "client_cancel": return "xmark"
         case "broadcast": return "sparkles"
+        case "waitlist": return "hourglass"
         default: return "bell.fill"
         }
     }
@@ -679,6 +680,7 @@ struct NTRow: View {
         case "client_cancel": return theme.statusRed
         case "client_reschedule": return theme.accent
         case "broadcast": return theme.accent
+        case "waitlist": return theme.accent
         default: return theme.accent
         }
     }

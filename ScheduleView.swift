@@ -90,6 +90,7 @@ final class ScheduleViewModel: ObservableObject {
     @Published var showNewAppointment = false
     @Published var showNewNote = false
     @Published var preselectedTime: String? = nil
+    @Published var waitlist: [WaitlistEntry] = []
 
     private let api = APIClient.shared
     private let calendar = Calendar.current
@@ -279,8 +280,27 @@ final class ScheduleViewModel: ObservableObject {
         dayCounts[requestedDate] = loadedAppointments.count
         notes = loadedNotes
         isLoading = false
+        // Лист ожидания на этот день: ошибка сети не должна мешать расписанию
+        if let waitlistResponse: WaitlistResponse = try? await api.request(
+            .waitlistEntries(dateFrom: requestedDate, dateTo: requestedDate),
+            as: WaitlistResponse.self
+        ) {
+            waitlist = waitlistResponse.entries
+        } else {
+            waitlist = []
+        }
         // Виджет «Сегодня» должен увидеть новую запись сразу
         Task { await SBWidgetSync.shared.refresh() }
+    }
+
+    /// Убрать клиентку из листа ожидания: сначала с сервера, потом из экрана
+    func removeWaitlistEntry(_ entry: WaitlistEntry) async {
+        guard let resp: MessageResponse = try? await api.request(
+            .removeWaitlistEntry(id: entry.id),
+            as: MessageResponse.self
+        ), resp.ok else { return }
+        waitlist.removeAll { $0.id == entry.id }
+        HapticManager.success()
     }
 
     func deleteNote(_ note: PersonalNote) async {
@@ -416,6 +436,8 @@ struct ScheduleView: View {
     @State private var snNotePendingDeletion: PersonalNote?
     // Время, с которым открывается NewNoteView
     @State private var snNoteTime: String?
+    // Лист ожидания на выбранный день
+    @State private var showWaitlistSheet = false
 
     private let timelineHourHeight: CGFloat = 64
     private let timelineGutter: CGFloat = 58
@@ -433,6 +455,7 @@ struct ScheduleView: View {
                 headerSection
                 dateStrip
                 summaryCard
+                waitlistBanner
                 dayContent
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -444,6 +467,19 @@ struct ScheduleView: View {
         .sheet(isPresented: $vm.showNewAppointment) {
             NewAppointmentView(preselectedTime: vm.preselectedTime, selectedDate: vm.selectedDate)
                 .environment(\.theme, theme)
+        }
+        .sheet(isPresented: $showWaitlistSheet) {
+            WLDaySheet(
+                entries: vm.waitlist,
+                dayTitle: vm.selectedDateFormatted,
+                theme: theme,
+                onRemove: { entry in
+                    Task { await vm.removeWaitlistEntry(entry) }
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(28)
         }
         .sheet(item: $vm.selectedAppointment) { appointment in
             AppointmentDetailSheet(
@@ -551,6 +587,43 @@ struct ScheduleView: View {
         }
         .buttonStyle(CLPressStyle(scale: 0.9))
         .accessibilityLabel("Поделиться окнами")
+    }
+
+    // Лист ожидания: в этом дне кто-то ждёт свободного окна
+    @ViewBuilder
+    private var waitlistBanner: some View {
+        if !vm.waitlist.isEmpty {
+            Button {
+                HapticManager.light()
+                showWaitlistSheet = true
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "hourglass")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(theme.accent)
+                    Text("В листе ожидания: \(vm.waitlist.count)")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(theme.textPrimary)
+                    Spacer(minLength: 4)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(theme.textMuted)
+                }
+                .padding(.horizontal, 14)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(theme.backgroundCard, in: RoundedRectangle(cornerRadius: 14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(theme.accent.opacity(0.25), lineWidth: 1)
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(CLPressStyle(scale: 0.98))
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            .accessibilityLabel("В листе ожидания: \(vm.waitlist.count). Открыть список")
+        }
     }
 
     private var headerSection: some View {
@@ -1396,6 +1469,9 @@ struct AppointmentDetailSheet: View {
     @State private var showCalendarDenied = false
     @State private var showCalendarFailed = false
     @State private var calendarToast: String? = nil
+    // Абонемент, который предложим списать после завершения визита
+    @State private var passWriteOffTarget: ClientPass? = nil
+    @State private var passToWriteOff: ClientPass? = nil
 
     private var clientInitials: String {
         let name = (appointment.clientName ?? "К").trimmingCharacters(in: .whitespaces)
@@ -1535,6 +1611,25 @@ struct AppointmentDetailSheet: View {
             Button("Понятно", role: .cancel) {}
         } message: {
             Text("Не получилось добавить, попробуйте ещё раз")
+        }
+        .confirmationDialog(
+            "Списать сеанс из абонемента?",
+            isPresented: Binding(
+                get: { passWriteOffTarget != nil },
+                set: { if !$0 { passWriteOffTarget = nil; passToWriteOff = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Списать") { writeOffPass() }
+            Button("Не списывать", role: .cancel) {
+                passWriteOffTarget = nil
+                passToWriteOff = nil
+                finishStatusChange(.completed)
+            }
+        } message: {
+            if let pass: ClientPass = passWriteOffTarget {
+                Text("\(pass.name): осталось \(pass.remaining) из \(pass.total).")
+            }
         }
         .overlay(alignment: .bottom) {
             if let calendarToast = calendarToast {
@@ -1774,14 +1869,341 @@ struct AppointmentDetailSheet: View {
             do {
                 try await APIClient.shared.updateAppointmentStatus(id: appointment.id, status: status)
                 isConfirming = false
-                onStatusChange?(status)
-                dismiss()
+                // Визит состоялся — спросим, списать ли сеанс из абонемента
+                if status == .completed, let pass: ClientPass = await activePass() {
+                    passToWriteOff = pass
+                    passWriteOffTarget = pass
+                    return
+                }
+                finishStatusChange(status)
             } catch {
                 isConfirming = false
                 statusUpdateError = error.localizedDescription
             }
         }
     }
+
+    /// Ближайший абонемент с неиспользованными сеансами
+    private func activePass() async -> ClientPass? {
+        guard let resp: ClientPassesResponse = try? await APIClient.shared.request(
+            .clientPasses(clientId: appointment.clientId),
+            as: ClientPassesResponse.self
+        ) else { return nil }
+        return resp.passes.first(where: { $0.remaining > 0 })
+    }
+
+    /// Списать сеанс из абонемента: сервер возвращает обновлённый абонемент
+    private func writeOffPass() {
+        guard let pass: ClientPass = passToWriteOff else {
+            finishStatusChange(.completed)
+            return
+        }
+        passWriteOffTarget = nil
+        passToWriteOff = nil
+        Task { @MainActor in
+            if let _: ClientPass = try? await APIClient.shared.request(
+                .usePass(id: pass.id),
+                as: ClientPass.self
+            ) {
+                HapticManager.success()
+            }
+            finishStatusChange(.completed)
+        }
+    }
+
+    private func finishStatusChange(_ status: AppointmentStatus) {
+        onStatusChange?(status)
+        dismiss()
+    }
+}
+
+// MARK: - Лист ожидания
+
+/// Значок и подпись статуса записи в листе ожидания
+private struct WLStatusBadge: View {
+    let title: String
+    let color: Color
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(color)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(color.opacity(0.14), in: Capsule())
+    }
+}
+
+/// Список клиенток, которые ждут свободного окна в выбранный день
+struct WLDaySheet: View {
+    let entries: [WaitlistEntry]
+    let dayTitle: String
+    let theme: AppTheme
+    let onRemove: (WaitlistEntry) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+
+    @State private var pendingDeletion: WaitlistEntry? = nil
+
+    var body: some View {
+        ZStack {
+            theme.backgroundDeep.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                header
+                hint
+                list
+            }
+        }
+        .confirmationDialog(
+            "Убрать из листа ожидания?",
+            isPresented: Binding(
+                get: { pendingDeletion != nil },
+                set: { if !$0 { pendingDeletion = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Убрать", role: .destructive) {
+                guard let entry: WaitlistEntry = pendingDeletion else { return }
+                pendingDeletion = nil
+                onRemove(entry)
+            }
+            Button("Отмена", role: .cancel) {
+                pendingDeletion = nil
+            }
+        } message: {
+            if let entry: WaitlistEntry = pendingDeletion {
+                Text(wlDisplayName(entry))
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Лист ожидания")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundColor(theme.textPrimary)
+                Text(dayTitle)
+                    .font(.system(size: 13))
+                    .foregroundColor(theme.textMuted)
+            }
+            Spacer(minLength: 8)
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(theme.textMuted)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 18)
+    }
+
+    private var hint: some View {
+        Text("Клиентка сама выберет свободное окно — вам придёт уведомление. Предложите время вручную: если клиентка в Telegram — бот спросит подтверждение, иначе позвоните.")
+            .font(.system(size: 13))
+            .foregroundColor(theme.textMuted)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+    }
+
+    private var list: some View {
+        ScrollView(showsIndicators: false) {
+            LazyVStack(spacing: 10) {
+                ForEach(entries) { entry in
+                    wlRow(entry)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 14)
+            .padding(.bottom, 30)
+        }
+    }
+
+    private func wlRow(_ entry: WaitlistEntry) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(wlDisplayName(entry))
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(theme.textPrimary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(wlSubtitle(entry))
+                        .font(.system(size: 13))
+                        .foregroundColor(theme.textMuted)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 6)
+                wlBadge(entry)
+                wlMenu(entry)
+            }
+            wlStatusText(entry)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.backgroundCard, in: RoundedRectangle(cornerRadius: 18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(theme.borderSubtle, lineWidth: 1)
+        )
+    }
+
+    /// Меню строки: позвонить и убрать из листа ожидания
+    private func wlMenu(_ entry: WaitlistEntry) -> some View {
+        Menu {
+            if let phone: String = wlRawPhone(entry) {
+                Button {
+                    wlCall(phone)
+                } label: {
+                    Label("Позвонить", systemImage: "phone.fill")
+                }
+            }
+            Button(role: .destructive) {
+                HapticManager.medium()
+                pendingDeletion = entry
+            } label: {
+                Label("Убрать из листа ожидания", systemImage: "trash")
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(theme.accent)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+    }
+
+    @ViewBuilder
+    private func wlBadge(_ entry: WaitlistEntry) -> some View {
+        switch entry.status {
+        case "offered":
+            WLStatusBadge(title: "Окно предложено", color: theme.statusYellow)
+        case "master_notified":
+            WLStatusBadge(title: "Нет Telegram", color: theme.statusRed)
+        default:
+            WLStatusBadge(title: "Ждёт окна", color: theme.accent)
+        }
+    }
+
+    /// Текст статуса: ждём окна / предложили / нет Telegram
+    private func wlStatusMessage(_ entry: WaitlistEntry) -> String {
+        let time: String = (entry.offeredTime ?? "").trimmingCharacters(in: .whitespaces)
+        switch entry.status {
+        case "offered":
+            return time.isEmpty
+                ? "Предложили окно — ждём ответа"
+                : "Предложили \(time) — ждём ответа"
+        case "master_notified":
+            return time.isEmpty
+                ? "Нет Telegram — позвоните клиентке"
+                : "Нет Telegram — позвоните, окно \(time)"
+        default:
+            return ""
+        }
+    }
+
+    private func wlStatusColor(_ entry: WaitlistEntry) -> Color {
+        switch entry.status {
+        case "offered": return theme.statusYellow
+        case "master_notified": return theme.statusRed
+        default: return theme.textMuted
+        }
+    }
+
+    private func wlStatusText(_ entry: WaitlistEntry) -> some View {
+        WLStatusLine(
+            text: wlStatusMessage(entry),
+            color: wlStatusColor(entry),
+            theme: theme,
+            phone: wlRawPhone(entry)
+        )
+    }
+
+    private func wlCall(_ phone: String) {
+        let digits: String = phone.filter { $0.isNumber }
+        guard !digits.isEmpty else { return }
+        let plus: String = phone.trimmingCharacters(in: .whitespaces).hasPrefix("+") ? "+" : ""
+        guard let url: URL = URL(string: "tel:\(plus)\(digits)") else { return }
+        HapticManager.light()
+        openURL(url)
+    }
+}
+
+/// Строка статуса листа ожидания с кнопкой звонка
+private struct WLStatusLine: View {
+    let text: String
+    let color: Color
+    let theme: AppTheme
+    let phone: String?
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if !text.isEmpty {
+                Text(text)
+                    .font(.system(size: 13))
+                    .foregroundColor(color)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 4)
+            if let phone, !phone.isEmpty {
+                Button {
+                    call()
+                } label: {
+                    Image(systemName: "phone.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(theme.accent)
+                        .frame(width: 44, height: 44)
+                        .background(theme.accent.opacity(0.12), in: Circle())
+                        .contentShape(Circle())
+                }
+                .buttonStyle(CLPressStyle(scale: 0.9))
+                .accessibilityLabel("Позвонить клиентке")
+            }
+        }
+    }
+
+    private func call() {
+        let digits: String = (phone ?? "").filter { $0.isNumber }
+        guard !digits.isEmpty else { return }
+        let plus: String = (phone ?? "").trimmingCharacters(in: .whitespaces).hasPrefix("+") ? "+" : ""
+        guard let url: URL = URL(string: "tel:\(plus)\(digits)") else { return }
+        HapticManager.light()
+        UIApplication.shared.open(url)
+    }
+}
+
+// MARK: - Вспомогательное
+
+private func wlDisplayName(_ entry: WaitlistEntry) -> String {
+    let name: String = (entry.clientName ?? "").trimmingCharacters(in: .whitespaces)
+    return name.isEmpty ? "Клиентка" : name
+}
+
+private func wlSubtitle(_ entry: WaitlistEntry) -> String {
+    var parts: [String] = []
+    let procedure: String = (entry.procedure ?? "").trimmingCharacters(in: .whitespaces)
+    if !procedure.isEmpty { parts.append(procedure) }
+    let pref: String = (entry.prefLabel ?? entry.pref ?? "").trimmingCharacters(in: .whitespaces)
+    if !pref.isEmpty { parts.append(pref) }
+    if parts.isEmpty { return "Без пожеланий" }
+    return parts.joined(separator: " · ")
+}
+
+/// Телефон как есть — чтобы в `tel:` сохранить плюс и пробелы
+private func wlRawPhone(_ entry: WaitlistEntry) -> String? {
+    let phone: String = (entry.clientPhone ?? "").trimmingCharacters(in: .whitespaces)
+    return phone.isEmpty ? nil : phone
 }
 
 struct DateCapsule: View {

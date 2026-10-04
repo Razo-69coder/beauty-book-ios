@@ -573,3 +573,46 @@ struct CustomSlotRequest: Encodable {
     let date: String
     let time: String
 }
+
+// MARK: - Лист ожидания
+
+/// Клиентка, которая ждёт свободного окна
+struct WaitlistEntry: Decodable, Identifiable, Hashable {
+    let id: Int
+    let date: String
+    let pref: String?
+    let prefLabel: String?
+    let procedure: String?
+    let status: String
+    let offeredTime: String?
+    let clientId: Int?
+    let clientName: String?
+    let clientPhone: String?
+    let hasTelegram: Bool?
+}
+
+struct WaitlistResponse: Decodable {
+    let entries: [WaitlistEntry]
+}
+
+// MARK: - Абонементы
+
+/// Абонемент клиентки: несколько сеансов одной услуги
+struct ClientPass: Decodable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let total: Int
+    let used: Int
+    let remaining: Int
+    let price: Int?
+}
+
+struct ClientPassesResponse: Decodable {
+    let passes: [ClientPass]
+}
+
+struct PassCreateRequest: Encodable {
+    let name: String
+    let total: Int
+    let price: Int
+}

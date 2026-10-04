@@ -102,6 +102,15 @@ enum Endpoint {
     case getNotes(date: String)
     case createNote(PersonalNoteCreateRequest)
     case deleteNote(id: Int)
+    // Waitlist
+    case waitlistEntries(dateFrom: String, dateTo: String)
+    case removeWaitlistEntry(id: Int)
+    // Passes
+    case clientPasses(clientId: Int)
+    case createPass(clientId: Int, PassCreateRequest)
+    case usePass(id: Int)
+    case undoPass(id: Int)
+    case deletePass(id: Int)
 }
 
 extension Endpoint {
@@ -160,6 +169,13 @@ extension Endpoint {
         case .getNotes:                 return "/notes"
         case .createNote:               return "/notes"
         case .deleteNote(let id):       return "/notes/\(id)"
+        case .waitlistEntries:          return "/waitlist-clients"
+        case .removeWaitlistEntry(let id): return "/waitlist-clients/\(id)"
+        case .clientPasses(let clientId): return "/clients/\(clientId)/passes"
+        case .createPass(let clientId, _): return "/clients/\(clientId)/passes"
+        case .usePass(let id):          return "/passes/\(id)/use"
+        case .undoPass(let id):         return "/passes/\(id)/undo"
+        case .deletePass(let id):       return "/passes/\(id)"
         }
     }
 
@@ -213,6 +229,9 @@ extension Endpoint {
         case .markRead, .markAllRead: return "POST"
         case .notifications, .unreadCount: return "GET"
         case .updateReminderTemplate: return "PUT"
+        case .createPass, .usePass, .undoPass: return "POST"
+        case .removeWaitlistEntry, .deletePass: return "DELETE"
+        case .clientPasses: return "GET"
         default:
             return "GET"
         }
@@ -239,6 +258,11 @@ extension Endpoint {
         case .schedule(let date): return [URLQueryItem(name: "date", value: date)]
         case .slots(let date):    return [URLQueryItem(name: "date", value: date)]
         case .getNotes(let date): return [URLQueryItem(name: "date", value: date)]
+        case .waitlistEntries(let dateFrom, let dateTo):
+            return [
+                URLQueryItem(name: "date_from", value: dateFrom),
+                URLQueryItem(name: "date_to", value: dateTo)
+            ]
         case .freeWindows(let dateFrom, let dateTo, let duration):
             return [
                 URLQueryItem(name: "date_from", value: dateFrom),
@@ -281,6 +305,8 @@ extension Endpoint {
         case .updateReminderTemplate(_, let template, let enabled):
             return try? encoder.encode(ReminderTemplateUpdate(template: template, enabled: enabled))
         case .createNote(let r):
+            return try? encoder.encode(r)
+        case .createPass(_, let r):
             return try? encoder.encode(r)
         default: return nil
         }
