@@ -163,6 +163,34 @@ extension Endpoint {
         }
     }
 
+    /// Кэшируются только GET-ответы, из которых экраны берут «последнее загруженное».
+    /// fileprivate — читает APIClient из этого же файла.
+    fileprivate var OFFIsCacheable: Bool {
+        switch self {
+        case .schedule, .getNotes, .clients, .services, .appointments, .notifications:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Имя файла кэша: путь + запрос, все не буквенно-цифровые символы → «_»
+    fileprivate var OFFCacheFileName: String {
+        var raw: String = path
+        if let items: [URLQueryItem] = queryItems {
+            let query: String = items.compactMap { item in
+                guard let value: String = item.value else { return nil }
+                return "\(item.name)=\(value)"
+            }.joined(separator: "&")
+            if !query.isEmpty { raw = raw + "?" + query }
+        }
+        let allowed: CharacterSet = .alphanumerics
+        let safe: String = String(raw.unicodeScalars.map { scalar in
+            allowed.contains(scalar) ? Character(scalar) : "_"
+        })
+        return safe
+    }
+
     var method: String {
         switch self {
         case .login, .register, .forgotPassword, .resetPassword, .sendFeedback,
@@ -268,6 +296,9 @@ final class APIClient: ObservableObject {
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
 
+    /// Нет интернета и показываем сохранённые данные
+    @Published private(set) var isOffline: Bool = false
+
     private init() {
         let cfg = URLSessionConfiguration.default
         cfg.timeoutIntervalForRequest = APIConfig.timeout
@@ -281,11 +312,34 @@ final class APIClient: ObservableObject {
 
     func request<T: Decodable>(_ endpoint: Endpoint, as type: T.Type = T.self) async throws -> T {
         let req = try buildRequest(endpoint)
-        let (data, response) = try await session.data(for: req)
+        let cacheable: Bool = endpoint.OFFIsCacheable
+
+        var data: Data
+        var response: URLResponse
+        do {
+            (data, response) = try await session.data(for: req)
+        } catch let urlError as URLError {
+            // Отмена задачи (переключение даты) — это не офлайн
+            guard !Task.isCancelled, OFFIsOffline(urlError.code) else { throw urlError }
+            // Есть сохранённый ответ — отдаём его, экран остаётся живым
+            if cacheable, let cached: Data = OFFReadCache(for: endpoint) {
+                isOffline = true
+                do { return try decoder.decode(T.self, from: cached) }
+                catch { throw NetworkError.decodingError(error) }
+            }
+            isOffline = true
+            throw NetworkError.noConnection
+        }
+
         guard let http = response as? HTTPURLResponse else { throw NetworkError.noData }
 
         switch http.statusCode {
         case 200...299:
+            // Свежие данные — обновляем кэш и снимаем режим офлайна
+            if cacheable {
+                OFFWriteCache(data, for: endpoint)
+                isOffline = false
+            }
             do { return try decoder.decode(T.self, from: data) }
             catch { throw NetworkError.decodingError(error) }
         case 401:
@@ -338,6 +392,55 @@ final class APIClient: ObservableObject {
 }
 
 struct APIErrorResponse: Decodable { let detail: String }
+
+extension APIClient {
+    /// При выходе из аккаунта сохранённые данные больше не нужны
+    func OFFClearCache() {
+        guard let dir: URL = OFFCacheDirectory else { return }
+        try? FileManager.default.removeItem(at: dir)
+        isOffline = false
+    }
+}
+
+// MARK: - Офлайн-кэш
+
+/// Сеть недоступна — значит работаем с сохранёнными данными
+private func OFFIsOffline(_ code: URLError.Code) -> Bool {
+    switch code {
+    case .notConnectedToInternet, .networkConnectionLost, .timedOut,
+         .cannotConnectToHost, .cannotFindHost:
+        return true
+    default:
+        return false
+    }
+}
+
+/// Папка кэша в Caches: OFFCache
+private var OFFCacheDirectory: URL? {
+    guard let base: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+        return nil
+    }
+    return base.appendingPathComponent("OFFCache", isDirectory: true)
+}
+
+/// Сохраняем сырые байты ответа — модели не перекодируем
+private func OFFWriteCache(_ data: Data, for endpoint: Endpoint) {
+    guard let dir: URL = OFFCacheDirectory else { return }
+    let fileURL: URL = dir.appendingPathComponent(endpoint.OFFCacheFileName)
+    do {
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try data.write(to: fileURL, options: .atomic)
+    } catch {
+        // Не смогли записать кэш — работаем как раньше, молча
+    }
+}
+
+/// Последний успешный ответ по этому запросу, если он есть
+private func OFFReadCache(for endpoint: Endpoint) -> Data? {
+    guard let dir: URL = OFFCacheDirectory else { return nil }
+    let fileURL: URL = dir.appendingPathComponent(endpoint.OFFCacheFileName)
+    return try? Data(contentsOf: fileURL)
+}
 
 // MARK: - Expenses Extension
 extension APIClient {

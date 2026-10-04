@@ -240,6 +240,8 @@ struct SplashView: View {
 
     func logout() {
         KeychainManager.shared.deleteToken()
+        // Сохранённые офлайн-данные чужих — стираем
+        APIClient.shared.OFFClearCache()
         currentMaster = nil
         withAnimation(DS.springSmooth) { isAuthenticated = false }
     }

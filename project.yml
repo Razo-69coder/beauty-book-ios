@@ -67,4 +67,5 @@ targets:
         NSCameraUsageDescription: "Solvo Beauty использует камеру для фото работ клиента"
         NSPhotoLibraryUsageDescription: "Solvo Beauty использует галерею для фото работ клиента"
         NSPhotoLibraryAddUsageDescription: "Solvo Beauty сохраняет фото работ"
+        NSCalendarsWriteOnlyAccessUsageDescription: "Solvo Beauty добавляет ваши записи в Календарь iPhone"
     dependencies: []

@@ -1388,6 +1388,12 @@ struct AppointmentDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isConfirming = false
     @State private var statusUpdateError: String?
+    // Добавление в Календарь iPhone
+    @State private var isAddingToCalendar = false
+    @State private var isInCalendar = false
+    @State private var showCalendarDenied = false
+    @State private var showCalendarFailed = false
+    @State private var calendarToast: String? = nil
 
     private var clientInitials: String {
         let name = (appointment.clientName ?? "К").trimmingCharacters(in: .whitespaces)
@@ -1442,6 +1448,16 @@ struct AppointmentDetailSheet: View {
 
     private var isClientConfirmed: Bool {
         appointment.clientConfirmed == true
+    }
+
+    /// Кнопку показываем только у неотменённых записей
+    private var showsCalendarButton: Bool {
+        appointment.status != .cancelled
+    }
+
+    @MainActor
+    private var isAlreadyInCalendar: Bool {
+        isInCalendar || CALExporter.shared.isAdded(appointment)
     }
 
     var body: some View {
@@ -1506,6 +1522,30 @@ struct AppointmentDetailSheet: View {
             }
         } message: {
             Text(statusUpdateError ?? "Повторите попытку позже")
+        }
+        .alert("Нет доступа к Календарю", isPresented: $showCalendarDenied) {
+            Button("Открыть настройки") { openIphoneSettings() }
+            Button("Понятно", role: .cancel) {}
+        } message: {
+            Text("Разрешите доступ: Настройки → Конфиденциальность → Календари → Solvo Beauty")
+        }
+        .alert("Не получилось добавить", isPresented: $showCalendarFailed) {
+            Button("Понятно", role: .cancel) {}
+        } message: {
+            Text("Не получилось добавить, попробуйте ещё раз")
+        }
+        .overlay(alignment: .bottom) {
+            if let calendarToast = calendarToast {
+                Text(calendarToast)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(theme.textPrimary)
+                    .padding(.horizontal, 16)
+                    .frame(height: 44)
+                    .background(theme.backgroundCard, in: Capsule())
+                    .overlay(Capsule().stroke(theme.borderSubtle, lineWidth: 1))
+                    .padding(.bottom, 28)
+                    .transition(.opacity)
+            }
         }
     }
 
@@ -1626,6 +1666,21 @@ struct AppointmentDetailSheet: View {
                 }
             }
 
+            if showsCalendarButton {
+                Button {
+                    addToCalendar()
+                } label: {
+                    actionButtonLabel(
+                        icon: isAlreadyInCalendar ? "checkmark" : "calendar.badge.plus",
+                        title: isAlreadyInCalendar ? "В Календаре" : "Добавить в Календарь",
+                        color: isAlreadyInCalendar ? theme.statusGreen : theme.accent
+                    )
+                }
+                .buttonStyle(CLPressStyle(scale: 0.98))
+                .disabled(isAlreadyInCalendar || isAddingToCalendar)
+                .opacity(isAlreadyInCalendar ? 0.6 : 1)
+            }
+
             if canCancel {
                 Button {
                     onCancel()
@@ -1672,6 +1727,44 @@ struct AppointmentDetailSheet: View {
         guard !isConfirming else { return }
         isConfirming = true
         updateStatus(.confirmed)
+    }
+
+    // MARK: - Календарь iPhone
+
+    private func addToCalendar() {
+        guard !isAddingToCalendar else { return }
+        isAddingToCalendar = true
+        Task { @MainActor in
+            let result: CALResult = await CALExporter.shared.add(appointment)
+            isAddingToCalendar = false
+            switch result {
+            case .added:
+                isInCalendar = true
+                HapticManager.success()
+                showCalendarToast("Добавлено в Календарь iPhone")
+            case .alreadyAdded:
+                isInCalendar = true
+            case .denied:
+                HapticManager.warning()
+                showCalendarDenied = true
+            case .failed:
+                HapticManager.error()
+                showCalendarFailed = true
+            }
+        }
+    }
+
+    private func showCalendarToast(_ text: String) {
+        withAnimation { calendarToast = text }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation { calendarToast = nil }
+        }
+    }
+
+    private func openIphoneSettings() {
+        if let url: URL = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
     }
 
     private func updateStatus(_ status: AppointmentStatus) {

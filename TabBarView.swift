@@ -8,6 +8,9 @@ struct TabBarView: View {
     @StateObject private var notifVM = NotificationsViewModel()
     @State private var showNotifications = false
     @Environment(\.scenePhase) private var scenePhase
+    // Следим за офлайн-режимом, чтобы показать плашку
+    @ObservedObject private var OFFApi = APIClient.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
     enum Tab: String, CaseIterable {
         case schedule = "Расписание"
@@ -37,6 +40,14 @@ struct TabBarView: View {
 
             customTabBar
         }
+        // Плашка офлайна — над контентом, чтобы не закрывать кнопки шапки
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if OFFApi.isOffline {
+                offlineBanner
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(reduceMotion ? nil : DS.springSmooth, value: OFFApi.isOffline)
         .onAppear {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.2)) {
                 tabOpacity = 1.0
@@ -73,6 +84,23 @@ struct TabBarView: View {
         }
     }
     
+    private var offlineBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "wifi.slash")
+                .font(.system(size: 13, weight: .semibold))
+            Text("Нет интернета — показываю сохранённые данные")
+                .font(.system(size: 13))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .foregroundColor(theme.textPrimary)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(theme.backgroundCard, in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 20)
+        .padding(.bottom, 6)
+    }
+
     private var customTabBar: some View {
         HStack(spacing: 0) {
             ForEach(Tab.allCases, id: \.self) { tab in
