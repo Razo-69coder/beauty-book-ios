@@ -355,6 +355,11 @@ final class ClientsViewModel: ObservableObject {
         clients.filter { passesFilter($0, filter: filter) }.count
     }
 
+    /// Клиенты под конкретный фильтр — тот же набор, что и для рассылки
+    func clients(for filter: CLClientFilter) -> [Client] {
+        clients.filter { passesFilter($0, filter: filter) }
+    }
+
     /// Поиск: по имени без учёта регистра или по цифрам телефона
     private func matchesSearch(_ client: Client) -> Bool {
         let query: String = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -815,6 +820,8 @@ struct ClientsListView: View {
     @State private var showImportCSV = false
     @State private var scrollResetToken: Int = 0
     @State private var didRevealList = false
+    // Лист «Рассылка клиенткам»
+    @State private var showBroadcast = false
 
     private let topAnchorId: String = "clTopAnchor"
 
@@ -861,6 +868,13 @@ struct ClientsListView: View {
                 ImportClientsView()
                     .environment(\.theme, theme)
                     .onDisappear { Task { await vm.load() } }
+            }
+            .sheet(isPresented: $showBroadcast) {
+                BCComposeSheet(
+                    allTargets: bcAllTargets,
+                    groups: bcRecipientGroups
+                )
+                .environment(\.theme, theme)
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ClientUpdated"))) { _ in
                 Task { await vm.load() }
@@ -925,12 +939,61 @@ struct ClientsListView: View {
             Spacer(minLength: 8)
             HStack(spacing: 10) {
                 importMenu
+                broadcastButton
                 HeaderBellButton()
             }
         }
         .padding(.horizontal, 20)
         .padding(.top, 12)
         .padding(.bottom, 4)
+    }
+
+    /// Кнопка «Рассылка клиенткам» рядом с колокольчиком
+    private var broadcastButton: some View {
+        Button {
+            HapticManager.light()
+            showBroadcast = true
+        } label: {
+            Image(systemName: "megaphone")
+                .font(.system(size: 18))
+                .foregroundColor(theme.textPrimary)
+                .frame(width: 44, height: 44)
+                .background(theme.backgroundCard, in: Circle())
+                .overlay(
+                    Circle().stroke(theme.borderSubtle, lineWidth: 1)
+                )
+                .contentShape(Circle())
+        }
+        .buttonStyle(CLPressStyle(scale: 0.9))
+        .accessibilityLabel("Рассылка клиенткам")
+    }
+
+    /// Все клиенты для ручного выбора
+    private var bcAllTargets: [BCTarget] {
+        vm.clients.map { client in
+            BCTarget(
+                id: client.id,
+                name: client.name,
+                hasTelegram: client.telegramId != nil
+            )
+        }
+    }
+
+    /// Группы под фильтры — берём те же правила, что у списка
+    private var bcRecipientGroups: [BCRecipientGroup] {
+        let filters: [CLClientFilter] = [.away, .new, .birthday]
+        return filters.map { filter in
+            BCRecipientGroup(
+                filter: filter,
+                targets: vm.clients(for: filter).map { client in
+                    BCTarget(
+                        id: client.id,
+                        name: client.name,
+                        hasTelegram: client.telegramId != nil
+                    )
+                }
+            )
+        }
     }
 
     private var countText: String {

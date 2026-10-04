@@ -329,6 +329,66 @@ struct ServiceCorrectionRequest: Encodable {
     let days: Int?
 }
 
+// MARK: - Свободные окна
+
+/// Один день со свободными окнами
+struct FreeWindowsDay: Decodable, Identifiable, Hashable {
+    let date: String
+    let slots: [String]?
+
+    var id: String { date }
+}
+
+/// Ответ GET /free-windows: окна по дням, ссылка и готовый текст для рассылки
+struct FreeWindowsResponse: Decodable {
+    let days: [FreeWindowsDay]?
+    let bookingUrl: String?
+    let text: String?
+}
+
+// MARK: - Рассылка клиенткам
+
+struct BroadcastPreviewRequest: Encodable {
+    let clientIds: [Int]
+}
+
+struct BroadcastPreviewResponse: Decodable {
+    let selected: Int?
+    let willReceive: Int?
+    let noTelegram: Int?
+    let noConsent: Int?
+    let notAsked: Int?
+}
+
+struct BroadcastSendRequest: Encodable {
+    let clientIds: [Int]
+    let text: String
+}
+
+struct BroadcastSendResponse: Decodable {
+    let ok: Bool?
+    let id: Int?
+    let willReceive: Int?
+}
+
+/// Одна отправленная рассылка
+struct BroadcastRecord: Decodable, Identifiable {
+    let id: Int
+    let createdAt: String?
+    let text: String?
+    let total: Int?
+    let delivered: Int?
+}
+
+struct BroadcastsResponse: Decodable {
+    let broadcasts: [BroadcastRecord]?
+}
+
+struct AskConsentResponse: Decodable {
+    let ok: Bool?
+    let asked: Int?
+}
+
 // MARK: - Notifications
 
 struct AppNotificationAppt: Decodable {

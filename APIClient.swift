@@ -65,6 +65,13 @@ enum Endpoint {
     case updateService(id: Int, ServiceCreateRequest)
     case deleteService(id: Int)
     case setServiceCorrection(id: Int, ServiceCorrectionRequest)
+    // Free windows
+    case freeWindows(dateFrom: String, dateTo: String, duration: Int)
+    // Broadcasts
+    case broadcastPreview(BroadcastPreviewRequest)
+    case sendBroadcast(BroadcastSendRequest)
+    case broadcasts
+    case askBroadcastConsent
 
     case getBookingLink
     case updateBookingLink(String)
@@ -127,6 +134,11 @@ extension Endpoint {
         case .updateService(let id, _): return "/services/\(id)"
         case .deleteService(let id):    return "/services/\(id)"
         case .setServiceCorrection(let id, _): return "/services/\(id)/correction"
+        case .freeWindows:         return "/free-windows"
+        case .broadcastPreview:    return "/broadcasts/preview"
+        case .sendBroadcast:       return "/broadcasts"
+        case .broadcasts:          return "/broadcasts"
+        case .askBroadcastConsent: return "/broadcasts/ask-consent"
         case .getBookingLink:           return "/masters/me/booking-link"
         case .updateBookingLink:        return "/masters/booking-link"
         case .getBlockedDays:            return "/schedule/blocked-days"
@@ -168,6 +180,7 @@ extension Endpoint {
         case .telegramLinkToken: return "GET"
         case .updateAppointmentStatus: return "PATCH"
         case .setServiceCorrection: return "PATCH"
+        case .broadcastPreview, .sendBroadcast, .askBroadcastConsent: return "POST"
         case .importClients: return "POST"
         case .markRead, .markAllRead: return "POST"
         case .notifications, .unreadCount: return "GET"
@@ -198,6 +211,12 @@ extension Endpoint {
         case .schedule(let date): return [URLQueryItem(name: "date", value: date)]
         case .slots(let date):    return [URLQueryItem(name: "date", value: date)]
         case .getNotes(let date): return [URLQueryItem(name: "date", value: date)]
+        case .freeWindows(let dateFrom, let dateTo, let duration):
+            return [
+                URLQueryItem(name: "date_from", value: dateFrom),
+                URLQueryItem(name: "date_to", value: dateTo),
+                URLQueryItem(name: "duration", value: "\(duration)")
+            ]
         case .statsYearly(let year):
             return [URLQueryItem(name: "year", value: "\(year)")]
         default: return nil
@@ -222,6 +241,8 @@ extension Endpoint {
         case .createService(let r):       return try? encoder.encode(r)
         case .updateService(_, let r):    return try? encoder.encode(r)
         case .setServiceCorrection(_, let r): return try? encoder.encode(r)
+        case .broadcastPreview(let r): return try? encoder.encode(r)
+        case .sendBroadcast(let r):    return try? encoder.encode(r)
         case .updateBookingLink(let link): return try? encoder.encode(["link": link])
         case .addBlockedDay(let date): return try? encoder.encode(["date": date])
         case .updateLoyaltySettings(let r): return try? encoder.encode(r)

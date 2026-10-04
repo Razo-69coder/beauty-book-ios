@@ -406,6 +406,8 @@ struct ScheduleView: View {
     @State private var pickerMonth = Date()
     @State private var showFabMenu = false
     @State private var isFabPressed = false
+    // Лист «Поделиться окнами»
+    @State private var showShareWindows = false
     // Тап по половине часа: хранит выбранное время для диалога
     @State private var snTappedTime: String?
     // Заметка, ожидающая подтверждения удаления
@@ -529,6 +531,26 @@ struct ScheduleView: View {
         }
     }
 
+    /// Кнопка «Поделиться окнами» рядом с колокольчиком
+    private var shareWindowsButton: some View {
+        Button {
+            HapticManager.light()
+            showShareWindows = true
+        } label: {
+            Image(systemName: "paperplane")
+                .font(.system(size: 18))
+                .foregroundColor(theme.textPrimary)
+                .frame(width: 44, height: 44)
+                .background(theme.backgroundCard, in: Circle())
+                .overlay(
+                    Circle().stroke(theme.borderSubtle, lineWidth: 1)
+                )
+                .contentShape(Circle())
+        }
+        .buttonStyle(CLPressStyle(scale: 0.9))
+        .accessibilityLabel("Поделиться окнами")
+    }
+
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .top, spacing: 12) {
@@ -557,12 +579,17 @@ struct ScheduleView: View {
                 }
 
                 Spacer(minLength: 8)
+                shareWindowsButton
                 HeaderBellButton()
             }
         }
         .padding(.horizontal, 20)
         .padding(.top, 8)
         .padding(.bottom, 10)
+        .sheet(isPresented: $showShareWindows) {
+            FWShareSheet()
+                .environment(\.theme, theme)
+        }
         .sheet(isPresented: $showMonthPicker) {
             MonthPickerView(
                 selectedDate: $vm.selectedDate,
