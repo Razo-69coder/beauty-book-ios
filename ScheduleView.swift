@@ -279,6 +279,8 @@ final class ScheduleViewModel: ObservableObject {
         dayCounts[requestedDate] = loadedAppointments.count
         notes = loadedNotes
         isLoading = false
+        // Виджет «Сегодня» должен увидеть новую запись сразу
+        Task { await SBWidgetSync.shared.refresh() }
     }
 
     func deleteNote(_ note: PersonalNote) async {

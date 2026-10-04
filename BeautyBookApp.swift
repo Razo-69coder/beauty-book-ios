@@ -242,6 +242,8 @@ struct SplashView: View {
         KeychainManager.shared.deleteToken()
         // Сохранённые офлайн-данные чужих — стираем
         APIClient.shared.OFFClearCache()
+        // Виджет и Live Activity тоже чужие — стираем
+        Task { await SBWidgetSync.shared.clear() }
         currentMaster = nil
         withAnimation(DS.springSmooth) { isAuthenticated = false }
     }

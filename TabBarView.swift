@@ -57,6 +57,8 @@ struct TabBarView: View {
             BeautyPushRegistrar.requestPermission()
             await BeautyPushRegistrar.sendSavedTokenIfNeeded()
             await notifVM.refreshUnread()
+            // Виджет и Live Activity при появлении — сразу свежие
+            await SBWidgetSync.shared.refresh(force: true)
         }
         .overlay(alignment: .topLeading) {
             FeedbackButton()
@@ -69,6 +71,7 @@ struct TabBarView: View {
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 Task { await notifVM.refreshUnread() }
+                Task { await SBWidgetSync.shared.refresh() }
             }
         }
         .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
