@@ -1258,6 +1258,11 @@ struct AppointmentBlock: View {
         return StrokeStyle(lineWidth: 1)
     }
 
+    /// Отметка о подтверждении из напоминания в Telegram
+    private var showsClientConfirmed: Bool {
+        appointment.clientConfirmed == true && appointment.status != .cancelled
+    }
+
     var body: some View {
         Button(action: onOpen) {
             ZStack(alignment: .leading) {
@@ -1279,6 +1284,13 @@ struct AppointmentBlock: View {
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundColor(theme.textPrimary)
                                 .lineLimit(1)
+
+                            if showsClientConfirmed {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(theme.statusGreen)
+                                    .accessibilityLabel("Клиентка подтвердила")
+                            }
 
                             if appointment.status == .noShow {
                                 statusBadge(text: "не пришла", color: theme.statusRed)
@@ -1394,6 +1406,17 @@ struct AppointmentDetailSheet: View {
         appointment.status != .completed && appointment.status != .cancelled && appointment.status != .noShow
     }
 
+    /// Строка подтверждения нужна только для будущих неотменённых записей
+    private var showsConfirmationRow: Bool {
+        guard appointment.status != .cancelled else { return false }
+        guard let start: Date = appointmentStartDate(appointment) else { return false }
+        return start > Date()
+    }
+
+    private var isClientConfirmed: Bool {
+        appointment.clientConfirmed == true
+    }
+
     var body: some View {
         NavigationView {
             ScrollView {
@@ -1421,6 +1444,10 @@ struct AppointmentDetailSheet: View {
                             action: confirmPending
                         )
                         .environment(\.theme, theme)
+                    }
+
+                    if showsConfirmationRow {
+                        confirmationCard
                     }
 
                     detailsCard
@@ -1519,6 +1546,23 @@ struct AppointmentDetailSheet: View {
         }
         .background(theme.backgroundInput)
         .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+
+    /// Подтверждение записи из напоминания в Telegram
+    private var confirmationCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(isClientConfirmed ? "✅ Клиентка подтвердила запись" : "Клиентка ещё не подтвердила")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(isClientConfirmed ? theme.statusGreen : theme.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Подтверждение приходит из напоминания в Telegram")
+                .font(.system(size: 12))
+                .foregroundColor(theme.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.backgroundInput, in: RoundedRectangle(cornerRadius: 16))
     }
 
     private var actionButtons: some View {

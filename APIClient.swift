@@ -64,6 +64,7 @@ enum Endpoint {
     case createService(ServiceCreateRequest)
     case updateService(id: Int, ServiceCreateRequest)
     case deleteService(id: Int)
+    case setServiceCorrection(id: Int, ServiceCorrectionRequest)
 
     case getBookingLink
     case updateBookingLink(String)
@@ -125,6 +126,7 @@ extension Endpoint {
         case .createService:            return "/services"
         case .updateService(let id, _): return "/services/\(id)"
         case .deleteService(let id):    return "/services/\(id)"
+        case .setServiceCorrection(let id, _): return "/services/\(id)/correction"
         case .getBookingLink:           return "/masters/me/booking-link"
         case .updateBookingLink:        return "/masters/booking-link"
         case .getBlockedDays:            return "/schedule/blocked-days"
@@ -165,6 +167,7 @@ extension Endpoint {
         case .deleteNote:       return "DELETE"
         case .telegramLinkToken: return "GET"
         case .updateAppointmentStatus: return "PATCH"
+        case .setServiceCorrection: return "PATCH"
         case .importClients: return "POST"
         case .markRead, .markAllRead: return "POST"
         case .notifications, .unreadCount: return "GET"
@@ -218,6 +221,7 @@ extension Endpoint {
         case .updateAppointment(_, let r): return try? encoder.encode(r)
         case .createService(let r):       return try? encoder.encode(r)
         case .updateService(_, let r):    return try? encoder.encode(r)
+        case .setServiceCorrection(_, let r): return try? encoder.encode(r)
         case .updateBookingLink(let link): return try? encoder.encode(["link": link])
         case .addBlockedDay(let date): return try? encoder.encode(["date": date])
         case .updateLoyaltySettings(let r): return try? encoder.encode(r)

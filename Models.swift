@@ -208,6 +208,8 @@ struct Appointment: Decodable, Identifiable {
     let clientPhone: String?
     let serviceDoneAt: String?
     var duration: Int?
+    /// Клиентка нажала «Подтверждаю» в напоминании в Telegram
+    var clientConfirmed: Bool? = nil
 }
 
 enum AppointmentStatus: String, Decodable, CaseIterable {
@@ -305,6 +307,10 @@ struct Service: Decodable, Identifiable, Hashable {
     let priceDefault: Int
     let durationMin: Int
     var category: String = "Основные"
+    /// Срок «позвать снова», заданный для услуги; nil — срок по умолчанию
+    var correctionDays: Int? = nil
+    /// Срок, который реально применяется (с учётом настроек мастера)
+    var correctionDaysEffective: Int? = nil
 }
 
 struct ServicesResponse: Decodable {
@@ -316,6 +322,11 @@ struct ServiceCreateRequest: Encodable {
     let priceDefault: Int
     let durationMin: Int
     let category: String
+}
+
+/// Запрос срока «позвать снова». Без days сервер вернёт срок по умолчанию.
+struct ServiceCorrectionRequest: Encodable {
+    let days: Int?
 }
 
 // MARK: - Notifications

@@ -66,6 +66,43 @@ enum SVDuration {
     }
 }
 
+// MARK: - Сроки «позвать снова»
+
+enum SVCorrection {
+    /// Срок по умолчанию — сервер подставит его сам
+    static let defaultDays: Int = 21
+
+    static let options: [Int] = [0, 14, 18, 21, 28, 30, 35, 42, 60]
+
+    /// «Выкл», «2 нед», «18 дн», «3 нед», «2 мес»
+    static func label(_ days: Int) -> String {
+        switch days {
+        case 0:  return "Выкл"
+        case 14: return "2 нед"
+        case 21: return "3 нед"
+        case 28: return "4 нед"
+        case 35: return "5 нед"
+        case 42: return "6 нед"
+        case 60: return "2 мес"
+        default: return "\(days) дн"
+        }
+    }
+
+    /// Если текущий срок не в списке — добавляем его по возрастанию
+    static func options(including current: Int) -> [Int] {
+        guard !Self.options.contains(current) else { return Self.options }
+        return (Self.options + [current]).sorted()
+    }
+}
+
+// MARK: - Результат сохранения услуги
+
+/// Услуга сохранилась, а срок «позвать снова» — нет: показываем мягкое сообщение
+struct SVSaveResult {
+    let isSaved: Bool
+    let isCorrectionSaved: Bool
+}
+
 // MARK: - Группа услуг одной категории
 
 struct SVServiceGroup: Identifiable {
@@ -309,12 +346,13 @@ struct ServicesView: View {
                     isMonthCountLoaded: vm.isMonthCountsLoaded,
                     suggestedCategory: vm.suggestedCategory,
                     prefilledName: vm.sheetPrefill,
-                    onSave: { name, price, duration, category in
+                    onSave: { name, price, duration, category, correctionDays in
                         await vm.saveSheet(
                             name: name,
                             price: price,
                             duration: duration,
-                            category: category
+                            category: category,
+                            correctionDays: correctionDays
                         )
                     },
                     onDelete: {
@@ -639,7 +677,7 @@ struct SVServiceSheet: View {
     let service: Service?
     let monthCount: Int
     let isMonthCountLoaded: Bool
-    let onSave: (String, Int, Int, String) async -> Bool
+    let onSave: (String, Int, Int, String, Int) async -> SVSaveResult
     let onDelete: () async -> Bool
 
     @Environment(\.theme) private var theme
@@ -651,12 +689,14 @@ struct SVServiceSheet: View {
     @State private var priceText: String = ""
     @State private var isEditingPrice = false
     @State private var duration: Int
+    @State private var correctionDays: Int
     @State private var category: String
     @State private var nameIsValid: Bool = true
     @State private var nameShake: CGFloat = 0
     @State private var isSaving: Bool = false
     @State private var isDeleting: Bool = false
     @State private var errorMessage: String? = nil
+    @State private var correctionWarning: String? = nil
     @State private var deleteArmed: Bool = false
     @State private var deleteBounce: CGFloat = 0
 
@@ -672,7 +712,7 @@ struct SVServiceSheet: View {
         isMonthCountLoaded: Bool,
         suggestedCategory: String,
         prefilledName: String,
-        onSave: @escaping (String, Int, Int, String) async -> Bool,
+        onSave: @escaping (String, Int, Int, String, Int) async -> SVSaveResult,
         onDelete: @escaping () async -> Bool
     ) {
         self.service = service
@@ -683,6 +723,7 @@ struct SVServiceSheet: View {
         _name = State(initialValue: service?.name ?? prefilledName)
         _price = State(initialValue: service?.priceDefault ?? 1500)
         _duration = State(initialValue: service?.durationMin ?? 60)
+        _correctionDays = State(initialValue: service?.correctionDaysEffective ?? SVCorrection.defaultDays)
         _category = State(initialValue: service?.category ?? suggestedCategory)
     }
 
@@ -724,6 +765,7 @@ struct SVServiceSheet: View {
         items.append(AnyView(nameField))
         items.append(AnyView(priceSection))
         items.append(AnyView(durationSection))
+        items.append(AnyView(correctionSection))
         items.append(AnyView(categorySection))
         items.append(AnyView(actionButtons))
         return items
@@ -940,6 +982,49 @@ struct SVServiceSheet: View {
         }
     }
 
+    // MARK: - Позвать снова через
+
+    private var correctionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                sectionLabel("Позвать снова через")
+                Text("Клиентке придёт напоминание записаться снова. Если она уже записалась — не придёт")
+                    .font(.system(size: 12))
+                    .foregroundColor(theme.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 92, maximum: 200), spacing: 8)],
+                spacing: 8
+            ) {
+                ForEach(SVCorrection.options(including: correctionDays), id: \.self) { days in
+                    SVPill(
+                        title: SVCorrection.label(days),
+                        isSelected: days == correctionDays,
+                        theme: theme
+                    ) {
+                        selectCorrection(days)
+                    }
+                }
+            }
+            if let correctionWarning = correctionWarning {
+                Text(correctionWarning)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(theme.statusRed)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func selectCorrection(_ days: Int) {
+        guard correctionDays != days else { return }
+        HapticManager.selection()
+        withAnimation(DS.springSnappy) {
+            correctionDays = days
+        }
+        correctionWarning = nil
+    }
+
     // MARK: - Категория
 
     private var categorySection: some View {
@@ -1045,12 +1130,19 @@ struct SVServiceSheet: View {
 
         isSaving = true
         errorMessage = nil
+        correctionWarning = nil
         Task {
-            let ok: Bool = await onSave(trimmed, price, duration, category)
+            let result: SVSaveResult = await onSave(trimmed, price, duration, category, correctionDays)
             isSaving = false
-            guard ok else {
+            guard result.isSaved else {
                 errorMessage = "Не удалось сохранить. Проверьте связь и попробуйте ещё раз."
                 HapticManager.error()
+                return
+            }
+            guard result.isCorrectionSaved else {
+                // Услуга сохранена, срок нет — сообщаем и оставляем шторку открытой
+                correctionWarning = "Срок не сохранился, попробуйте ещё раз"
+                HapticManager.warning()
                 return
             }
             HapticManager.success()
@@ -1290,26 +1382,27 @@ final class ServicesViewModel: ObservableObject {
     }
 
     /// Сохранение из шторки: редактирование или создание — в зависимости от открытой услуги
-    func saveSheet(name: String, price: Int, duration: Int, category: String) async -> Bool {
+    func saveSheet(name: String, price: Int, duration: Int, category: String, correctionDays: Int) async -> SVSaveResult {
         await save(
             editing: editingService,
             name: name,
             price: price,
             duration: duration,
-            category: category
+            category: category,
+            correctionDays: correctionDays
         )
     }
 
-    func save(editing service: Service?, name: String, price: Int, duration: Int, category: String) async -> Bool {
-        let ok: Bool
+    func save(editing service: Service?, name: String, price: Int, duration: Int, category: String, correctionDays: Int) async -> SVSaveResult {
+        let result: SVSaveResult
         if let service = service {
-            ok = await updateService(service, name: name, price: price, duration: duration, category: category)
+            result = await updateService(service, name: name, price: price, duration: duration, category: category, correctionDays: correctionDays)
         } else {
-            ok = await addService(name: name, price: price, duration: duration, category: category)
+            result = await addService(name: name, price: price, duration: duration, category: category, correctionDays: correctionDays)
         }
-        guard ok else { return false }
+        guard result.isSaved else { return result }
         resetFiltersAndFocus(name: name)
-        return true
+        return result
     }
 
     /// После сохранения — показываем все категории, очищаем поиск и подсвечиваем услугу
@@ -1322,27 +1415,35 @@ final class ServicesViewModel: ObservableObject {
         }
     }
 
-    func addService(name: String, price: Int, duration: Int, category: String) async -> Bool {
+    func addService(name: String, price: Int, duration: Int, category: String, correctionDays: Int) async -> SVSaveResult {
         let request = ServiceCreateRequest(
             name: name,
             priceDefault: price,
             durationMin: duration,
             category: category
         )
+        var created: Service?
         do {
-            let _ = try await api.request(.createService(request), as: Service.self)
-            await loadServices()
-            return true
+            created = try await api.request(.createService(request), as: Service.self)
         } catch NetworkError.decodingError(_) {
-            // Запрос прошёл, но ответ не декодировался — всё равно считаем успехом
-            await loadServices()
-            return true
+            // Запрос прошёл, но ответ не декодировался — услугу считаем созданной
+            created = nil
         } catch {
-            return false
+            return SVSaveResult(isSaved: false, isCorrectionSaved: false)
         }
+        await loadServices()
+        // Новой услуге срок отправляем, только если выбран не тот, что по умолчанию
+        guard correctionDays != SVCorrection.defaultDays else {
+            return SVSaveResult(isSaved: true, isCorrectionSaved: true)
+        }
+        guard let serviceId: Int = created?.id ?? services.first(where: { $0.name == name })?.id else {
+            return SVSaveResult(isSaved: true, isCorrectionSaved: false)
+        }
+        let isCorrectionSaved: Bool = await saveCorrection(id: serviceId, days: correctionDays)
+        return SVSaveResult(isSaved: true, isCorrectionSaved: isCorrectionSaved)
     }
 
-    func updateService(_ service: Service, name: String, price: Int, duration: Int, category: String) async -> Bool {
+    func updateService(_ service: Service, name: String, price: Int, duration: Int, category: String, correctionDays: Int) async -> SVSaveResult {
         let request = ServiceCreateRequest(
             name: name,
             priceDefault: price,
@@ -1351,18 +1452,41 @@ final class ServicesViewModel: ObservableObject {
         )
         do {
             let _ = try await api.request(.updateService(id: service.id, request), as: MessageResponse.self)
-            if let index: Int = services.firstIndex(where: { $0.id == service.id }) {
-                services[index] = Service(
-                    id: service.id,
-                    name: name,
-                    priceDefault: price,
-                    durationMin: duration,
-                    category: category
-                )
-                total = services.count
-            }
+        } catch {
+            return SVSaveResult(isSaved: false, isCorrectionSaved: false)
+        }
+        // Срок отправляем, только если он поменялся
+        let previousDays: Int = service.correctionDaysEffective ?? SVCorrection.defaultDays
+        let isCorrectionChanged: Bool = correctionDays != previousDays
+        var isCorrectionSaved: Bool = true
+        if isCorrectionChanged {
+            isCorrectionSaved = await saveCorrection(id: service.id, days: correctionDays)
+            // Перезагружаем список, чтобы подтянуть актуальный срок с сервера
+            await loadServices()
+        } else if let index: Int = services.firstIndex(where: { $0.id == service.id }) {
+            services[index] = Service(
+                id: service.id,
+                name: name,
+                priceDefault: price,
+                durationMin: duration,
+                category: category,
+                correctionDays: service.correctionDays,
+                correctionDaysEffective: previousDays
+            )
+            total = services.count
+        }
+        return SVSaveResult(isSaved: true, isCorrectionSaved: isCorrectionSaved)
+    }
+
+    /// Отправляет срок «позвать снова». Ошибка не ломает сохранение услуги
+    private func saveCorrection(id: Int, days: Int) async -> Bool {
+        let safeDays: Int = min(max(days, 0), 365)
+        let request = ServiceCorrectionRequest(days: safeDays)
+        do {
+            let _ = try await api.request(.setServiceCorrection(id: id, request), as: MessageResponse.self)
             return true
         } catch {
+            print("Не удалось сохранить срок услуги \(id): \(error.localizedDescription)")
             return false
         }
     }
