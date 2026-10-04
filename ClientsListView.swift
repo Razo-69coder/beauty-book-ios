@@ -252,6 +252,9 @@ func clTelegramConnectLink(phone: String) -> String? {
     let normalized: String
     if digits.count == 11, digits.hasPrefix("8") {
         normalized = "7" + String(digits.dropFirst())
+    } else if digits.count == 11, digits.hasPrefix("7") {
+        // на сервере телефоны хранятся как +7XXXXXXXXXX
+        normalized = digits
     } else if digits.count == 10 {
         normalized = "7" + digits
     } else {
