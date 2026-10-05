@@ -49,6 +49,10 @@ enum Endpoint {
     case createClient(ClientCreateRequest)
     case updateClient(id: Int, ClientUpdateRequest)
     case deleteClient(id: Int)
+    // Похожие карточки и объединение дублей
+    case similarClients
+    case mergeClients(keepId: Int, SCMergeRequest)
+    case dismissSimilar(SCDismissRequest)
     // Appointments
     case appointments(date: String?, status: String?)
     case appointmentDetail(id: Int)
@@ -134,6 +138,9 @@ extension Endpoint {
         case .createClient:             return "/clients"
         case .updateClient(let id, _):  return "/clients/\(id)"
         case .deleteClient(let id):     return "/clients/\(id)"
+        case .similarClients:             return "/clients/similar"
+        case .mergeClients(let keepId, _): return "/clients/\(keepId)/merge"
+        case .dismissSimilar:             return "/clients/similar/dismiss"
         case .appointments:             return "/appointments"
         case .appointmentDetail(let id): return "/appointments/\(id)"
         case .createAppointment:        return "/appointments"
@@ -241,6 +248,8 @@ extension Endpoint {
         case .clientPasses: return "GET"
         case .walletSettings, .clientWalletLink: return "GET"
         case .updateWalletSettings: return "PUT"
+        case .similarClients: return "GET"
+        case .mergeClients, .dismissSimilar: return "POST"
         default:
             return "GET"
         }
@@ -318,6 +327,10 @@ extension Endpoint {
         case .createPass(_, let r):
             return try? encoder.encode(r)
         case .updateWalletSettings(let r):
+            return try? encoder.encode(r)
+        case .mergeClients(_, let r):
+            return try? encoder.encode(r)
+        case .dismissSimilar(let r):
             return try? encoder.encode(r)
         default: return nil
         }
@@ -671,5 +684,25 @@ extension APIClient {
     /// Ссылка на карту конкретной клиентки — её и отправляем в «Поделиться»
     func clientWalletLink(clientId: Int) async throws -> WSLinkResponse {
         return try await request(.clientWalletLink(clientId: clientId), as: WSLinkResponse.self)
+    }
+}
+
+// MARK: - Похожие карточки
+
+extension APIClient {
+    /// Группы карточек, которые могут быть одной клиенткой
+    func similarClients() async throws -> [SCGroup] {
+        let resp: SCGroupsResponse = try await request(.similarClients, as: SCGroupsResponse.self)
+        return resp.groups
+    }
+
+    /// Переносит визиты в карточку keepId и удаляет остальные. Отменить нельзя.
+    func mergeClients(keepId: Int, _ payload: SCMergeRequest) async throws -> MessageResponse {
+        return try await request(.mergeClients(keepId: keepId, payload), as: MessageResponse.self)
+    }
+
+    /// «Это разные люди» — сервер больше не присылает эту группу
+    func dismissSimilar(_ payload: SCDismissRequest) async throws -> MessageResponse {
+        return try await request(.dismissSimilar(payload), as: MessageResponse.self)
     }
 }

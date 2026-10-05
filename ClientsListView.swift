@@ -329,6 +329,8 @@ final class ClientsViewModel: ObservableObject {
     @Published var discountLabel = "10%"
     @Published var scrollTargetId: Int? = nil
     @Published var highlightId: Int? = nil
+    /// Группы похожих карточек: подсказка про дубли, ошибка загрузки не мешает списку
+    @Published var similarGroups: [SCGroup] = []
 
     var name: String {
         get { prefillName }
@@ -414,6 +416,8 @@ final class ClientsViewModel: ObservableObject {
 
         // Профиль мастера нужен для скидок — грузим параллельно со списком
         async let profileTask: MasterProfile? = try? await api.request(.me, as: MasterProfile.self)
+        // Похожие карточки — тоже отдельным запросом, результат ждём в конце
+        async let similarTask: [SCGroup]? = try? await api.request(.similarClients, as: SCGroupsResponse.self).groups
 
         var collected: [Client] = []
         var seenIds: Set<Int> = []
@@ -444,6 +448,9 @@ final class ClientsViewModel: ObservableObject {
             }
             discountLabel = CLListFormat.discountLabel(me)
         }
+
+        // Дубли — необязательная подсказка: если запрос не прошёл, просто не показываем
+        similarGroups = await similarTask ?? []
 
         if filter == .soon && !loyaltyEnabled { filter = .all }
         isLoading = false
@@ -822,6 +829,8 @@ struct ClientsListView: View {
     @State private var didRevealList = false
     // Лист «Рассылка клиенткам»
     @State private var showBroadcast = false
+    // Лист «Похожие карточки»
+    @State private var showSimilar = false
 
     private let topAnchorId: String = "clTopAnchor"
 
@@ -876,6 +885,11 @@ struct ClientsListView: View {
                 )
                 .environment(\.theme, theme)
             }
+            .sheet(isPresented: $showSimilar) {
+                SCSimilarSheet(vm: vm)
+                    .environment(\.theme, theme)
+                    .onDisappear { Task { await vm.load() } }
+            }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ClientUpdated"))) { _ in
                 Task { await vm.load() }
             }
@@ -893,6 +907,9 @@ struct ClientsListView: View {
                     filtersRow
                     if vm.filter == .noTelegram, !vm.filteredClients.isEmpty {
                         noTelegramBanner
+                    }
+                    if !vm.similarGroups.isEmpty {
+                        similarBanner
                     }
                     listContent
                 }
@@ -1120,6 +1137,49 @@ struct ClientsListView: View {
         .background(theme.backgroundCard, in: RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal, 20)
         .padding(.bottom, 10)
+    }
+
+    // MARK: - Плашка «Похожие карточки»
+
+    private var similarBanner: some View {
+        Button {
+            HapticManager.light()
+            showSimilar = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "person.2.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(theme.accent)
+                    .frame(width: 44, height: 44)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Похожие карточки: \(vm.similarGroups.count)")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(theme.textPrimary)
+                    Text("Возможно, это одни и те же клиентки")
+                        .font(.system(size: 12))
+                        .foregroundColor(theme.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(theme.textMuted)
+            }
+            .padding(.leading, 12)
+            .padding(.trailing, 14)
+            .padding(.vertical, 6)
+            .frame(minHeight: 56)
+            .background(theme.backgroundCard, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(theme.borderSubtle, lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(CLPressStyle(scale: 0.98))
+        .padding(.horizontal, 20)
+        .padding(.bottom, 10)
+        .accessibilityLabel("Похожие карточки: \(vm.similarGroups.count). Открыть список дублей")
     }
 
     // MARK: - Список

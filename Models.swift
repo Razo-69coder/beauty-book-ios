@@ -190,6 +190,44 @@ struct ClientUpdateRequest: Encodable {
     let allergies: String
 }
 
+// MARK: - Похожие карточки
+
+/// Клиентка внутри группы похожих карточек
+struct SCClient: Decodable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let phone: String?
+    let hasTelegram: Bool?
+    let visits: Int?
+    let lastVisit: String?
+    /// Номер-заглушка: ненастоящий, его не стоит оставлять
+    let placeholderPhone: Bool?
+}
+
+/// Группа карточек, которые могут оказаться одной клиенткой
+struct SCGroup: Decodable, Identifiable, Hashable {
+    let reason: String
+    /// Карточка, которую сервер советует оставить
+    let suggestedKeepId: Int
+    let clients: [SCClient]
+    var id: Int { suggestedKeepId }
+}
+
+struct SCGroupsResponse: Decodable {
+    let groups: [SCGroup]
+}
+
+/// Объединение: какие карточки удалить и какой номер оставить
+struct SCMergeRequest: Encodable {
+    let otherIds: [Int]
+    let phone: String?
+}
+
+/// «Это разные люди» — больше не показываем группу
+struct SCDismissRequest: Encodable {
+    let ids: [Int]
+}
+
 // MARK: - Appointments
 
 struct Appointment: Decodable, Identifiable {
