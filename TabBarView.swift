@@ -10,7 +10,11 @@ struct TabBarView: View {
     @Environment(\.scenePhase) private var scenePhase
     // Следим за офлайн-режимом, чтобы показать плашку
     @ObservedObject private var OFFApi = APIClient.shared
+    // Реальное состояние сети: показывает плашку даже до первого запроса
+    @ObservedObject private var NMMonitor = NMNetworkMonitor.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // Сеть вернулась — один раз обновляем данные
+    @State private var wasOffline: Bool = false
     
     enum Tab: String, CaseIterable {
         case schedule = "Расписание"
@@ -40,18 +44,26 @@ struct TabBarView: View {
 
             customTabBar
         }
-        // Плашка офлайна — над контентом, чтобы не закрывать кнопки шапки
-        .safeAreaInset(edge: .top, spacing: 0) {
-            if OFFApi.isOffline {
-                offlineBanner
-                    .transition(.move(edge: .top).combined(with: .opacity))
+        // Плашка офлайна — поверх контента, под статус-баром, чтобы её не перекрыли экраны
+        .overlay(alignment: .top) {
+            if showOfflineBanner {
+                GeometryReader { geo in
+                    offlineBanner
+                        .padding(.top, geo.safeAreaInsets.top + 4)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                }
+                // Плашка ничего не принимает по нажатию — контент под ней остаётся кликабельным
+                .allowsHitTesting(false)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .animation(reduceMotion ? nil : DS.springSmooth, value: OFFApi.isOffline)
+        .animation(reduceMotion ? nil : DS.springSmooth, value: showOfflineBanner)
         .onAppear {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.2)) {
                 tabOpacity = 1.0
             }
+            // Запоминаем стартовое состояние, чтобы поймать момент возврата сети
+            wasOffline = showOfflineBanner
         }
         .task {
             BeautyPushRegistrar.requestPermission()
@@ -74,6 +86,13 @@ struct TabBarView: View {
                 Task { await SBWidgetSync.shared.refresh() }
             }
         }
+        .onChange(of: NMMonitor.isConnected) { _, isConnected in
+            if !isConnected {
+                wasOffline = true
+            } else {
+                handleConnectionRestored()
+            }
+        }
         .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
             Task { await notifVM.refreshUnread() }
         }
@@ -87,6 +106,20 @@ struct TabBarView: View {
         }
     }
     
+    /// Плашка нужна, если сети нет по монитору или запросы уже падали с офлайн-ошибкой
+    private var showOfflineBanner: Bool {
+        !NMMonitor.isConnected || OFFApi.isOffline
+    }
+
+    /// Сеть только что вернулась — обновляем данные один раз
+    private func handleConnectionRestored() {
+        guard wasOffline, NMMonitor.isConnected else { return }
+        wasOffline = false
+        Task { await notifVM.refreshUnread() }
+        Task { await SBWidgetSync.shared.refresh() }
+        NotificationCenter.default.post(name: NSNotification.Name("ClientUpdated"), object: nil)
+    }
+
     private var offlineBanner: some View {
         HStack(spacing: 8) {
             Image(systemName: "wifi.slash")

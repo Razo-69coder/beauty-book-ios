@@ -26,8 +26,30 @@ final class AuthViewModel: ObservableObject {
     var onSuccess: ((MasterProfile, String) -> Void)?
     private let api = APIClient.shared
 
+    /// В поле входа можно email или телефон — сервер понимает оба
+    var loginIdentifierValid: Bool {
+        let trimmed = loginEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.contains("@") { return true }
+        return loginIdentifierDigits.count >= 10
+    }
+
+    /// Только цифры из поля входа, без форматирования
+    private var loginIdentifierDigits: String {
+        loginEmail.filter { $0.isNumber }
+    }
+
+    /// Телефон приводим к +7XXXXXXXXXX: 8→7, 10 цифр → «7» в начале
+    private var loginPhoneNormalized: String {
+        var digits: String = String(loginIdentifierDigits.prefix(11))
+        if digits.hasPrefix("8"), digits.count > 1 { digits = "7" + digits.dropFirst() }
+        if digits.hasPrefix("9") { digits = "7" + digits }
+        if digits.count == 10 { digits = "7" + digits }
+        if !digits.hasPrefix("7") { digits = "7" + digits }
+        return "+" + String(digits.prefix(11))
+    }
+
     var loginValid: Bool {
-        loginEmail.trimmingCharacters(in: .whitespaces).contains("@") &&
+        loginIdentifierValid &&
         loginPassword.trimmingCharacters(in: .whitespaces).count >= 6 &&
         !isLoading
     }
@@ -60,15 +82,17 @@ final class AuthViewModel: ObservableObject {
     }
 
     func login() async {
-        let trimmedEmail = loginEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        let identifier = loginEmail.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedPassword = loginPassword.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmedEmail.contains("@") && trimmedPassword.count >= 6 && !isLoading else { return }
+        guard loginIdentifierValid && trimmedPassword.count >= 6 && !isLoading else { return }
+        // Без «@» считаем, что введен телефон, и приводим к виду +7XXXXXXXXXX
+        let login: String = identifier.contains("@") ? identifier.lowercased() : loginPhoneNormalized
         isLoading = true; errorMessage = nil
         do {
-            let resp = try await api.request(.login(LoginRequest(email: trimmedEmail, password: trimmedPassword)), as: AuthTokenResponse.self)
+            let resp = try await api.request(.login(LoginRequest(email: login, password: trimmedPassword)), as: AuthTokenResponse.self)
             onSuccess?(resp.master, resp.token)
         } catch let e as NetworkError { errorMessage = e.errorDescription
-        } catch { errorMessage = "Ошибка входа. Проверь данные." }
+        } catch { errorMessage = "Неверный email, телефон или пароль" }
         isLoading = false
     }
 

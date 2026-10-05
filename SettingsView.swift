@@ -1896,6 +1896,8 @@ struct SettingsView: View {
     @State private var showOnboarding = false
     @State private var showReminderTemplates = false
     @State private var isPushEnabled = false
+    @State private var isDeletingAccount = false
+    @State private var deleteAccountError: String? = nil
 
     var body: some View {
         Color.clear
@@ -1917,6 +1919,15 @@ struct SettingsView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
                     .padding(.bottom, 120)
+                }
+                // Отдельный alert на вложенном view: на одном view срабатывает только последний .alert
+                .alert("Не получилось удалить аккаунт", isPresented: Binding(
+                    get: { deleteAccountError != nil },
+                    set: { if !$0 { deleteAccountError = nil } }
+                )) {
+                    Button("Понятно", role: .cancel) { deleteAccountError = nil }
+                } message: {
+                    Text(deleteAccountError ?? "")
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -2155,18 +2166,26 @@ struct SettingsView: View {
 
     private var footer: some View {
         VStack(spacing: 14) {
-            Button {
-                HapticManager.light()
-                showDeleteAccountAlert = true
-            } label: {
-                Text("Удалить аккаунт")
-                    .font(DS.bodySmall)
-                    .foregroundColor(theme.statusRed.opacity(0.8))
+            if isDeletingAccount {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: theme.textMuted))
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
-                    .contentShape(Rectangle())
+            } else {
+                Button {
+                    HapticManager.light()
+                    deleteAccountError = nil
+                    showDeleteAccountAlert = true
+                } label: {
+                    Text("Удалить аккаунт")
+                        .font(DS.bodySmall)
+                        .foregroundColor(theme.statusRed.opacity(0.8))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
             Text(vm.versionText)
                 .font(.system(size: 12))
                 .foregroundColor(theme.textMuted)
@@ -2194,17 +2213,18 @@ struct SettingsView: View {
     }
 
     private func deleteAccount() async {
-        guard let token = KeychainManager.shared.getToken(),
-              let url = URL(string: "https://beauty-bot-44ou.onrender.com/api/v1/masters/me") else { return }
-        var req = URLRequest(url: url)
-        req.httpMethod = "DELETE"
-        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        guard !isDeletingAccount else { return }
+        isDeletingAccount = true
+        deleteAccountError = nil
+        defer { isDeletingAccount = false }
         do {
-            let (_, response) = try await URLSession.shared.data(for: req)
-            if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
-                await MainActor.run { appState.logout() }
-            }
-        } catch {}
+            try await APIClient.shared.deleteAccount()
+            await MainActor.run { appState.logout() }
+        } catch {
+            HapticManager.error()
+            // Текст от сервера, а если его нет — общее сообщение
+            deleteAccountError = bcErrorText(error)
+        }
     }
 }
 

@@ -43,6 +43,7 @@ enum Endpoint {
     case updatePayment(PaymentRequest)
     case updateProfile(ProfileUpdateRequest)
     case stats
+    case deleteAccount
     // Clients
     case clients(page: Int, search: String)
     case clientDetail(id: Int)
@@ -133,6 +134,7 @@ extension Endpoint {
         case .updatePayment:            return "/masters/me/payment"
         case .updateProfile:            return "/profile"
         case .stats:                    return "/masters/me/stats"
+        case .deleteAccount:             return "/masters/me"
         case .clients:                  return "/clients"
         case .clientDetail(let id):     return "/clients/\(id)"
         case .createClient:             return "/clients"
@@ -228,9 +230,9 @@ extension Endpoint {
             return "POST"
         case .updateSettings, .updatePayment, .updateProfile, .updateClient, .updateBookingLink, .updateLoyaltySettings, .updateAppointment, .updateService:
             return "PUT"
-        case .deleteClient, .cancelAppointment, .deleteService:
-            return "DELETE"
-        case .addBlockedDay:   return "POST"
+case .deleteClient, .cancelAppointment, .deleteService, .deleteAccount:
+              return "DELETE"
+          case .addBlockedDay:   return "POST"
         case .mergeDuplicates: return "POST"
         case .removeBlockedDay: return "DELETE"
         case .createNote:       return "POST"
@@ -398,7 +400,7 @@ final class APIClient: ObservableObject {
                 // Не залогинен ещё — 401 здесь значит "неверный email/пароль",
                 // а не "токен истёк". Показываем реальное сообщение сервера.
                 let body = try? JSONDecoder().decode([String: String].self, from: data)
-                let msg = body?["detail"] ?? "Неверный email или пароль"
+                let msg = body?["detail"] ?? "Неверный email, телефон или пароль"
                 throw NetworkError.serverError(http.statusCode, msg)
             default:
                 NotificationCenter.default.post(name: .tokenExpired, object: nil)
@@ -458,7 +460,8 @@ extension APIClient {
 private func OFFIsOffline(_ code: URLError.Code) -> Bool {
     switch code {
     case .notConnectedToInternet, .networkConnectionLost, .timedOut,
-         .cannotConnectToHost, .cannotFindHost:
+         .cannotConnectToHost, .cannotFindHost,
+         .dataNotAllowed, .internationalRoamingOff:
         return true
     default:
         return false
@@ -690,6 +693,11 @@ extension APIClient {
 // MARK: - Похожие карточки
 
 extension APIClient {
+    /// Удаляет аккаунт мастера вместе с клиентами и записями
+    func deleteAccount() async throws {
+        let _: MessageResponse = try await request(.deleteAccount, as: MessageResponse.self)
+    }
+
     /// Группы карточек, которые могут быть одной клиенткой
     func similarClients() async throws -> [SCGroup] {
         let resp: SCGroupsResponse = try await request(.similarClients, as: SCGroupsResponse.self)

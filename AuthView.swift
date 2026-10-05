@@ -94,7 +94,7 @@ struct LoginForm: View {
                 Text("Войди в свой аккаунт").font(DS.body).foregroundColor(theme.textSecondary)
             }.padding(.bottom, 4)
 
-            BBTextField(placeholder: "Email", text: $vm.loginEmail, keyboardType: .emailAddress, contentType: .emailAddress)
+            BBTextField(placeholder: "Email или телефон", text: $vm.loginEmail, keyboardType: .default, contentType: .username)
                 .environment(\.theme, theme)
             BBTextField(placeholder: "Пароль", text: $vm.loginPassword, isSecure: true, showPasswordToggle: true)
                 .environment(\.theme, theme)

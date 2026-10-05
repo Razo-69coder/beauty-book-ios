@@ -375,7 +375,7 @@ struct WSWalletSettingsView: View {
     private var rulesBlock: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Text("ПРАВИЛА НА ОБОРОТЕ КАРТЫ")
+                Text("ПРАВИЛА МАСТЕРА")
                     .font(DS.labelSmall.weight(.bold))
                     .tracking(0.8)
                     .foregroundColor(theme.textSecondary)
@@ -388,6 +388,10 @@ struct WSWalletSettingsView: View {
                 placeholder: "Например: отменить или перенести можно не позже чем за 12 часов",
                 text: rulesBinding
             )
+            Text("Клиентка увидит их в Wallet: ⋯ → Данные карты")
+                .font(.system(size: 12))
+                .foregroundColor(theme.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -593,7 +597,7 @@ struct WSPassPreview: View {
                 fieldRow(label: "ПОСЛЕДНИЙ ВИЗИТ", value: "12 сен")
                 fieldRow(label: "УСЛУГА", value: "Маникюр с покрытием")
             }
-            Text("Нажмите ⓘ → «Записаться»")
+            Text("⋯ → Данные карты → «Записаться»")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundColor(labelColor)
                 .padding(.top, 2)
