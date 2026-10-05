@@ -17,6 +17,7 @@ struct AuthView: View {
                     Group {
                         switch vm.screen {
                         case .login:          LoginForm(vm: vm)
+                        case .register:       RegisterForm(vm: vm)
                         case .forgotPassword: ForgotForm(vm: vm)
                         }
                     }
@@ -107,7 +108,93 @@ struct LoginForm: View {
             Button("Забыл пароль?") { vm.switchTo(.forgotPassword) }
                 .font(DS.body).foregroundColor(theme.accent)
 
+            Button("Нет аккаунта? Зарегистрироваться") { vm.switchTo(.register) }
+                .font(DS.body).foregroundColor(theme.accent)
+                .frame(minHeight: 44)
+
         }
+    }
+}
+
+// MARK: - Register Form
+
+/// Создание аккаунта мастера внутри приложения
+struct RegisterForm: View {
+    @ObservedObject var vm: AuthViewModel
+    @Environment(\.theme) private var theme
+
+    /// Адрес документа: без force unwrap, на случай неверной ссылки открываем пустое
+    private let privacyURL = URL(string: "https://solvobeauty.vercel.app/privacy.html") ?? URL(fileURLWithPath: "/")
+
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 8) {
+                Text("Регистрация").font(DS.titleSmall).foregroundColor(theme.textPrimary)
+                Text("Создай аккаунт мастера — это бесплатно").font(DS.body).foregroundColor(theme.textSecondary)
+                    .multilineTextAlignment(.center)
+            }.padding(.bottom, 4)
+
+            BBTextField(placeholder: "Имя", text: $vm.regName, contentType: .name)
+                .environment(\.theme, theme)
+            BBTextField(placeholder: "Email", text: $vm.regEmail, keyboardType: .emailAddress, contentType: .emailAddress)
+                .environment(\.theme, theme)
+            BBTextField(placeholder: "Телефон", text: phoneBinding, keyboardType: .phonePad, contentType: .telephoneNumber)
+                .environment(\.theme, theme)
+            BBTextField(placeholder: "Пароль", text: $vm.regPassword, isSecure: true, contentType: .newPassword, showPasswordToggle: true)
+                .environment(\.theme, theme)
+
+            agreeRow
+
+            if let err = vm.errorMessage { BBErrorBanner(message: err).environment(\.theme, theme) }
+
+            BBPrimaryButton(title: "Зарегистрироваться", isLoading: vm.isLoading, isDisabled: !vm.registerValid) {
+                Task { await vm.register() }
+            }.environment(\.theme, theme)
+
+            Button("Уже есть аккаунт? Войти") { vm.switchTo(.login) }
+                .font(DS.body).foregroundColor(theme.accent)
+                .frame(minHeight: 44)
+        }
+    }
+
+    /// Галочка согласия с политикой конфиденциальности
+    private var agreeRow: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Button(action: { vm.regAgree.toggle() }) {
+                Image(systemName: vm.regAgree ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 22))
+                    .foregroundColor(vm.regAgree ? theme.accent : theme.textMuted)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Согласие с политикой конфиденциальности")
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Согласна с политикой конфиденциальности")
+                    .font(DS.caption)
+                    .foregroundColor(theme.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Link(destination: privacyURL) {
+                    Text("Открыть документ")
+                        .font(DS.labelSmall)
+                        .foregroundColor(theme.accent)
+                        .frame(minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// Телефон форматируется по ходу ввода: +7 XXX XXX-XX-XX
+    private var phoneBinding: Binding<String> {
+        Binding(
+            get: { vm.regPhone },
+            set: { vm.regPhone = formatRussianPhone($0) }
+        )
     }
 }
 
